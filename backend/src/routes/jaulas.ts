@@ -1,5 +1,5 @@
 import express from "express"
-import { authenticateToken } from "../middleware/auth"
+import { authenticateToken, requireRole } from "../middleware/auth"
 import {
   getAllJaulas,
   getJaulaById,
@@ -13,13 +13,20 @@ import {
 
 const router = express.Router()
 
-router.get("/", authenticateToken, getAllJaulas)
-router.get("/stats/overview", authenticateToken, getJaulasStats)
-router.get("/estanque/:id_estanque", authenticateToken, getJaulasByEstanque)
-router.get("/:id", authenticateToken, getJaulaById)
-router.post("/", authenticateToken, createJaula)
-router.post("/:id/hygiene", authenticateToken, addHygieneService)
-router.put("/:id", authenticateToken, updateJaula)
-router.delete("/:id", authenticateToken, deleteJaula)
+// Admin y Operador pueden leer
+router.get("/", authenticateToken, requireRole(["admin", "operador"]), getAllJaulas)
+router.get("/stats/overview", authenticateToken, requireRole(["admin", "operador"]), getJaulasStats)
+router.get("/estanque/:id_estanque", authenticateToken, requireRole(["admin", "operador"]), getJaulasByEstanque)
+router.get("/:id", authenticateToken, requireRole(["admin", "operador"]), getJaulaById)
+
+// Admin y Operador pueden crear
+router.post("/", authenticateToken, requireRole(["admin", "operador"]), createJaula)
+router.post("/:id/hygiene", authenticateToken, requireRole(["admin", "operador"]), addHygieneService)
+
+// Admin y Operador pueden actualizar
+router.put("/:id", authenticateToken, requireRole(["admin", "operador"]), updateJaula)
+
+// Solo Admin puede eliminar
+router.delete("/:id", authenticateToken, requireRole(["admin"]), deleteJaula)
 
 export default router

@@ -1,5 +1,5 @@
 import express from "express"
-import { authenticateToken } from "../middleware/auth"
+import { authenticateToken, requireRole } from "../middleware/auth"
 import {
   getAllIncubaciones,
   getIncubacionById,
@@ -13,13 +13,25 @@ import {
 
 const router = express.Router()
 
-router.get("/", authenticateToken, getAllIncubaciones)
-router.get("/stats/overview", authenticateToken, getIncubacionStats)
-router.get("/estado/activo", authenticateToken, getActiveIncubaciones)
-router.get("/incubadora/:id_incubadora", authenticateToken, getIncubacionesByIncubadora)
-router.get("/:id", authenticateToken, getIncubacionById)
-router.post("/", authenticateToken, createIncubacion)
-router.put("/:id", authenticateToken, updateIncubacion)
-router.delete("/:id", authenticateToken, deleteIncubacion)
+// Admin y Operador pueden leer
+router.get("/", authenticateToken, requireRole(["admin", "operador"]), getAllIncubaciones)
+router.get("/stats/overview", authenticateToken, requireRole(["admin", "operador"]), getIncubacionStats)
+router.get("/estado/activo", authenticateToken, requireRole(["admin", "operador"]), getActiveIncubaciones)
+router.get(
+  "/incubadora/:id_incubadora",
+  authenticateToken,
+  requireRole(["admin", "operador"]),
+  getIncubacionesByIncubadora,
+)
+router.get("/:id", authenticateToken, requireRole(["admin", "operador"]), getIncubacionById)
+
+// Admin y Operador pueden crear
+router.post("/", authenticateToken, requireRole(["admin", "operador"]), createIncubacion)
+
+// Admin y Operador pueden actualizar
+router.put("/:id", authenticateToken, requireRole(["admin", "operador"]), updateIncubacion)
+
+// Solo Admin puede eliminar
+router.delete("/:id", authenticateToken, requireRole(["admin"]), deleteIncubacion)
 
 export default router

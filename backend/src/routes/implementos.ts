@@ -1,5 +1,5 @@
 import express from "express"
-import { authenticateToken } from "../middleware/auth"
+import { authenticateToken, requireRole } from "../middleware/auth"
 import {
   getAllImplementos,
   getImplementoById,
@@ -13,13 +13,20 @@ import {
 
 const router = express.Router()
 
-router.get("/", authenticateToken, getAllImplementos)
-router.get("/stats/overview", authenticateToken, getImplementosStats)
-router.get("/search/:query", authenticateToken, searchImplementos)
-router.get("/compra/:id_compras", authenticateToken, getImplementosByCompra)
-router.get("/:id", authenticateToken, getImplementoById)
-router.post("/", authenticateToken, createImplemento)
-router.put("/:id", authenticateToken, updateImplemento)
-router.delete("/:id", authenticateToken, deleteImplemento)
+// Admin y Operador pueden leer
+router.get("/", authenticateToken, requireRole(["admin", "operador"]), getAllImplementos)
+router.get("/stats/overview", authenticateToken, requireRole(["admin", "operador"]), getImplementosStats)
+router.get("/search/:query", authenticateToken, requireRole(["admin", "operador"]), searchImplementos)
+router.get("/compra/:id_compras", authenticateToken, requireRole(["admin", "operador"]), getImplementosByCompra)
+router.get("/:id", authenticateToken, requireRole(["admin", "operador"]), getImplementoById)
+
+// Admin y Operador pueden crear
+router.post("/", authenticateToken, requireRole(["admin", "operador"]), createImplemento)
+
+// Admin y Operador pueden actualizar
+router.put("/:id", authenticateToken, requireRole(["admin", "operador"]), updateImplemento)
+
+// Solo Admin puede eliminar
+router.delete("/:id", authenticateToken, requireRole(["admin"]), deleteImplemento)
 
 export default router

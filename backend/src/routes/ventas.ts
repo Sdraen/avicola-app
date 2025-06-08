@@ -1,5 +1,5 @@
 import express from "express"
-import { authenticateToken } from "../middleware/auth"
+import { authenticateToken, requireRole } from "../middleware/auth"
 import {
   getAllVentas,
   getVentaById,
@@ -12,12 +12,19 @@ import {
 
 const router = express.Router()
 
-router.get("/", authenticateToken, getAllVentas)
-router.get("/stats/overview", authenticateToken, getVentasStats)
-router.get("/fecha/:start/:end", authenticateToken, getVentasByDateRange)
-router.get("/:id", authenticateToken, getVentaById)
-router.post("/", authenticateToken, createVenta)
-router.put("/:id", authenticateToken, updateVenta)
-router.delete("/:id", authenticateToken, deleteVenta)
+// Admin y Operador pueden leer
+router.get("/", authenticateToken, requireRole(["admin", "operador"]), getAllVentas)
+router.get("/stats/overview", authenticateToken, requireRole(["admin", "operador"]), getVentasStats)
+router.get("/fecha/:start/:end", authenticateToken, requireRole(["admin", "operador"]), getVentasByDateRange)
+router.get("/:id", authenticateToken, requireRole(["admin", "operador"]), getVentaById)
+
+// Admin y Operador pueden crear
+router.post("/", authenticateToken, requireRole(["admin", "operador"]), createVenta)
+
+// Admin y Operador pueden actualizar
+router.put("/:id", authenticateToken, requireRole(["admin", "operador"]), updateVenta)
+
+// Solo Admin puede eliminar
+router.delete("/:id", authenticateToken, requireRole(["admin"]), deleteVenta)
 
 export default router
