@@ -1,105 +1,81 @@
-export interface VentaValidationRules {
-  id_cliente: {
-    required: true
-    type: "number"
-    min: 1
+import { BaseValidator, type ValidationRule } from "./baseValidation"
+import { VALIDATION_LIMITS, VALIDATION_PATTERNS } from "./constants"
+
+export const ventaValidationRules: ValidationRule[] = [
+  {
+    field: "id_cliente",
+    required: true,
+    type: "number",
+    min: 1,
+  },
+  {
+    field: "codigo_barras",
+    required: true,
+    type: "number",
+    min: 1,
+    custom: (value) => {
+      if (!VALIDATION_PATTERNS.CODIGO_BARRAS.test(value.toString())) {
+        return "codigo_barras debe tener entre 8 y 13 dígitos"
+      }
+      return null
+    },
+  },
+  {
+    field: "costo_total",
+    required: true,
+    type: "number",
+    min: 0.01,
+    max: VALIDATION_LIMITS.PRECIO_MAX,
+    custom: (value) => {
+      if (typeof value === "number" && value > 10000) {
+        return "costo_total parece muy alto, verificar"
+      }
+      // Check for more than 2 decimal places
+      if (typeof value === "number" && (value * 100) % 1 !== 0) {
+        return "costo_total no puede tener más de 2 decimales"
+      }
+      return null
+    },
+  },
+  {
+    field: "cantidad_total",
+    required: true,
+    type: "number",
+    min: 1,
+    max: VALIDATION_LIMITS.CANTIDAD_MAX,
+  },
+  {
+    field: "fecha_venta",
+    required: false,
+    type: "date",
+    custom: (value) => {
+      if (value && new Date(value) > new Date()) {
+        return "fecha_venta no puede ser futura"
+      }
+      return null
+    },
+  },
+]
+
+export const validateVenta = (data: any) => {
+  const baseValidation = BaseValidator.validate(data, ventaValidationRules)
+
+  // Business logic validation: price per unit should be reasonable
+  if (baseValidation.isValid && data.costo_total && data.cantidad_total) {
+    const precioUnitario = data.costo_total / data.cantidad_total
+    if (precioUnitario < 0.1) {
+      baseValidation.errors.push("El precio por unidad es muy bajo (menos de $0.10)")
+      baseValidation.isValid = false
+    }
   }
-  codigo_barras: {
-    required: true
-    type: "number"
-    min: 1
-  }
-  cantidad_total: {
-    required: true
-    type: "number"
-    min: 1
-    max: 1000
-  }
-  costo_total: {
-    required: true
-    type: "number"
-    min: 0.01
-  }
-  fecha_venta: {
-    type: "string"
-    pattern: RegExp
-  }
-  descuento: {
-    type: "number"
-    min: 0
-    max: 50
-  }
+
+  return baseValidation
 }
 
-// Patrones de validación
-export const FECHA_VENTA_PATTERN = /^\d{4}-\d{2}-\d{2}$/
-
-// Función de validación para ventas
-export const validateVentaData = (data: any): { isValid: boolean; errors: string[] } => {
-  const errors: string[] = []
-
-  // Validar id_cliente
-  if (!data.id_cliente) {
-    errors.push("id_cliente es requerido")
-  } else if (typeof data.id_cliente !== "number" || data.id_cliente < 1) {
-    errors.push("id_cliente debe ser un número mayor a 0")
-  }
-
-  // Validar codigo_barras
-  if (!data.codigo_barras) {
-    errors.push("codigo_barras es requerido")
-  } else if (typeof data.codigo_barras !== "number" || data.codigo_barras < 1) {
-    errors.push("codigo_barras debe ser un número mayor a 0")
-  }
-
-  // Validar cantidad_total
-  if (!data.cantidad_total) {
-    errors.push("cantidad_total es requerida")
-  } else if (typeof data.cantidad_total !== "number" || data.cantidad_total < 1 || data.cantidad_total > 1000) {
-    errors.push("cantidad_total debe estar entre 1 y 1000")
-  }
-
-  // Validar costo_total
-  if (!data.costo_total) {
-    errors.push("costo_total es requerido")
-  } else if (typeof data.costo_total !== "number" || data.costo_total < 0.01) {
-    errors.push("costo_total debe ser mayor a 0.01")
-  }
-
-  // Validar fecha_venta (opcional)
-  if (data.fecha_venta) {
-    if (typeof data.fecha_venta !== "string") {
-      errors.push("fecha_venta debe ser texto")
-    } else if (!FECHA_VENTA_PATTERN.test(data.fecha_venta)) {
-      errors.push("fecha_venta debe tener formato YYYY-MM-DD")
-    } else {
-      const fecha = new Date(data.fecha_venta)
-      const hoy = new Date()
-      if (fecha > hoy) {
-        errors.push("fecha_venta no puede ser futura")
-      }
-    }
-  }
-
-  // Validar descuento (opcional)
-  if (data.descuento !== undefined) {
-    if (typeof data.descuento !== "number") {
-      errors.push("descuento debe ser un número")
-    } else if (data.descuento < 0 || data.descuento > 50) {
-      errors.push("descuento debe estar entre 0 y 50%")
-    }
-  }
-
-  // Validar precio razonable
-  if (data.cantidad_total && data.costo_total) {
-    const precioUnitario = data.costo_total / data.cantidad_total
-    if (precioUnitario < 0.5 || precioUnitario > 10.0) {
-      errors.push("El precio unitario debe estar entre $0.50 y $10.00")
-    }
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-  }
+export const validateVentaUpdate = (data: any) => {
+  const updateRules = ventaValidationRules.map((rule) => ({
+    ...rule,
+    required: false,
+  }))
+  return validateVenta(data)
 }

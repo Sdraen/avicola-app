@@ -16,10 +16,13 @@ import implementosRoutes from "./routes/implementos"
 import medicamentosRoutes from "./routes/medicamentos"
 import vacunasRoutes from "./routes/vacunas"
 import comprasRoutes from "./routes/compras"
+import razasRoutes from "./routes/razas"
+import registroHuevosRoutes from "./routes/registroHuevos"
 
 // Import middleware
 import { errorLogger, errorResponder, invalidPathHandler } from "./middleware/errorHandler"
 import { sanitizeInput } from "./middleware/validator"
+import logger from "./utils/logger"
 
 dotenv.config()
 
@@ -52,13 +55,24 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }))
 // Global middleware
 app.use(sanitizeInput)
 
+// Request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now()
+  res.on("finish", () => {
+    const responseTime = Date.now() - start
+    logger.logRequest(req, res, responseTime)
+  })
+  next()
+})
+
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "ok",
-    message: "Poultry Farm API is running",
+    message: "🐔 Sistema Avícola IECI API funcionando correctamente",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
+    version: "1.0.0",
   })
 })
 
@@ -74,6 +88,32 @@ app.use("/api/implementos", implementosRoutes)
 app.use("/api/medicamentos", medicamentosRoutes)
 app.use("/api/vacunas", vacunasRoutes)
 app.use("/api/compras", comprasRoutes)
+app.use("/api/razas", razasRoutes)
+app.use("/api/registro-huevos", registroHuevosRoutes)
+
+// Root endpoint
+app.get("/", (req, res) => {
+  res.json({
+    message: "🐔 API del Sistema Avícola IECI",
+    version: "1.0.0",
+    documentation: "/health",
+    endpoints: {
+      auth: "/api/auth",
+      aves: "/api/aves",
+      clientes: "/api/clientes",
+      compras: "/api/compras",
+      huevos: "/api/huevos",
+      implementos: "/api/implementos",
+      incubacion: "/api/incubacion",
+      jaulas: "/api/jaulas",
+      medicamentos: "/api/medicamentos",
+      razas: "/api/razas",
+      "registro-huevos": "/api/registro-huevos",
+      vacunas: "/api/vacunas",
+      ventas: "/api/ventas",
+    },
+  })
+})
 
 // Error handling middleware
 app.use(errorLogger)
@@ -81,10 +121,32 @@ app.use(errorResponder)
 app.use(invalidPathHandler)
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`)
-  console.log(`📊 Health check: http://localhost:${PORT}/health`)
-  console.log(`🔗 API base URL: http://localhost:${PORT}/api`)
+const startServer = () => {
+  try {
+    app.listen(PORT, () => {
+      logger.info(`🚀 Servidor iniciado en puerto ${PORT}`)
+      logger.info(`📊 Health check: http://localhost:${PORT}/health`)
+      logger.info(`🔗 API base URL: http://localhost:${PORT}/api`)
+      logger.info(`🌍 Entorno: ${process.env.NODE_ENV || "development"}`)
+    })
+  } catch (error) {
+    logger.error("❌ Error al iniciar el servidor:", error)
+    process.exit(1)
+  }
+}
+
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  logger.info("SIGTERM received, shutting down gracefully")
+  process.exit(0)
 })
+
+process.on("SIGINT", () => {
+  logger.info("SIGINT received, shutting down gracefully")
+  process.exit(0)
+})
+
+// Start the application
+startServer()
 
 export default app

@@ -1,90 +1,73 @@
-export interface MedicamentoValidationRules {
-  nombre: {
-    required: true
-    type: "string"
-    minLength: 3
-    maxLength: 100
-  }
-  dosis: {
-    required: true
-    type: "string"
-    pattern: RegExp
-  }
-  tipo: {
-    type: "string"
-    enum: string[]
-  }
-  fecha_vencimiento: {
-    type: "string"
-    pattern: RegExp
-  }
-  lote: {
-    type: "string"
-    pattern: RegExp
-  }
+import { BaseValidator, type ValidationRule } from "./baseValidation"
+import { VALIDATION_LIMITS } from "./constants"
+
+export const medicamentoValidationRules: ValidationRule[] = [
+  {
+    field: "nombre",
+    required: true,
+    type: "string",
+    minLength: VALIDATION_LIMITS.NOMBRE_MIN,
+    maxLength: VALIDATION_LIMITS.NOMBRE_MAX,
+  },
+  {
+    field: "dosis",
+    required: false,
+    type: "string",
+    maxLength: 100,
+  },
+]
+
+export const validateMedicamento = (data: any) => {
+  return BaseValidator.validate(data, medicamentoValidationRules)
 }
 
-// Patrones de validación
-export const DOSIS_PATTERN = /^\d+(\.\d+)?\s*(mg|ml|g|l|cc|UI)(\s*\/\s*(kg|ave|día))?$/i
-export const FECHA_VENCIMIENTO_PATTERN = /^\d{4}-\d{2}-\d{2}$/
-export const LOTE_PATTERN = /^[A-Z0-9-]+$/
+export const validateMedicamentoUpdate = (data: any) => {
+  const updateRules = medicamentoValidationRules.map((rule) => ({
+    ...rule,
+    required: false,
+  }))
+  return BaseValidator.validate(data, updateRules)
+}
 
-// Enums válidos
-export const TIPOS_MEDICAMENTO = ["antibiótico", "vitamina", "antiparasitario", "antiinflamatorio", "probiótico"]
-
-// Función de validación para medicamentos
-export const validateMedicamentoData = (data: any): { isValid: boolean; errors: string[] } => {
-  const errors: string[] = []
-
-  // Validar nombre
-  if (!data.nombre) {
-    errors.push("nombre es requerido")
-  } else if (typeof data.nombre !== "string") {
-    errors.push("nombre debe ser texto")
-  } else if (data.nombre.length < 3 || data.nombre.length > 100) {
-    errors.push("nombre debe tener entre 3 y 100 caracteres")
-  }
-
-  // Validar dosis
-  if (!data.dosis) {
-    errors.push("dosis es requerida")
-  } else if (typeof data.dosis !== "string") {
-    errors.push("dosis debe ser texto")
-  } else if (!DOSIS_PATTERN.test(data.dosis)) {
-    errors.push("dosis debe tener formato válido (ej: 5mg/kg, 10ml/ave)")
-  }
-
-  // Validar tipo (opcional)
-  if (data.tipo && !TIPOS_MEDICAMENTO.includes(data.tipo)) {
-    errors.push(`tipo debe ser uno de: ${TIPOS_MEDICAMENTO.join(", ")}`)
-  }
-
-  // Validar fecha_vencimiento (opcional)
-  if (data.fecha_vencimiento) {
-    if (typeof data.fecha_vencimiento !== "string") {
-      errors.push("fecha_vencimiento debe ser texto")
-    } else if (!FECHA_VENCIMIENTO_PATTERN.test(data.fecha_vencimiento)) {
-      errors.push("fecha_vencimiento debe tener formato YYYY-MM-DD")
-    } else {
-      const fechaVencimiento = new Date(data.fecha_vencimiento)
-      const hoy = new Date()
-      if (fechaVencimiento <= hoy) {
-        errors.push("fecha_vencimiento debe ser futura")
+// Validation for medication application
+export const aplicacionMedicamentoValidationRules: ValidationRule[] = [
+  {
+    field: "id_medicamento",
+    required: true,
+    type: "number",
+    min: 1,
+  },
+  {
+    field: "id_estanque",
+    required: true,
+    type: "number",
+    min: 1,
+  },
+  {
+    field: "fecha_administracion",
+    required: false,
+    type: "date",
+    custom: (value) => {
+      if (value && new Date(value) > new Date()) {
+        return "fecha_administracion no puede ser futura"
       }
-    }
-  }
+      return null
+    },
+  },
+  {
+    field: "dosis_aplicada",
+    required: false,
+    type: "string",
+    maxLength: 50,
+  },
+  {
+    field: "motivo",
+    required: false,
+    type: "string",
+    maxLength: VALIDATION_LIMITS.DESCRIPCION_MAX,
+  },
+]
 
-  // Validar lote (opcional)
-  if (data.lote) {
-    if (typeof data.lote !== "string") {
-      errors.push("lote debe ser texto")
-    } else if (!LOTE_PATTERN.test(data.lote)) {
-      errors.push("lote debe contener solo letras mayúsculas, números y guiones")
-    }
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-  }
+export const validateAplicacionMedicamento = (data: any) => {
+  return BaseValidator.validate(data, aplicacionMedicamentoValidationRules)
 }

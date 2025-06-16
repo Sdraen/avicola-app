@@ -1,27 +1,14 @@
 import { BaseValidator, type ValidationRule } from "./baseValidation"
 import { VALIDATION_LIMITS } from "./constants"
 
-export const huevoValidationRules: ValidationRule[] = [
-  {
-    field: "id_jaula",
-    required: true,
-    type: "number",
-    min: 1,
-  },
+export const registroHuevoValidationRules: ValidationRule[] = [
   {
     field: "fecha_recoleccion",
     required: true,
     type: "date",
     custom: (value) => {
-      const today = new Date()
-      const inputDate = new Date(value)
-      const diffDays = Math.ceil((today.getTime() - inputDate.getTime()) / (1000 * 3600 * 24))
-
-      if (diffDays > 7) {
-        return "fecha_recoleccion no puede ser mayor a 7 días en el pasado"
-      }
-      if (diffDays < -1) {
-        return "fecha_recoleccion no puede ser en el futuro"
+      if (value && new Date(value) > new Date()) {
+        return "fecha_recoleccion no puede ser futura"
       }
       return null
     },
@@ -31,7 +18,7 @@ export const huevoValidationRules: ValidationRule[] = [
     required: true,
     type: "number",
     min: 1,
-    max: VALIDATION_LIMITS.HUEVOS_POR_JAULA_MAX,
+    max: 1000, // Max eggs per day for entire farm
   },
   {
     field: "huevos_cafe_chico",
@@ -89,8 +76,8 @@ export const huevoValidationRules: ValidationRule[] = [
   },
 ]
 
-export const validateHuevo = (data: any) => {
-  const baseValidation = BaseValidator.validate(data, huevoValidationRules)
+export const validateRegistroHuevo = (data: any) => {
+  const baseValidation = BaseValidator.validate(data, registroHuevoValidationRules)
 
   // Additional validation: sum of classified eggs should not exceed total
   if (baseValidation.isValid) {
@@ -113,12 +100,4 @@ export const validateHuevo = (data: any) => {
   }
 
   return baseValidation
-}
-
-export const validateHuevoUpdate = (data: any) => {
-  const updateRules = huevoValidationRules.map((rule) => ({
-    ...rule,
-    required: false,
-  }))
-  return validateHuevo(data) // Use the same logic for updates
 }

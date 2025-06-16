@@ -25,16 +25,23 @@ export class AdvancedValidator {
     return error?.code === "PGRST116" // No existe = único
   }
 
-  // ✅ Validar registro único por fecha
-  static async validateFechaUnica(fecha: string, excludeId?: number): Promise<boolean> {
-    let query = supabase.from("registro_huevos_diario").select("id").eq("fecha_recoleccion", fecha)
+  // ✅ Validar registro único por jaula y fecha
+  static async validateJaulaFechaUnica(id_jaula: number, fecha: string, excludeId?: number): Promise<boolean> {
+    let query = supabase.from("huevo").select("id_huevo").eq("id_jaula", id_jaula).eq("fecha_recoleccion", fecha)
 
     if (excludeId) {
-      query = query.neq("id", excludeId)
+      query = query.neq("id_huevo", excludeId)
     }
 
     const { data, error } = await query.single()
     return error?.code === "PGRST116"
+  }
+
+  // ✅ Validar que la jaula existe y está activa
+  static async validateJaulaExists(id_jaula: number): Promise<boolean> {
+    const { data, error } = await supabase.from("jaula").select("id_jaula").eq("id_jaula", id_jaula).single()
+
+    return !error && !!data
   }
 
   static async validateBusinessRules(entity: string, data: any): Promise<{ isValid: boolean; errors: string[] }> {
@@ -65,28 +72,34 @@ export class AdvancedValidator {
         }
         break
 
-      case "registro_huevos":
-        // ✅ Máximo 1000 huevos por día
-        if (data.cantidad_total > 1000) {
-          errors.push("Máximo 1000 huevos por día permitidos")
+      case "huevo":
+        // ✅ Validar que la jaula existe
+        const jaulaExiste = await this.validateJaulaExists(data.id_jaula)
+        if (!jaulaExiste) {
+          errors.push("La jaula especificada no existe")
         }
 
-        // ✅ Solo un registro por fecha
-        const fechaUnica = await this.validateFechaUnica(data.fecha_recoleccion, data.id)
-        if (!fechaUnica) {
-          errors.push("Ya existe un registro para esta fecha")
+        // ✅ Máximo 500 huevos por jaula por día
+        if (data.cantidad_total > 500) {
+          errors.push("Máximo 500 huevos por jaula por día permitidos")
+        }
+
+        // ✅ Solo un registro por jaula por fecha
+        const jaulaFechaUnica = await this.validateJaulaFechaUnica(data.id_jaula, data.fecha_recoleccion, data.id_huevo)
+        if (!jaulaFechaUnica) {
+          errors.push("Ya existe un registro para esta jaula en esta fecha")
         }
 
         // ✅ Suma de clasificación no debe exceder total
         const totalClasificado =
-          (data.huevos_cafe_chico || 0) +
-          (data.huevos_cafe_mediano || 0) +
-          (data.huevos_cafe_grande || 0) +
-          (data.huevos_cafe_jumbo || 0) +
-          (data.huevos_blanco_chico || 0) +
-          (data.huevos_blanco_mediano || 0) +
-          (data.huevos_blanco_grande || 0) +
-          (data.huevos_blanco_jumbo || 0)
+          (data.huevos_cafe_chico ?? 0) +
+          (data.huevos_cafe_mediano ?? 0) +
+          (data.huevos_cafe_grande ?? 0) +
+          (data.huevos_cafe_jumbo ?? 0) +
+          (data.huevos_blanco_chico ?? 0) +
+          (data.huevos_blanco_mediano ?? 0) +
+          (data.huevos_blanco_grande ?? 0) +
+          (data.huevos_blanco_jumbo ?? 0)
 
         if (totalClasificado > data.cantidad_total) {
           errors.push(

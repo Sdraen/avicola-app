@@ -1,8 +1,17 @@
 import type { Request, Response } from "express"
 import { supabase } from "../config/supabase"
+import { validateUsuarioRegistro, validateUsuarioLogin } from "../schemas/authSchema"
+import { sendValidationError } from "../utils/responseHelper"
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
+    // ✅ VALIDAR DATOS DE REGISTRO
+    const validation = validateUsuarioRegistro(req.body)
+    if (!validation.isValid) {
+      sendValidationError(res, validation.errors)
+      return
+    }
+
     const { email, password, nombre, rol = "operador" } = req.body
 
     if (!email || !password || !nombre) {
@@ -106,6 +115,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
+    // ✅ VALIDAR DATOS DE LOGIN
+    const validation = validateUsuarioLogin(req.body)
+    if (!validation.isValid) {
+      sendValidationError(res, validation.errors)
+      return
+    }
+
     const { email, password } = req.body
 
     if (!email || !password) {
