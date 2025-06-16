@@ -1,0 +1,171 @@
+import type { Request, Response } from "express"
+import { supabase } from "../config/supabase"
+
+export const getAllAves = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase.from("ave").select(`
+        *,
+        jaula:jaula(*)
+      `)
+
+    if (error) {
+      res.status(400).json({ error: error.message })
+      return
+    }
+
+    res.status(200).json(data)
+  } catch (error) {
+    console.error("Error fetching birds:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+export const getAveById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+    const { data, error } = await supabase
+      .from("ave")
+      .select(`
+        *,
+        jaula:jaula(*),
+        huevo:huevo(*)
+      `)
+      .eq("id_ave", id)
+      .single()
+
+    if (error) {
+      res.status(400).json({ error: error.message })
+      return
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Bird not found" })
+      return
+    }
+
+    res.status(200).json(data)
+  } catch (error) {
+    console.error("Error fetching bird:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+export const createAve = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id_jaula, color_anillo, edad, estado_puesta, raza } = req.body
+
+    if (!id_jaula || !color_anillo || !edad || !estado_puesta || !raza) {
+      res.status(400).json({ error: "All fields are required" })
+      return
+    }
+
+    const { data, error } = await supabase
+      .from("ave")
+      .insert([
+        {
+          id_jaula,
+          color_anillo,
+          edad,
+          estado_puesta,
+          raza,
+          fecha_registro: new Date().toISOString().split("T")[0],
+        },
+      ])
+      .select()
+      .single()
+
+    if (error) {
+      res.status(400).json({ error: error.message })
+      return
+    }
+
+    res.status(201).json(data)
+  } catch (error) {
+    console.error("Error creating bird:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+export const updateAve = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+    const updates = req.body
+
+    const { data, error } = await supabase.from("ave").update(updates).eq("id_ave", id).select().single()
+
+    if (error) {
+      res.status(400).json({ error: error.message })
+      return
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Bird not found" })
+      return
+    }
+
+    res.status(200).json(data)
+  } catch (error) {
+    console.error("Error updating bird:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+export const deleteAve = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+
+    const { error } = await supabase.from("ave").delete().eq("id_ave", id)
+
+    if (error) {
+      res.status(400).json({ error: error.message })
+      return
+    }
+
+    res.status(200).json({ message: "Bird deleted successfully" })
+  } catch (error) {
+    console.error("Error deleting bird:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+export const getAvesByJaula = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id_jaula } = req.params
+    const { data, error } = await supabase.from("ave").select("*").eq("id_jaula", id_jaula)
+
+    if (error) {
+      res.status(400).json({ error: error.message })
+      return
+    }
+
+    res.status(200).json(data)
+  } catch (error) {
+    console.error("Error fetching birds by cage:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+export const getAvesStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { count: totalBirds } = await supabase.from("ave").select("*", { count: "exact", head: true })
+
+    const { data: layingStats } = await supabase.from("ave").select("estado_puesta").neq("estado_puesta", null)
+    const { data: breedStats } = await supabase.from("ave").select("raza").neq("raza", null)
+
+    const currentMonth = new Date().toISOString().slice(0, 7)
+    const { count: deceasedThisMonth } = await supabase
+      .from("aves_fallecidas")
+      .select("*", { count: "exact", head: true })
+      .gte("fecha", `${currentMonth}-01`)
+
+    res.status(200).json({
+      totalBirds: totalBirds || 0,
+      deceasedThisMonth: deceasedThisMonth || 0,
+      layingStats: layingStats || [],
+      breedStats: breedStats || [],
+    })
+  } catch (error) {
+    console.error("Error fetching bird statistics:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
