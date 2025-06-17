@@ -4,6 +4,16 @@ import helmet from "helmet"
 import rateLimit from "express-rate-limit"
 import dotenv from "dotenv"
 
+// Cargar variables de entorno PRIMERO
+dotenv.config()
+
+// Verificar que las variables se cargaron
+console.log("🔍 Environment variables check:")
+console.log("PORT:", process.env.PORT)
+console.log("NODE_ENV:", process.env.NODE_ENV)
+console.log("JWT_SECRET length:", process.env.JWT_SECRET?.length || 0)
+console.log("SUPABASE_URL:", process.env.SUPABASE_URL ? "✅ Set" : "❌ Missing")
+
 // Import routes
 import authRoutes from "./routes/auth"
 import avesRoutes from "./routes/aves"
@@ -24,8 +34,6 @@ import { errorLogger, errorResponder, invalidPathHandler } from "./middleware/er
 import { requestLogger } from "./middleware/requestLogger"
 import logger from "./utils/logger"
 
-dotenv.config()
-
 const app = express()
 const PORT = process.env.PORT || 5000
 
@@ -40,11 +48,18 @@ const limiter = rateLimit({
 })
 app.use(limiter)
 
-// CORS configuration
+// CORS configuration - PERMITIR AMBOS PUERTOS
 app.use(
   cors({
-    origin: "http://localhost:5173" ,
+    origin: [
+      "http://localhost:3000", // React dev server
+      "http://localhost:5173", // Vite dev server
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:5173",
+    ],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 )
 
@@ -63,6 +78,7 @@ app.get("/health", (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
     version: "1.0.0",
+    jwtConfigured: !!process.env.JWT_SECRET,
   })
 })
 
@@ -119,6 +135,8 @@ const startServer = () => {
       console.log(`📊 Health check: http://localhost:${PORT}/health`)
       console.log(`🔗 API base URL: http://localhost:${PORT}/api`)
       console.log(`🌍 Entorno: ${process.env.NODE_ENV || "development"}`)
+      console.log(`🔐 JWT configurado: ${process.env.JWT_SECRET ? "✅ SÍ" : "❌ NO"}`)
+      console.log(`🌐 CORS habilitado para: localhost:3000, localhost:5173`)
       console.log(`✅ ¡Sistema Avícola IECI API funcionando correctamente!`)
 
       // Logger for file logging

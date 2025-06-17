@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express"
+import jwt from "jsonwebtoken"
 import { supabase } from "../config/supabase"
 
 export interface AuthenticatedRequest extends Request {
@@ -10,24 +11,38 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     const authHeader = req.headers.authorization
     const token = authHeader && authHeader.split(" ")[1]
 
+    console.log("🔍 Auth Header:", authHeader)
+    console.log("🎫 Token:", token ? token.substring(0, 20) + "..." : "No token")
+
     if (!token) {
+      console.log("❌ No token provided")
       res.status(401).json({ error: "Access token required" })
       return
     }
 
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
+    // Verificar el token JWT
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    console.log("✅ Token decoded:", { userId: decoded.userId, email: decoded.email, rol: decoded.rol })
 
-    if (error || !user) {
+    // Buscar el usuario en la base de datos
+    const { data: userData, error } = await supabase
+      .from("usuario")
+      .select("*")
+      .eq("id_usuario", decoded.userId)
+      .single()
+
+    if (error || !userData) {
+      console.log("❌ User not found in database:", error)
       res.status(403).json({ error: "Invalid or expired token" })
       return
     }
-    ;(req as AuthenticatedRequest).user = user
+
+    console.log("✅ User authenticated:", userData.correo)
+    ;(req as AuthenticatedRequest).user = userData
     next()
   } catch (error) {
-    res.status(500).json({ error: "Authentication error" })
+    console.error("❌ Authentication error:", error)
+    res.status(403).json({ error: "Invalid or expired token" })
   }
 }
 
@@ -41,19 +56,7 @@ export const requireRole = (roles: string[]) => {
         return
       }
 
-      // Get user role from database
-      const { data: userData, error } = await supabase
-        .from("usuario")
-        .select("rol")
-        .eq("correo", authenticatedReq.user.email)
-        .single()
-
-      if (error || !userData) {
-        res.status(403).json({ error: "User role not found" })
-        return
-      }
-
-      if (!roles.includes(userData.rol)) {
+      if (!roles.includes(authenticatedReq.user.rol)) {
         res.status(403).json({ error: "Insufficient permissions" })
         return
       }

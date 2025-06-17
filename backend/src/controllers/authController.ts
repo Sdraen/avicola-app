@@ -1,4 +1,5 @@
 import type { Request, Response } from "express"
+import jwt from "jsonwebtoken"
 import { supabase } from "../config/supabase"
 import { validateUsuarioRegistro, validateUsuarioLogin } from "../schemas/authSchema"
 import { sendValidationError } from "../utils/responseHelper"
@@ -33,7 +34,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       .single()
 
     if (emailCheckError && emailCheckError.code !== "PGRST116") {
-      // PGRST116 es el código para "no rows returned", que es lo que esperamos
       res.status(500).json({ error: "Error checking email availability" })
       return
     }
@@ -93,16 +93,31 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
       if (userError) {
         console.error("Error creating user profile:", userError)
-        // Si falla la creación del perfil, intentar eliminar el usuario de auth
         await supabase.auth.admin.deleteUser(authData.user.id)
         res.status(500).json({ error: "Error creating user profile" })
         return
       }
 
+      // ✅ GENERAR TOKEN JWT
+      const token = jwt.sign(
+        {
+          userId: userData.id_usuario,
+          email: userData.correo,
+          rol: userData.rol,
+        },
+        process.env.JWT_SECRET!,
+        { expiresIn: "24h" },
+      )
+
       res.status(201).json({
         message: `${rol.charAt(0).toUpperCase() + rol.slice(1)} user registered successfully`,
-        user: authData.user,
-        profile: userData,
+        token,
+        user: {
+          id: userData.id_usuario,
+          email: userData.correo,
+          rol: userData.rol,
+          nombre: userData.nombre,
+        },
       })
     } else {
       res.status(500).json({ error: "User creation failed" })
@@ -129,24 +144,49 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return
     }
 
+    // ✅ AUTENTICAR CON SUPABASE
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
     if (error) {
-      res.status(401).json({ error: error.message })
+      res.status(401).json({ error: "Invalid login credentials" })
       return
     }
 
-    // Get user profile
-    const { data: userProfile } = await supabase.from("usuario").select("*").eq("correo", email).single()
+    // ✅ OBTENER PERFIL DEL USUARIO
+    const { data: userProfile, error: profileError } = await supabase
+      .from("usuario")
+      .select("*")
+      .eq("correo", email)
+      .single()
+
+    if (profileError || !userProfile) {
+      res.status(404).json({ error: "User profile not found" })
+      return
+    }
+
+    // ✅ GENERAR TOKEN JWT
+    const token = jwt.sign(
+      {
+        userId: userProfile.id_usuario,
+        email: userProfile.correo,
+        rol: userProfile.rol,
+      },
+      process.env.JWT_SECRET!,
+      { expiresIn: "24h" },
+    )
 
     res.status(200).json({
       message: "Login successful",
-      session: data.session,
-      user: data.user,
-      profile: userProfile,
+      token,
+      user: {
+        id: userProfile.id_usuario,
+        email: userProfile.correo,
+        rol: userProfile.rol,
+        nombre: userProfile.nombre,
+      },
     })
   } catch (error) {
     console.error("Login error:", error)
@@ -180,26 +220,32 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
       return
     }
 
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
+    // ✅ VERIFICAR TOKEN JWT
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
 
-    if (error || !user) {
+    // ✅ OBTENER USUARIO DE LA BASE DE DATOS
+    const { data: userProfile, error } = await supabase
+      .from("usuario")
+      .select("*")
+      .eq("id_usuario", decoded.userId)
+      .single()
+
+    if (error || !userProfile) {
       res.status(403).json({ error: "Invalid token" })
       return
     }
 
-    // Get user profile
-    const { data: userProfile } = await supabase.from("usuario").select("*").eq("correo", user.email).single()
-
     res.status(200).json({
-      user,
-      profile: userProfile,
+      user: {
+        id: userProfile.id_usuario,
+        email: userProfile.correo,
+        rol: userProfile.rol,
+        nombre: userProfile.nombre,
+      },
     })
   } catch (error) {
     console.error("Get user error:", error)
-    res.status(500).json({ error: "Internal server error" })
+    res.status(403).json({ error: "Invalid or expired token" })
   }
 }
 

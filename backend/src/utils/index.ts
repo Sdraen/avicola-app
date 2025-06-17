@@ -6,14 +6,6 @@ export { default as logger } from "./logger"
 
 // Re-exportar funciones comunes
 export {
-  validateEmail,
-  validateRequired,
-  validateNumber,
-  validateDate,
-  validatePhone,
-  sanitizeString,
-  validateRole,
-  validateUserRegistration,
   validateAve,
   validateCliente,
   validateHuevo,
