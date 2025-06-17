@@ -21,7 +21,7 @@ import registroHuevosRoutes from "./routes/registroHuevos"
 
 // Import middleware
 import { errorLogger, errorResponder, invalidPathHandler } from "./middleware/errorHandler"
-import { sanitizeInput } from "./middleware/validator"
+import { requestLogger } from "./middleware/requestLogger"
 import logger from "./utils/logger"
 
 dotenv.config()
@@ -43,7 +43,7 @@ app.use(limiter)
 // CORS configuration
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: "http://localhost:5173" ,
     credentials: true,
   }),
 )
@@ -52,18 +52,8 @@ app.use(
 app.use(express.json({ limit: "10mb" }))
 app.use(express.urlencoded({ extended: true, limit: "10mb" }))
 
-// Global middleware
-app.use(sanitizeInput)
-
 // Request logging middleware
-app.use((req, res, next) => {
-  const start = Date.now()
-  res.on("finish", () => {
-    const responseTime = Date.now() - start
-    logger.logRequest(req, res, responseTime)
-  })
-  next()
-})
+app.use(requestLogger)
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -124,12 +114,21 @@ app.use(invalidPathHandler)
 const startServer = () => {
   try {
     app.listen(PORT, () => {
+      // Console logs for immediate visibility
+      console.log(`🚀 Servidor iniciado en puerto ${PORT}`)
+      console.log(`📊 Health check: http://localhost:${PORT}/health`)
+      console.log(`🔗 API base URL: http://localhost:${PORT}/api`)
+      console.log(`🌍 Entorno: ${process.env.NODE_ENV || "development"}`)
+      console.log(`✅ ¡Sistema Avícola IECI API funcionando correctamente!`)
+
+      // Logger for file logging
       logger.info(`🚀 Servidor iniciado en puerto ${PORT}`)
       logger.info(`📊 Health check: http://localhost:${PORT}/health`)
       logger.info(`🔗 API base URL: http://localhost:${PORT}/api`)
       logger.info(`🌍 Entorno: ${process.env.NODE_ENV || "development"}`)
     })
   } catch (error) {
+    console.error("❌ Error al iniciar el servidor:", error)
     logger.error("❌ Error al iniciar el servidor:", error)
     process.exit(1)
   }
@@ -137,11 +136,13 @@ const startServer = () => {
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
+  console.log("🛑 SIGTERM received, shutting down gracefully")
   logger.info("SIGTERM received, shutting down gracefully")
   process.exit(0)
 })
 
 process.on("SIGINT", () => {
+  console.log("🛑 SIGINT received, shutting down gracefully")
   logger.info("SIGINT received, shutting down gracefully")
   process.exit(0)
 })

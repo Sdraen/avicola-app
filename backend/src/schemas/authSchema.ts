@@ -54,13 +54,17 @@ export const loginValidationRules: ValidationRule[] = [
   },
 ]
 
-export const validateUsuario = (data: any) => {
+export const validateUsuarioRegistro = (data: any) => {
   return BaseValidator.validate(data, usuarioValidationRules)
 }
 
-export const validateLogin = (data: any) => {
+export const validateUsuarioLogin = (data: any) => {
   return BaseValidator.validate(data, loginValidationRules)
 }
+
+// Mantener las exportaciones existentes para compatibilidad
+export const validateUsuario = validateUsuarioRegistro
+export const validateLogin = validateUsuarioLogin
 
 export const validateUsuarioUpdate = (data: any) => {
   // For user updates, password is not required

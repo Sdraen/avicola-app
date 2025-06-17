@@ -55,3 +55,6 @@ export const getValidator = (entity: string) => {
 
   return validators[entity] || null
 }
+
+// Export the universal validator function
+export { validateEntityData } from "../middleware/universalValidator"
