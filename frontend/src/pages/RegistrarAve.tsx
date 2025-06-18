@@ -9,6 +9,7 @@ const RegistrarAve: React.FC = () => {
   const navigate = useNavigate()
   const [form, setForm] = useState({
     id_jaula: "",
+    id_anillo: "", // nuevo campo
     color_anillo: "",
     edad: "",
     estado_puesta: "",
@@ -28,9 +29,17 @@ const RegistrarAve: React.FC = () => {
     setSuccess("")
     setLoading(true)
 
+    // Validación básica de longitud
+    if (form.id_anillo.length < 1 || form.id_anillo.length > 10) {
+      setError("El ID de anillo debe tener entre 1 y 10 caracteres.")
+      setLoading(false)
+      return
+    }
+
     try {
       const aveData = {
         id_jaula: Number.parseInt(form.id_jaula),
+        id_anillo: form.id_anillo,
         color_anillo: form.color_anillo,
         edad: form.edad,
         estado_puesta: form.estado_puesta,
@@ -43,18 +52,22 @@ const RegistrarAve: React.FC = () => {
       // Limpiar formulario
       setForm({
         id_jaula: "",
+        id_anillo: "",
         color_anillo: "",
         edad: "",
         estado_puesta: "",
         raza: "",
       })
 
-      // Redirigir después de 2 segundos
       setTimeout(() => {
         navigate("/ver-aves")
       }, 2000)
     } catch (err: any) {
-      setError(err.response?.data?.error || "Error al registrar el ave")
+      if (err.response?.status === 409) {
+        setError("Ya existe un ave con ese ID de anillo.")
+      } else {
+        setError(err.response?.data?.error || "Error al registrar el ave")
+      }
     } finally {
       setLoading(false)
     }
@@ -88,6 +101,24 @@ const RegistrarAve: React.FC = () => {
             className="form-input"
             placeholder="Ej: 1, 2, 3"
             required
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">
+            <span className="label-icon">🔢</span>
+            ID Anillo (1–10 caracteres):
+          </label>
+          <input
+            type="text"
+            name="id_anillo"
+            value={form.id_anillo}
+            onChange={handleChange}
+            className="form-input"
+            placeholder="Ej: A12345"
+            required
+            minLength={1}
+            maxLength={10}
           />
         </div>
 
