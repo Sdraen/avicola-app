@@ -1,6 +1,7 @@
 import type { Request, Response } from "express"
 import { supabase } from "../config/supabase"
 
+// Obtener todas las aves
 export const getAllAves = async (req: Request, res: Response): Promise<void> => {
   try {
     const { data, error } = await supabase.from("ave").select(`
@@ -20,6 +21,7 @@ export const getAllAves = async (req: Request, res: Response): Promise<void> => 
   }
 }
 
+// Obtiene una ave por su ID
 export const getAveById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
@@ -27,8 +29,7 @@ export const getAveById = async (req: Request, res: Response): Promise<void> => 
       .from("ave")
       .select(`
         *,
-        jaula:jaula(*),
-        huevo:huevo(*)
+        jaula:jaula(*)
       `)
       .eq("id_ave", id)
       .single()
@@ -50,6 +51,7 @@ export const getAveById = async (req: Request, res: Response): Promise<void> => 
   }
 }
 
+// Crea una nueva ave
 export const createAve = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id_jaula, id_anillo, color_anillo, edad, estado_puesta, raza } = req.body;
@@ -100,11 +102,17 @@ export const createAve = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+// Actualiza una ave existente
 export const updateAve = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const updates = req.body;
 
+    // Log para depuración
+    console.log("ID:", id);
+    console.log("Payload recibido:", updates);
+
+    // Validación de id_anillo si se incluye
     if (updates.id_anillo) {
       if (
         typeof updates.id_anillo !== "string" ||
@@ -116,10 +124,16 @@ export const updateAve = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
+    // Campos que no deben enviarse al update
+    const forbiddenFields = ["id_ave", "fecha_registro", "jaula"];
+    for (const field of forbiddenFields) {
+      delete updates[field];
+    }
+
     const { data, error } = await supabase
       .from("ave")
       .update(updates)
-      .eq("id_ave", id)
+      .eq("id_ave", Number(id)) // conversión explícita
       .select()
       .single();
 
@@ -127,6 +141,7 @@ export const updateAve = async (req: Request, res: Response): Promise<void> => {
       if (error.message.includes("duplicate key value") || error.code === "23505") {
         res.status(409).json({ error: "Ya existe otra gallina con ese id_anillo" });
       } else {
+        console.error("Error de Supabase:", error);
         res.status(400).json({ error: error.message });
       }
       return;
@@ -139,10 +154,11 @@ export const updateAve = async (req: Request, res: Response): Promise<void> => {
 
     res.status(200).json(data);
   } catch (error) {
-    console.error("Error updating bird:", error);
+    console.error("Error inesperado al actualizar ave:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 export const deleteAve = async (req: Request, res: Response): Promise<void> => {
   try {
