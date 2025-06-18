@@ -53,6 +53,7 @@ export const avesAPI = {
   getById: (id: number) => api.get(`/aves/${id}`),
   create: (data: {
     id_jaula: number
+    id_anillo: string
     color_anillo: string
     edad: string
     estado_puesta: string

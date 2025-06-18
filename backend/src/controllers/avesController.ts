@@ -1,6 +1,7 @@
 import type { Request, Response } from "express"
 import { supabase } from "../config/supabase"
 
+// Obtener todas las aves
 export const getAllAves = async (req: Request, res: Response): Promise<void> => {
   try {
     const { data, error } = await supabase.from("ave").select(`
@@ -20,6 +21,7 @@ export const getAllAves = async (req: Request, res: Response): Promise<void> => 
   }
 }
 
+// Obtiene una ave por su ID
 export const getAveById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
@@ -27,8 +29,7 @@ export const getAveById = async (req: Request, res: Response): Promise<void> => 
       .from("ave")
       .select(`
         *,
-        jaula:jaula(*),
-        huevo:huevo(*)
+        jaula:jaula(*)
       `)
       .eq("id_ave", id)
       .single()
@@ -50,20 +51,30 @@ export const getAveById = async (req: Request, res: Response): Promise<void> => 
   }
 }
 
+// Crea una nueva ave
 export const createAve = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id_jaula, color_anillo, edad, estado_puesta, raza } = req.body
+    const { id_jaula, id_anillo, color_anillo, edad, estado_puesta, raza } = req.body;
 
-    if (!id_jaula || !color_anillo || !edad || !estado_puesta || !raza) {
-      res.status(400).json({ error: "All fields are required" })
-      return
+    // Validación básica
+    if (!id_jaula || !id_anillo || !color_anillo || !edad || !estado_puesta || !raza) {
+      res.status(400).json({ error: "Todos los campos son obligatorios" });
+      return;
     }
 
+    // Validación de longitud de id_anillo
+    if (typeof id_anillo !== "string" || id_anillo.length < 1 || id_anillo.length > 10) {
+      res.status(400).json({ error: "El id_anillo debe tener entre 1 y 10 caracteres" });
+      return;
+    }
+
+    // Intentar insertar en Supabase
     const { data, error } = await supabase
       .from("ave")
       .insert([
         {
           id_jaula,
+          id_anillo,
           color_anillo,
           edad,
           estado_puesta,
@@ -72,43 +83,82 @@ export const createAve = async (req: Request, res: Response): Promise<void> => {
         },
       ])
       .select()
-      .single()
+      .single();
 
+    // Captura de error por duplicado (único)
     if (error) {
-      res.status(400).json({ error: error.message })
-      return
+      if (error.message.includes("duplicate key value") || error.code === "23505") {
+        res.status(409).json({ error: "Ya existe una gallina con ese id_anillo" });
+      } else {
+        res.status(400).json({ error: error.message });
+      }
+      return;
     }
 
-    res.status(201).json(data)
+    res.status(201).json(data);
   } catch (error) {
-    console.error("Error creating bird:", error)
-    res.status(500).json({ error: "Internal server error" })
+    console.error("Error creando la ave:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
-}
+};
 
+// Actualiza una ave existente
 export const updateAve = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
-    const updates = req.body
+    const { id } = req.params;
+    const updates = req.body;
 
-    const { data, error } = await supabase.from("ave").update(updates).eq("id_ave", id).select().single()
+    // Log para depuración
+    console.log("ID:", id);
+    console.log("Payload recibido:", updates);
+
+    // Validación de id_anillo si se incluye
+    if (updates.id_anillo) {
+      if (
+        typeof updates.id_anillo !== "string" ||
+        updates.id_anillo.length < 1 ||
+        updates.id_anillo.length > 10
+      ) {
+        res.status(400).json({ error: "El id_anillo debe tener entre 1 y 10 caracteres" });
+        return;
+      }
+    }
+
+    // Campos que no deben enviarse al update
+    const forbiddenFields = ["id_ave", "fecha_registro", "jaula"];
+    for (const field of forbiddenFields) {
+      delete updates[field];
+    }
+
+    const { data, error } = await supabase
+      .from("ave")
+      .update(updates)
+      .eq("id_ave", Number(id)) // conversión explícita
+      .select()
+      .single();
 
     if (error) {
-      res.status(400).json({ error: error.message })
-      return
+      if (error.message.includes("duplicate key value") || error.code === "23505") {
+        res.status(409).json({ error: "Ya existe otra gallina con ese id_anillo" });
+      } else {
+        console.error("Error de Supabase:", error);
+        res.status(400).json({ error: error.message });
+      }
+      return;
     }
 
     if (!data) {
-      res.status(404).json({ error: "Bird not found" })
-      return
+      res.status(404).json({ error: "Gallina no encontrada" });
+      return;
     }
 
-    res.status(200).json(data)
+    res.status(200).json(data);
   } catch (error) {
-    console.error("Error updating bird:", error)
-    res.status(500).json({ error: "Internal server error" })
+    console.error("Error inesperado al actualizar ave:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
-}
+};
+
 
 export const deleteAve = async (req: Request, res: Response): Promise<void> => {
   try {
