@@ -1,46 +1,55 @@
 "use client"
 
-import type React from "react"
 import { useState, useEffect } from "react"
 import { huevosAPI } from "../services/api"
 import type { Huevo } from "../types"
+import ModalEditarHuevo from "../components/modals/ModalEditarHuevo"
 
-const VerHuevos: React.FC = () => {
+const VerHuevos = () => {
   const [huevos, setHuevos] = useState<Huevo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [modalHuevoId, setModalHuevoId] = useState<number | null>(null)
+
+  const fetchHuevos = async () => {
+    try {
+      const response = await huevosAPI.getAll()
+      setHuevos(response.data)
+    } catch (err) {
+      console.error("Error al cargar los huevos", err)
+      setError("Error al cargar los huevos")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchHuevos = async () => {
-      try {
-        const response = await huevosAPI.getAll()
-        setHuevos(response.data)
-      } catch (err: any) {
-        setError("Error al cargar los registros de huevos")
-        console.error("Error fetching huevos:", err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchHuevos()
   }, [])
 
-  if (loading) {
-    return (
-      <div className="ver-aves-container">
-        <div className="text-center">Cargando registros de huevos...</div>
-      </div>
-    )
+  const handleDelete = async (id: number) => {
+    if (!confirm("¿Eliminar este registro?")) return
+    try {
+      await huevosAPI.delete(id)
+      setHuevos((prev) => prev.filter((h) => h.id_huevo !== id))
+    } catch (err) {
+      console.error("Error al eliminar el registro", err)
+    }
   }
 
-  if (error) {
-    return (
-      <div className="ver-aves-container">
-        <div className="text-center text-red-600">{error}</div>
-      </div>
-    )
+  const handleOpenModal = (id: number) => setModalHuevoId(id)
+  const handleCloseModal = () => {
+    setModalHuevoId(null)
+    fetchHuevos()
   }
+
+  const isAdmin =
+    typeof window !== "undefined" &&
+    localStorage.getItem("user") &&
+    JSON.parse(localStorage.getItem("user")!).rol === "admin"
+
+  if (loading) return <p className="text-center">Cargando...</p>
+  if (error) return <p className="text-red-600 text-center">{error}</p>
 
   return (
     <div className="ver-aves-container">
@@ -49,7 +58,7 @@ const VerHuevos: React.FC = () => {
           <div className="header-icon">🥚</div>
           <div className="header-text">
             <h1 className="table-title">Registros de Huevos</h1>
-            <p className="table-subtitle">Total de registros: {huevos.length}</p>
+            <p className="table-subtitle">Total: {huevos.length}</p>
           </div>
         </div>
       </div>
@@ -58,77 +67,54 @@ const VerHuevos: React.FC = () => {
         <table className="tabla-aves">
           <thead>
             <tr>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">🆔</span>
-                  ID
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">🏠</span>
-                  Jaula
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">📅</span>
-                  Fecha Recolección
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">🥚</span>
-                  Cantidad Total
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">🟤</span>
-                  Café
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">⚪</span>
-                  Blanco
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">📝</span>
-                  Observaciones
-                </span>
-              </th>
+              <th>ID</th>
+              <th>Jaula</th>
+              <th>Fecha</th>
+              <th>Total</th>
+              <th>Café</th>
+              <th>Blanco</th>
+              <th>Observaciones</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {huevos.map((huevo) => {
+            {huevos.map((h) => {
               const totalCafe =
-                huevo.huevos_cafe_chico + huevo.huevos_cafe_mediano + huevo.huevos_cafe_grande + huevo.huevos_cafe_jumbo
+                h.huevos_cafe_chico + h.huevos_cafe_mediano + h.huevos_cafe_grande + h.huevos_cafe_jumbo
               const totalBlanco =
-                huevo.huevos_blanco_chico +
-                huevo.huevos_blanco_mediano +
-                huevo.huevos_blanco_grande +
-                huevo.huevos_blanco_jumbo
+                h.huevos_blanco_chico + h.huevos_blanco_mediano + h.huevos_blanco_grande + h.huevos_blanco_jumbo
 
               return (
-                <tr key={huevo.id_huevo} className="table-row">
-                  <td className="table-cell id-cell">{huevo.id_huevo}</td>
-                  <td className="table-cell">{huevo.jaula?.descripcion || `Jaula ${huevo.id_jaula}`}</td>
-                  <td className="table-cell">{new Date(huevo.fecha_recoleccion).toLocaleDateString()}</td>
+                <tr key={h.id_huevo} className="table-row">
+                  <td className="table-cell">{h.id_huevo}</td>
+                  <td className="table-cell">{h.jaula?.descripcion || `Jaula ${h.id_jaula}`}</td>
+                  <td className="table-cell">{new Date(h.fecha_recoleccion).toLocaleDateString()}</td>
                   <td className="table-cell">
-                    <span className="cantidad-badge">{huevo.cantidad_total}</span>
+                    <span className="cantidad-badge">{h.cantidad_total}</span>
                   </td>
                   <td className="table-cell">{totalCafe}</td>
                   <td className="table-cell">{totalBlanco}</td>
-                  <td className="table-cell">{huevo.observaciones || "-"}</td>
+                  <td className="table-cell">{h.observaciones || "-"}</td>
+                  <td className="table-cell">
+                    <button className="text-blue-600 hover:underline" onClick={() => handleOpenModal(h.id_huevo)}>
+                      Editar
+                    </button>
+                    {isAdmin && (
+                      <button className="ml-4 text-red-600 hover:underline" onClick={() => handleDelete(h.id_huevo)}>
+                        Eliminar
+                      </button>
+                    )}
+                  </td>
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
+
+      {modalHuevoId && (
+        <ModalEditarHuevo idHuevo={modalHuevoId} onClose={handleCloseModal} />
+      )}
     </div>
   )
 }

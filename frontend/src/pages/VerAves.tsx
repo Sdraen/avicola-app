@@ -12,6 +12,7 @@ const VerAves: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [selectedAveId, setSelectedAveId] = useState<number | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const fetchAves = async () => {
@@ -27,8 +28,8 @@ const VerAves: React.FC = () => {
   }
 
   const handleDelete = async (id_ave: number) => {
-    const confirm = window.confirm("¿Estás seguro de que deseas eliminar esta ave?")
-    if (!confirm) return
+    const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta ave?")
+    if (!confirmDelete) return
 
     try {
       await avesAPI.delete(id_ave)
@@ -40,8 +41,13 @@ const VerAves: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchAves()
-  }, [])
+  fetchAves()
+  const user = localStorage.getItem("user")
+  if (user) {
+    const parsed = JSON.parse(user)
+    setUserRole(parsed.rol)
+  }
+}, [])
 
   if (loading) {
     return (
@@ -106,12 +112,14 @@ const VerAves: React.FC = () => {
                   >
                     ✏️ Editar
                   </button>
-                  <button
-                    className="btn-eliminar ml-2 text-red-600"
-                    onClick={() => handleDelete(ave.id_ave)}
-                  >
-                    🗑️ Eliminar
-                  </button>
+                  {userRole === "admin" && (
+                    <button
+                      className="btn-eliminar ml-2 text-red-600"
+                      onClick={() => handleDelete(ave.id_ave)}
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
