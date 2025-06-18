@@ -1,0 +1,11 @@
+[2025-06-17T00:41:46.768Z] [INFO] 🚀 Servidor iniciado en puerto 3000
+[2025-06-17T00:41:46.768Z] [INFO] 📊 Health check: http://localhost:3000/health
+[2025-06-17T00:41:46.769Z] [INFO] 🔗 API base URL: http://localhost:3000/api
+[2025-06-17T00:41:46.770Z] [INFO] 🌍 Entorno: development
+[2025-06-17T00:42:05.985Z] [INFO] SIGINT received, shutting down gracefully
+[2025-06-17T00:42:13.574Z] [INFO] 🚀 Servidor iniciado en puerto 3000
+[2025-06-17T00:42:13.574Z] [INFO] 📊 Health check: http://localhost:3000/health
+[2025-06-17T00:42:13.575Z] [INFO] 🔗 API base URL: http://localhost:3000/api
+[2025-06-17T00:42:13.576Z] [INFO] 🌍 Entorno: development
+[2025-06-17T00:43:19.225Z] [INFO] API Request | {"method":"POST","url":"/login","status":200,"responseTime":"1688ms","userAgent":"PostmanRuntime/7.44.0","ip":"::1"}
+[2025-06-17T00:54:29.147Z] [INFO] SIGINT received, shutting down gracefully
