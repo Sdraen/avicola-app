@@ -1,6 +1,8 @@
 import axios from "axios"
+import { processApiError } from "../utils/errorHandler"
 
-const API_BASE_URL = "http://localhost:5000/api"
+// Configuración para producción
+const API_BASE_URL = import.meta.env.PROD ? "http://146.83.198.35:1705/api" : "http://localhost:5000/api"
 
 // Configuración base de axios
 const api = axios.create({
@@ -20,7 +22,7 @@ api.interceptors.request.use(
     return config
   },
   (error) => {
-    return Promise.reject(error)
+    return Promise.reject(processApiError(error))
   },
 )
 
@@ -28,12 +30,17 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Procesar el error antes de rechazarlo
+    const processedError = processApiError(error)
+
+    // Si es error 401, limpiar sesión
+    if (processedError.status === 401) {
       localStorage.removeItem("token")
       localStorage.removeItem("user")
       window.location.href = "/login"
     }
-    return Promise.reject(error)
+
+    return Promise.reject(processedError)
   },
 )
 
