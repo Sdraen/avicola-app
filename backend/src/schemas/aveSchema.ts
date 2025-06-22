@@ -1,76 +1,49 @@
-import { BaseValidator, type ValidationRule } from "./baseValidation"
-import { VALIDATION_PATTERNS, VALIDATION_LIMITS, VALID_ENUMS } from "./constants"
+import { z } from "zod"
 
-export const aveValidationRules: ValidationRule[] = [
-  {
-    field: "id_jaula",
-    required: true,
-    type: "number",
-    min: 1,
-  },
-  {
-    field: "color_anillo",
-    required: true,
-    type: "string",
-    minLength: 3,
-    maxLength: 20,
-    pattern: VALIDATION_PATTERNS.COLOR_ANILLO,
-    custom: (value) => {
-      if (typeof value === "string" && value.includes(" ")) {
-        return "color_anillo no puede contener espacios"
-      }
-      return null
-    },
-  },
-  {
-    field: "edad",
-    required: true,
-    type: "string",
-    pattern: VALIDATION_PATTERNS.POSITIVE_INTEGER,
-    custom: (value) => {
-      const age = Number.parseInt(value)
-      if (age < VALIDATION_LIMITS.EDAD_MIN || age > VALIDATION_LIMITS.EDAD_MAX) {
-        return `edad debe estar entre ${VALIDATION_LIMITS.EDAD_MIN} y ${VALIDATION_LIMITS.EDAD_MAX} semanas`
-      }
-      return null
-    },
-  },
-  {
-    field: "estado_puesta",
-    required: true,
-    type: "string",
-    enum: VALID_ENUMS.ESTADO_PUESTA,
-  },
-  {
-    field: "raza",
-    required: true,
-    type: "string",
-    minLength: VALIDATION_LIMITS.NOMBRE_MIN,
-    maxLength: VALIDATION_LIMITS.NOMBRE_MAX,
-    pattern: VALIDATION_PATTERNS.LETTERS_ONLY,
-  },
-  {
-    field: "fecha_registro",
-    required: false,
-    type: "date",
-    custom: (value) => {
-      if (value && new Date(value) > new Date()) {
-        return "fecha_registro no puede ser futura"
-      }
-      return null
-    },
-  },
-]
+// Schema base para ave
+const baseAveSchema = z.object({
+  id_jaula: z.number().int().positive("ID de jaula debe ser un número positivo"),
+  id_anillo: z
+    .string()
+    .min(1, "ID anillo es obligatorio")
+    .max(10, "ID anillo no puede tener más de 10 caracteres")
+    .regex(/^[A-Za-z0-9]+$/, "ID anillo solo puede contener letras y números"),
+  color_anillo: z
+    .string()
+    .min(3, "Color anillo debe tener al menos 3 caracteres")
+    .max(20, "Color anillo no puede tener más de 20 caracteres"),
+  edad: z.union([
+    z.number().int().min(1, "Edad debe ser mayor a 0").max(300, "Edad no puede ser mayor a 300 semanas"),
+    z.string().min(1, "Edad es obligatoria").max(50, "Edad no puede tener más de 50 caracteres"),
+  ]),
+  estado_puesta: z.enum(["activa", "inactiva", "en_desarrollo"], {
+    errorMap: () => ({ message: "Estado de puesta debe ser: activa, inactiva o en_desarrollo" }),
+  }),
+  raza: z
+    .string()
+    .min(2, "Raza debe tener al menos 2 caracteres")
+    .max(50, "Raza no puede tener más de 50 caracteres")
+    .regex(/^[A-Za-zÀ-ÿ\u00f1\u00d1\s-]+$/, "Raza solo puede contener letras, espacios y guiones"),
+})
 
-export const validateAve = (data: any) => {
-  return BaseValidator.validate(data, aveValidationRules)
-}
+// Schema para crear ave
+export const createAveSchema = baseAveSchema
 
-export const validateAveUpdate = (data: any) => {
-  // For updates, make all fields optional except those being updated
-  const updateRules = aveValidationRules.map((rule) => ({
-    ...rule,
-    required: false,
-  }))
-  return BaseValidator.validate(data, updateRules)
-}
+// Schema para actualizar ave (todos los campos opcionales excepto validaciones)
+export const updateAveSchema = baseAveSchema.partial()
+
+// Schema para validar ID en parámetros
+export const aveIdSchema = z.object({
+  id: z.string().regex(/^\d+$/, "ID debe ser un número válido"),
+})
+
+// Schema para validar ID de jaula en parámetros
+export const jaulaIdSchema = z.object({
+  id_jaula: z.string().regex(/^\d+$/, "ID de jaula debe ser un número válido"),
+})
+
+// Tipos TypeScript
+export type CreateAveData = z.infer<typeof createAveSchema>
+export type UpdateAveData = z.infer<typeof updateAveSchema>
+export type AveIdParams = z.infer<typeof aveIdSchema>
+export type JaulaIdParams = z.infer<typeof jaulaIdSchema>
