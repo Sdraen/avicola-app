@@ -157,7 +157,9 @@ const Layout: React.FC = () => {
                   />
                 </div>
               </button>
-              <h1 className="text-xl font-bold text-gray-900">🐔 Sistema Avícola IECI</h1>
+              <Link to="/dashboard">
+                <h1 className="text-xl font-bold text-gray-900 cursor-pointer">🐔 Avicola APP</h1>
+              </Link>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">

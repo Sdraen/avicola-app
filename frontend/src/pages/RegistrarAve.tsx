@@ -108,6 +108,16 @@ const RegistrarAve: React.FC = () => {
     }
   }
 
+  const formatJaulaOption = (jaula: Jaula) => {
+    let label = `🏠 Jaula ${jaula.numero_jaula || jaula.id_jaula}`
+
+    if (jaula.descripcion) {
+      label += ` - ${jaula.descripcion}`
+    }
+
+    return label
+  }
+
   return (
     <div className="registrar-ave-container">
       <div className="form-header">
@@ -150,8 +160,7 @@ const RegistrarAve: React.FC = () => {
               <option value="">Seleccionar jaula</option>
               {jaulas.map((jaula) => (
                 <option key={jaula.id_jaula} value={jaula.id_jaula}>
-                  🏠 Jaula {jaula.numero_jaula || jaula.id_jaula} - {jaula.descripcion || "Sin descripción"}
-                  {jaula.capacidad && ` (Capacidad: ${jaula.capacidad})`}
+                  {formatJaulaOption(jaula)}
                 </option>
               ))}
             </select>
@@ -183,15 +192,15 @@ const RegistrarAve: React.FC = () => {
             ID Anillo:
           </label>
           <input
-            type="text"
+            type="number"
             name="id_anillo"
             value={form.id_anillo}
             onChange={handleChange}
             className={`form-input ${fieldErrors.id_anillo ? "border-red-500 bg-red-50" : ""}`}
-            placeholder="Ej: A001, B123"
+            placeholder="Ej: 111, 112, 123"
             maxLength={10}
             pattern="[A-Za-z0-9]+"
-            title="Solo letras y números permitidos"
+            title="Solo numeros positivos enteros"
             required
           />
           {fieldErrors.id_anillo && (

@@ -165,7 +165,9 @@ const ModalEditarAve: React.FC<ModalEditarAveProps> = ({ isOpen, aveId, onClose,
                   <h3 id="modal-title" className="text-lg font-semibold text-white">
                     Editar Ave
                   </h3>
-                  <p className="text-sm text-blue-100">ID: #{aveId}</p>
+                  <p className="text-sm text-blue-100">
+                    {formData.id_anillo ? `ID Anillo: ${formData.id_anillo}` : `ID: #${aveId}`}
+                  </p>
                 </div>
               </div>
               <button
