@@ -7,7 +7,7 @@ const baseAveSchema = z.object({
     .string()
     .min(1, "ID anillo es obligatorio")
     .max(10, "ID anillo no puede tener más de 10 caracteres")
-    .regex(/^[A-Za-z0-9]+$/, "ID anillo solo puede contener letras y números"),
+    .regex(/^[1-9][0-9]*$/, "ID anillo debe ser un número entero positivo mayor que cero"),
   color_anillo: z
     .string()
     .min(3, "Color anillo debe tener al menos 3 caracteres")
