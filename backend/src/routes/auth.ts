@@ -1,4 +1,4 @@
-import express from "express"
+import { Router } from "express"
 import {
   register,
   login,
@@ -7,15 +7,19 @@ import {
   checkRoleAvailability,
   checkEmailAvailability,
 } from "../controllers/authController"
+import { authenticateToken } from "../middleware/auth"
 
-const router = express.Router()
+const router = Router()
 
-// Rutas públicas (no requieren autenticación)
+// Rutas públicas
 router.post("/register", register)
 router.post("/login", login)
 router.post("/logout", logout)
-router.get("/me", getCurrentUser)
 router.get("/roles/availability", checkRoleAvailability)
 router.get("/email/check/:email", checkEmailAvailability)
+
+// Rutas protegidas
+router.get("/verify", authenticateToken, getCurrentUser)
+router.get("/me", authenticateToken, getCurrentUser) // Alias para verificar token
 
 export default router
