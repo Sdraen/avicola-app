@@ -25,10 +25,20 @@ const VerHuevos: React.FC = () => {
   const fetchHuevos = async () => {
     try {
       const response = await huevosAPI.getAll()
-      setHuevos(response.data)
+      console.log("Respuesta del API:", response) // Para debugging
+
+      // Asegurar que siempre sea un array
+      const huevosData = Array.isArray(response.data)
+        ? response.data
+        : Array.isArray(response.data?.data)
+          ? response.data.data
+          : []
+
+      setHuevos(huevosData)
     } catch (err) {
       console.error("Error al cargar los huevos", err)
       setError("Error al cargar los huevos")
+      setHuevos([]) // Asegurar que sea array vacío en caso de error
     } finally {
       setLoading(false)
     }
@@ -176,7 +186,7 @@ const VerHuevos: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {huevos.length === 0 ? (
+            {Array.isArray(huevos) && huevos.length === 0 ? (
               <tr>
                 <td colSpan={8} className="text-center py-8 text-gray-500">
                   <div className="flex flex-col items-center space-y-2">
@@ -186,6 +196,7 @@ const VerHuevos: React.FC = () => {
                 </td>
               </tr>
             ) : (
+              Array.isArray(huevos) &&
               huevos.map((h) => {
                 const totalCafe =
                   h.huevos_cafe_chico + h.huevos_cafe_mediano + h.huevos_cafe_grande + h.huevos_cafe_jumbo
