@@ -8,7 +8,7 @@ import {
   updateHuevo,
   deleteHuevo,
   getHuevosByDateRange,
-  getHuevosByJaula, // ✅ NUEVO
+  getHuevosByJaula,
   getHuevosStats,
 } from "../controllers/huevosController"
 
@@ -18,12 +18,12 @@ const router = express.Router()
 router.get("/", authenticateToken, requireRole(["admin", "operador"]), getAllHuevos)
 router.get("/stats/overview", authenticateToken, requireRole(["admin", "operador"]), getHuevosStats)
 router.get("/fecha/:start/:end", authenticateToken, requireRole(["admin", "operador"]), getHuevosByDateRange)
-router.get("/jaula/:id_jaula", authenticateToken, requireRole(["admin", "operador"]), getHuevosByJaula) // ✅ NUEVO
+router.get("/jaula/:id_jaula", authenticateToken, requireRole(["admin", "operador"]), getHuevosByJaula)
 router.get("/:id", authenticateToken, requireRole(["admin", "operador"]), getHuevoById)
 
 // Admin y Operador pueden crear
 router.post("/", authenticateToken, requireRole(["admin", "operador"]), createHuevo)
-router.post("/bulk", authenticateToken, requireRole(["admin", "operador"]), createBulkHuevos) // ✅ NUEVO
+router.post("/bulk", authenticateToken, requireRole(["admin", "operador"]), createBulkHuevos)
 
 // Admin y Operador pueden actualizar
 router.put("/:id", authenticateToken, requireRole(["admin", "operador"]), updateHuevo)

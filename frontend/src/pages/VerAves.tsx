@@ -2,18 +2,24 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
 import { avesAPI } from "../services/api"
 import type { Ave } from "../types"
 import ModalEditarAve from "../components/modals/ModalEditarAve"
+import {
+  showDeleteConfirmation,
+  showSuccessAlert,
+  showErrorAlert,
+  showLoadingAlert,
+  closeLoadingAlert,
+} from "../utils/sweetAlert"
 
 const VerAves: React.FC = () => {
   const [aves, setAves] = useState<Ave[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [selectedAveId, setSelectedAveId] = useState<number | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
-  const navigate = useNavigate()
 
   const fetchAves = async () => {
     try {
@@ -27,27 +33,48 @@ const VerAves: React.FC = () => {
     }
   }
 
-  const handleDelete = async (id_ave: number) => {
-    const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta ave?")
-    if (!confirmDelete) return
+  useEffect(() => {
+    fetchAves()
+    const user = localStorage.getItem("user")
+    if (user) {
+      const parsed = JSON.parse(user)
+      setUserRole(parsed.rol)
+    }
+  }, [])
 
-    try {
-      await avesAPI.delete(id_ave)
-      setAves((prev) => prev.filter((ave) => ave.id_ave !== id_ave))
-    } catch (err: any) {
-      setError("Error al eliminar el ave")
-      console.error("Delete error:", err)
+  const handleEdit = (aveId: number) => {
+    setSelectedAveId(aveId)
+    setIsEditModalOpen(true)
+  }
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false)
+    setSelectedAveId(null)
+  }
+
+  const handleDelete = async (id_ave: number) => {
+    const result = await showDeleteConfirmation(
+      "¿Eliminar ave?",
+      `¿Estás seguro de que deseas eliminar el ave #${id_ave}? Esta acción no se puede deshacer.`,
+      "Sí, eliminar",
+    )
+
+    if (result.isConfirmed) {
+      try {
+        showLoadingAlert("Eliminando ave...", "Por favor espere")
+
+        await avesAPI.delete(id_ave)
+        setAves((prev) => prev.filter((ave) => ave.id_ave !== id_ave))
+
+        closeLoadingAlert()
+        await showSuccessAlert("¡Ave eliminada!", "El ave ha sido eliminada correctamente")
+      } catch (err: any) {
+        closeLoadingAlert()
+        await showErrorAlert("Error al eliminar", "No se pudo eliminar el ave. Inténtalo de nuevo.")
+        console.error("Delete error:", err)
+      }
     }
   }
-
-  useEffect(() => {
-  fetchAves()
-  const user = localStorage.getItem("user")
-  if (user) {
-    const parsed = JSON.parse(user)
-    setUserRole(parsed.rol)
-  }
-}, [])
 
   if (loading) {
     return (
@@ -81,42 +108,74 @@ const VerAves: React.FC = () => {
         <table className="tabla-aves">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>ID Anillo</th>
-              <th>Color Anillo</th>
-              <th>Raza</th>
-              <th>Edad</th>
-              <th>Estado Puesta</th>
-              <th>Jaula</th>
-              <th>Acciones</th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🆔</span>
+                  ID
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🏷️</span>
+                  ID Anillo
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🎨</span>
+                  Color Anillo
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🧬</span>
+                  Raza
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">📅</span>
+                  Edad
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🥚</span>
+                  Estado Puesta
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🏠</span>
+                  Jaula
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🛠️</span>
+                  Acciones
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {aves.map((ave) => (
               <tr key={ave.id_ave} className="table-row">
-                <td className="table-cell">{ave.id_ave}</td>
+                <td className="table-cell id-cell">{ave.id_ave}</td>
                 <td className="table-cell">{ave.id_anillo}</td>
                 <td className="table-cell">{ave.color_anillo}</td>
-                <td className="table-cell">{ave.raza}</td>
+                <td className="table-cell especie-cell">{ave.raza}</td>
                 <td className="table-cell">{ave.edad}</td>
                 <td className="table-cell">
                   <span className="cantidad-badge">{ave.estado_puesta}</span>
                 </td>
-                <td className="table-cell">
-                  {ave.jaula?.numero_jaula || ave.jaula?.descripcion || ave.id_jaula}
-                </td>
+                <td className="table-cell">{ave.jaula?.numero_jaula || ave.jaula?.descripcion || ave.id_jaula}</td>
                 <td className="table-cell acciones-cell">
-                  <button
-                    className="btn-editar"
-                    onClick={() => setSelectedAveId(ave.id_ave)}
-                  >
+                  <button className="btn-editar" onClick={() => handleEdit(ave.id_ave)}>
                     ✏️ Editar
                   </button>
                   {userRole === "admin" && (
-                    <button
-                      className="btn-eliminar ml-2 text-red-600"
-                      onClick={() => handleDelete(ave.id_ave)}
-                    >
+                    <button className="btn-eliminar ml-2 text-red-600" onClick={() => handleDelete(ave.id_ave)}>
                       🗑️ Eliminar
                     </button>
                   )}
@@ -128,13 +187,12 @@ const VerAves: React.FC = () => {
       </div>
 
       {/* Modal de edición */}
-      {selectedAveId !== null && (
-        <ModalEditarAve
-          idAve={selectedAveId}
-          onClose={() => setSelectedAveId(null)}
-          onUpdate={fetchAves}
-        />
-      )}
+      <ModalEditarAve
+        isOpen={isEditModalOpen}
+        aveId={selectedAveId!}
+        onClose={handleCloseEditModal}
+        onUpdate={fetchAves}
+      />
     </div>
   )
 }

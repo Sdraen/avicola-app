@@ -1,4 +1,5 @@
 import axios from "axios"
+import { processApiError } from "../utils/errorHandler"
 
 const API_BASE_URL = "http://localhost:5000/api"
 
@@ -8,6 +9,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 10000, // 10 segundos de timeout
 })
 
 // Interceptor para agregar el token a las peticiones
@@ -20,20 +22,45 @@ api.interceptors.request.use(
     return config
   },
   (error) => {
-    return Promise.reject(error)
+    return Promise.reject(processApiError(error))
   },
 )
 
 // Interceptor para manejar errores de respuesta
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error) => {
+    const originalRequest = error.config
+
+    // Si es error 401 y no hemos intentado refrescar ya
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true
+
+      console.log("🔄 Error 401 detectado, limpiando sesión")
+
+      // Limpiar sesión inmediatamente
       localStorage.removeItem("token")
       localStorage.removeItem("user")
-      window.location.href = "/login"
+
+      // Redirigir al login solo si no estamos ya ahí
+      if (!window.location.pathname.includes("/login")) {
+        window.location.href = "/login"
+      }
+
+      return Promise.reject(processApiError(error))
     }
-    return Promise.reject(error)
+
+    // Si es error de red o timeout
+    if (error.code === "ECONNABORTED" || error.message === "Network Error") {
+      console.log("🌐 Error de conexión detectado")
+      return Promise.reject({
+        ...processApiError(error),
+        isNetworkError: true,
+        message: "Error de conexión. Verifica tu internet y que el servidor esté funcionando.",
+      })
+    }
+
+    return Promise.reject(processApiError(error))
   },
 )
 
@@ -42,7 +69,7 @@ export const authAPI = {
   login: (email: string, password: string) => api.post("/auth/login", { email, password }),
   register: (email: string, password: string, rol: "admin" | "operador", nombre: string) =>
     api.post("/auth/register", { email, password, rol, nombre }),
-  verifyToken: () => api.get("/auth/verify"),
+  verifyToken: () => api.get("/auth/me"),
   checkRoleAvailability: () => api.get("/auth/roles/availability"),
   checkEmailAvailability: (email: string) => api.get(`/auth/email/check/${email}`),
 }

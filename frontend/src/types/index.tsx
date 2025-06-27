@@ -1,7 +1,6 @@
 export interface Ave {
   id_ave: number
   id_jaula: number
-  id_anillo: string
   color_anillo: string
   edad: string
   estado_puesta: string
@@ -13,7 +12,7 @@ export interface Ave {
 export interface Jaula {
   id_jaula: number
   id_estanque: number
-  numero_jaula?: string
+  codigo_jaula: string
   descripcion: string
   estanque?: Estanque
   aves?: Ave[]

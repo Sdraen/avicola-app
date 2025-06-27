@@ -1,5 +1,6 @@
 import type { Request, Response } from "express"
 import { supabase } from "../config/supabase"
+import { createAveSchema, updateAveSchema, aveIdSchema, jaulaIdSchema } from "../schemas/aveSchema"
 
 // Obtener todas las aves
 export const getAllAves = async (req: Request, res: Response): Promise<void> => {
@@ -16,7 +17,7 @@ export const getAllAves = async (req: Request, res: Response): Promise<void> => 
 
     res.status(200).json(data)
   } catch (error) {
-    console.error("Error fetching birds:", error)
+    console.error("Error al obtener las aves:", error)
     res.status(500).json({ error: "Internal server error" })
   }
 }
@@ -24,7 +25,20 @@ export const getAllAves = async (req: Request, res: Response): Promise<void> => 
 // Obtiene una ave por su ID
 export const getAveById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    // Validar parámetros
+    const paramValidation = aveIdSchema.safeParse(req.params)
+    if (!paramValidation.success) {
+      res.status(400).json({
+        error: "Parámetros inválidos",
+        details: paramValidation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
+
+    const { id } = paramValidation.data
     const { data, error } = await supabase
       .from("ave")
       .select(`
@@ -40,13 +54,13 @@ export const getAveById = async (req: Request, res: Response): Promise<void> => 
     }
 
     if (!data) {
-      res.status(404).json({ error: "Bird not found" })
+      res.status(404).json({ error: "Gallina no encontrada" })
       return
     }
 
     res.status(200).json(data)
   } catch (error) {
-    console.error("Error fetching bird:", error)
+    console.error("Error obteniendo la ave:", error)
     res.status(500).json({ error: "Internal server error" })
   }
 }
@@ -54,19 +68,20 @@ export const getAveById = async (req: Request, res: Response): Promise<void> => 
 // Crea una nueva ave
 export const createAve = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id_jaula, id_anillo, color_anillo, edad, estado_puesta, raza } = req.body;
-
-    // Validación básica
-    if (!id_jaula || !id_anillo || !color_anillo || !edad || !estado_puesta || !raza) {
-      res.status(400).json({ error: "Todos los campos son obligatorios" });
-      return;
+    // Validar con schema
+    const validation = createAveSchema.safeParse(req.body)
+    if (!validation.success) {
+      res.status(400).json({
+        error: "Datos de entrada inválidos",
+        details: validation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
     }
 
-    // Validación de longitud de id_anillo
-    if (typeof id_anillo !== "string" || id_anillo.length < 1 || id_anillo.length > 10) {
-      res.status(400).json({ error: "El id_anillo debe tener entre 1 y 10 caracteres" });
-      return;
-    }
+    const { id_jaula, id_anillo, color_anillo, edad, estado_puesta, raza } = validation.data
 
     // Intentar insertar en Supabase
     const { data, error } = await supabase
@@ -83,86 +98,108 @@ export const createAve = async (req: Request, res: Response): Promise<void> => {
         },
       ])
       .select()
-      .single();
+      .single()
 
     // Captura de error por duplicado (único)
     if (error) {
       if (error.message.includes("duplicate key value") || error.code === "23505") {
-        res.status(409).json({ error: "Ya existe una gallina con ese id_anillo" });
+        res.status(409).json({ error: "Ya existe una gallina con ese id_anillo" })
       } else {
-        res.status(400).json({ error: error.message });
+        res.status(400).json({ error: error.message })
       }
-      return;
+      return
     }
 
-    res.status(201).json(data);
+    res.status(201).json(data)
   } catch (error) {
-    console.error("Error creando la ave:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Error creando la ave:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-};
+}
 
 // Actualiza una ave existente
 export const updateAve = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const updates = req.body;
+    // Validar parámetros
+    const paramValidation = aveIdSchema.safeParse(req.params)
+    if (!paramValidation.success) {
+      res.status(400).json({
+        error: "Parámetros inválidos",
+        details: paramValidation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
+
+    // Validar datos de actualización
+    const validation = updateAveSchema.safeParse(req.body)
+    if (!validation.success) {
+      res.status(400).json({
+        error: "Datos de entrada inválidos",
+        details: validation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
+
+    const { id } = paramValidation.data
+    const updates = validation.data
 
     // Log para depuración
-    console.log("ID:", id);
-    console.log("Payload recibido:", updates);
+    console.log("ID:", id)
+    console.log("Payload validado:", updates)
 
-    // Validación de id_anillo si se incluye
-    if (updates.id_anillo) {
-      if (
-        typeof updates.id_anillo !== "string" ||
-        updates.id_anillo.length < 1 ||
-        updates.id_anillo.length > 10
-      ) {
-        res.status(400).json({ error: "El id_anillo debe tener entre 1 y 10 caracteres" });
-        return;
-      }
-    }
-
-    // Campos que no deben enviarse al update
-    const forbiddenFields = ["id_ave", "fecha_registro", "jaula"];
+    // Campos que no deben enviarse al update (ya filtrados por el schema)
+    const forbiddenFields = ["id_ave", "fecha_registro", "jaula"]
+    const cleanUpdates = { ...updates }
     for (const field of forbiddenFields) {
-      delete updates[field];
+      delete cleanUpdates[field as keyof typeof cleanUpdates]
     }
 
-    const { data, error } = await supabase
-      .from("ave")
-      .update(updates)
-      .eq("id_ave", Number(id)) // conversión explícita
-      .select()
-      .single();
+    const { data, error } = await supabase.from("ave").update(cleanUpdates).eq("id_ave", Number(id)).select().single()
 
     if (error) {
       if (error.message.includes("duplicate key value") || error.code === "23505") {
-        res.status(409).json({ error: "Ya existe otra gallina con ese id_anillo" });
+        res.status(409).json({ error: "Ya existe otra gallina con ese id_anillo" })
       } else {
-        console.error("Error de Supabase:", error);
-        res.status(400).json({ error: error.message });
+        console.error("Error de Supabase:", error)
+        res.status(400).json({ error: error.message })
       }
-      return;
+      return
     }
 
     if (!data) {
-      res.status(404).json({ error: "Gallina no encontrada" });
-      return;
+      res.status(404).json({ error: "Gallina no encontrada" })
+      return
     }
 
-    res.status(200).json(data);
+    res.status(200).json(data)
   } catch (error) {
-    console.error("Error inesperado al actualizar ave:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Error inesperado al actualizar ave:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
-};
-
+}
 
 export const deleteAve = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    // Validar parámetros
+    const paramValidation = aveIdSchema.safeParse(req.params)
+    if (!paramValidation.success) {
+      res.status(400).json({
+        error: "Parámetros inválidos",
+        details: paramValidation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
+
+    const { id } = paramValidation.data
 
     const { error } = await supabase.from("ave").delete().eq("id_ave", id)
 
@@ -171,7 +208,7 @@ export const deleteAve = async (req: Request, res: Response): Promise<void> => {
       return
     }
 
-    res.status(200).json({ message: "Bird deleted successfully" })
+    res.status(200).json({ message: "Gallina eliminada exitosamente" })
   } catch (error) {
     console.error("Error deleting bird:", error)
     res.status(500).json({ error: "Internal server error" })
@@ -180,7 +217,20 @@ export const deleteAve = async (req: Request, res: Response): Promise<void> => {
 
 export const getAvesByJaula = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id_jaula } = req.params
+    // Validar parámetros
+    const paramValidation = jaulaIdSchema.safeParse(req.params)
+    if (!paramValidation.success) {
+      res.status(400).json({
+        error: "Parámetros inválidos",
+        details: paramValidation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
+
+    const { id_jaula } = paramValidation.data
     const { data, error } = await supabase.from("ave").select("*").eq("id_jaula", id_jaula)
 
     if (error) {

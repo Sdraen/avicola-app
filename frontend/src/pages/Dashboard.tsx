@@ -23,26 +23,58 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        console.log("🔄 Fetching dashboard stats...")
+
         const [avesResponse, huevosResponse, ventasResponse, jaulasResponse] = await Promise.all([
-          avesAPI.getStats(),
-          huevosAPI.getStats(),
-          ventasAPI.getStats(),
-          jaulasAPI.getStats(),
+          avesAPI.getStats().catch((err) => {
+            console.error("❌ Error fetching aves stats:", err)
+            return { data: { totalBirds: 0, deceasedThisMonth: 0 } }
+          }),
+          huevosAPI.getStats().catch((err) => {
+            console.error("❌ Error fetching huevos stats:", err)
+            return { data: { totalEggs: 0, totalEggsToday: 0 } }
+          }),
+          ventasAPI.getStats().catch((err) => {
+            console.error("❌ Error fetching ventas stats:", err)
+            return { data: { totalSales: 0, totalRevenueThisMonth: 0 } }
+          }),
+          jaulasAPI.getStats().catch((err) => {
+            console.error("❌ Error fetching jaulas stats:", err)
+            return { data: { totalCages: 0, emptyCages: 0 } }
+          }),
         ])
 
+        console.log("📊 Dashboard responses:")
+        console.log("🐓 Aves:", avesResponse.data)
+        console.log("🥚 Huevos:", huevosResponse.data)
+        console.log("💰 Ventas:", ventasResponse.data)
+        console.log("🏠 Jaulas:", jaulasResponse.data)
+
+        // ✅ SOLUCIÓN: Manejar tanto el formato antiguo como el nuevo
+        const huevosData = huevosResponse.data?.data || huevosResponse.data
+        const avesData = avesResponse.data?.data || avesResponse.data
+        const ventasData = ventasResponse.data?.data || ventasResponse.data
+        const jaulasData = jaulasResponse.data?.data || jaulasResponse.data
+
+        console.log("🔧 Processed data:")
+        console.log("🥚 Huevos processed:", huevosData)
+        console.log("🐓 Aves processed:", avesData)
+
         setStats({
-          totalBirds: avesResponse.data.totalBirds || 0,
-          deceasedThisMonth: avesResponse.data.deceasedThisMonth || 0,
-          totalEggs: huevosResponse.data.totalEggs || 0,
-          totalEggsToday: huevosResponse.data.totalEggsToday || 0,
-          totalSales: ventasResponse.data.totalSales || 0,
-          totalRevenue: ventasResponse.data.totalRevenueThisMonth || 0,
-          totalCages: jaulasResponse.data.totalCages || 0,
-          emptyCages: jaulasResponse.data.emptyCages || 0,
+          totalBirds: avesData?.totalBirds || 0,
+          deceasedThisMonth: avesData?.deceasedThisMonth || 0,
+          totalEggs: huevosData?.totalEggs || huevosData?.totalRecords || 0,
+          totalEggsToday: huevosData?.totalEggsToday || 0,
+          totalSales: ventasData?.totalSales || 0,
+          totalRevenue: ventasData?.totalRevenueThisMonth || ventasData?.totalRevenue || 0,
+          totalCages: jaulasData?.totalCages || 0,
+          emptyCages: jaulasData?.emptyCages || 0,
         })
+
+        console.log("✅ Dashboard stats set successfully")
       } catch (err: any) {
-        setError("Error al cargar estadísticas")
-        console.error("Error fetching stats:", err)
+        console.error("❌ Error fetching dashboard stats:", err)
+        setError("Error al cargar estadísticas del dashboard")
       } finally {
         setLoading(false)
       }
@@ -51,10 +83,28 @@ const Dashboard: React.FC = () => {
     fetchStats()
   }, [])
 
+  // Función para forzar actualización
+  const forceRefresh = async () => {
+    setLoading(true)
+    setError("")
+
+    // Limpiar caché del navegador
+    if ("caches" in window) {
+      const cacheNames = await caches.keys()
+      await Promise.all(cacheNames.map((name) => caches.delete(name)))
+    }
+
+    // Recargar datos
+    window.location.reload()
+  }
+
   if (loading) {
     return (
       <div className="dashboard-wrapper">
-        <div className="text-center">Cargando estadísticas...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p>Cargando estadísticas...</p>
+        </div>
       </div>
     )
   }
@@ -62,7 +112,15 @@ const Dashboard: React.FC = () => {
   if (error) {
     return (
       <div className="dashboard-wrapper">
-        <div className="text-center text-red-600">{error}</div>
+        <div className="text-center">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>
+          <button
+            onClick={forceRefresh}
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
+            Reintentar
+          </button>
+        </div>
       </div>
     )
   }

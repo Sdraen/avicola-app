@@ -1,70 +1,64 @@
 import type { Request, Response } from "express"
 import { supabase } from "../config/supabase"
 
-// ✅ ACTUALIZAR controlador para nueva estructura con jaulas
+// Obtener todos los huevos
 export const getAllHuevos = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { data, error } = await supabase
-      .from("huevo")
-      .select(`
-        *,
-        jaula:jaula(
-          id_jaula,
-          descripcion,
-          estanque:estanque(id_estanque)
-        )
-      `)
-      .order("fecha_recoleccion", { ascending: false })
+    console.log("🥚 getAllHuevos called")
+
+    // Simplificar la consulta primero para identificar el problema
+    const { data, error } = await supabase.from("huevo").select("*").order("fecha_recoleccion", { ascending: false })
 
     if (error) {
-      res.status(400).json({ error: error.message })
+      console.error("❌ Supabase error in getAllHuevos:", error)
+      res.status(500).json({ error: "Error al obtener los huevos" })
       return
     }
 
-    res.status(200).json(data)
+    console.log(`✅ Found ${data?.length || 0} huevos`)
+    console.log("📋 Sample data:", JSON.stringify(data?.[0], null, 2))
+
+    res.status(200).json({ success: true, data, message: "Huevos obtenidos exitosamente" })
   } catch (error) {
-    console.error("Error fetching egg records:", error)
-    res.status(500).json({ error: "Internal server error" })
+    console.error("❌ Error in getAllHuevos:", error)
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
+// Obtener huevo por ID
 export const getHuevoById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-    const { data, error } = await supabase
-      .from("huevo")
-      .select(`
-        *,
-        jaula:jaula(
-          id_jaula,
-          descripcion,
-          estanque:estanque(id_estanque)
-        )
-      `)
-      .eq("id_huevo", id)
-      .single()
+    console.log(`🥚 getHuevoById called with ID: ${id}`)
+
+    const { data, error } = await supabase.from("huevo").select("*").eq("id_huevo", id).single()
 
     if (error) {
-      res.status(400).json({ error: error.message })
+      console.error("❌ Supabase error in getHuevoById:", error)
+      res.status(500).json({ error: "Error al obtener el huevo" })
       return
     }
 
     if (!data) {
-      res.status(404).json({ error: "Egg record not found" })
+      res.status(404).json({ error: "Huevo no encontrado" })
       return
     }
 
-    res.status(200).json(data)
+    console.log(`✅ Found huevo: ${data.id_huevo}`)
+    res.status(200).json({ success: true, data, message: "Huevo obtenido exitosamente" })
   } catch (error) {
-    console.error("Error fetching egg record:", error)
-    res.status(500).json({ error: "Internal server error" })
+    console.error("❌ Error in getHuevoById:", error)
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
+// Crear nuevo huevo
 export const createHuevo = async (req: Request, res: Response): Promise<void> => {
   try {
+    console.log("🥚 createHuevo called with data:", JSON.stringify(req.body, null, 2))
+
     const {
-      id_jaula, // ✅ Cambiado de id_ave a id_jaula
+      id_jaula,
       fecha_recoleccion,
       cantidad_total,
       huevos_cafe_chico = 0,
@@ -75,360 +69,275 @@ export const createHuevo = async (req: Request, res: Response): Promise<void> =>
       huevos_blanco_mediano = 0,
       huevos_blanco_grande = 0,
       huevos_blanco_jumbo = 0,
-      observaciones,
+      observaciones = "",
     } = req.body
 
-    if (!id_jaula || !fecha_recoleccion || !cantidad_total) {
-      res.status(400).json({ error: "id_jaula, fecha_recoleccion and cantidad_total are required" })
+    // Validaciones básicas
+    if (!id_jaula || !fecha_recoleccion || cantidad_total === undefined) {
+      console.log("❌ Missing required fields")
+      res.status(400).json({ error: "Faltan campos requeridos: id_jaula, fecha_recoleccion, cantidad_total" })
       return
     }
 
-    // ✅ Validar máximo 500 huevos por jaula por día
-    if (cantidad_total > 500) {
-      res.status(400).json({ error: "Maximum 500 eggs per cage per day allowed" })
-      return
-    }
-
-    // ✅ Validar que la suma no exceda el total
-    const totalClasificado =
-      huevos_cafe_chico +
-      huevos_cafe_mediano +
-      huevos_cafe_grande +
-      huevos_cafe_jumbo +
-      huevos_blanco_chico +
-      huevos_blanco_mediano +
-      huevos_blanco_grande +
-      huevos_blanco_jumbo
-
-    if (totalClasificado > cantidad_total) {
-      res.status(400).json({
-        error: `Classified eggs (${totalClasificado}) cannot exceed total (${cantidad_total})`,
-      })
-      return
-    }
-
-    // ✅ Verificar que no existe registro para esa jaula en esa fecha
-    const { data: existing } = await supabase
-      .from("huevo")
-      .select("id_huevo")
+    // Verificar que la jaula existe
+    console.log(`🔍 Checking if jaula ${id_jaula} exists...`)
+    const { data: jaulaExists, error: jaulaError } = await supabase
+      .from("jaula")
+      .select("id_jaula")
       .eq("id_jaula", id_jaula)
-      .eq("fecha_recoleccion", fecha_recoleccion)
       .single()
 
-    if (existing) {
-      res.status(400).json({ error: "Record already exists for this cage on this date" })
+    if (jaulaError || !jaulaExists) {
+      console.log(`❌ Jaula ${id_jaula} not found:`, jaulaError)
+      res.status(400).json({ error: "La jaula especificada no existe" })
       return
     }
 
-    const { data, error } = await supabase
-      .from("huevo")
-      .insert([
-        {
-          id_jaula,
-          fecha_recoleccion,
-          cantidad_total,
-          huevos_cafe_chico,
-          huevos_cafe_mediano,
-          huevos_cafe_grande,
-          huevos_cafe_jumbo,
-          huevos_blanco_chico,
-          huevos_blanco_mediano,
-          huevos_blanco_grande,
-          huevos_blanco_jumbo,
-          observaciones,
-          registrado_por: 1, // TODO: obtener del token de auth
-        },
-      ])
-      .select(`
-        *,
-        jaula:jaula(
-          id_jaula,
-          descripcion,
-          estanque:estanque(id_estanque)
-        )
-      `)
-      .single()
+    console.log(`✅ Jaula ${id_jaula} exists`)
+
+    // Crear el registro de huevos
+    const huevoData = {
+      id_jaula: Number.parseInt(id_jaula),
+      fecha_recoleccion,
+      cantidad_total: Number.parseInt(cantidad_total),
+      huevos_cafe_chico: Number.parseInt(huevos_cafe_chico),
+      huevos_cafe_mediano: Number.parseInt(huevos_cafe_mediano),
+      huevos_cafe_grande: Number.parseInt(huevos_cafe_grande),
+      huevos_cafe_jumbo: Number.parseInt(huevos_cafe_jumbo),
+      huevos_blanco_chico: Number.parseInt(huevos_blanco_chico),
+      huevos_blanco_mediano: Number.parseInt(huevos_blanco_mediano),
+      huevos_blanco_grande: Number.parseInt(huevos_blanco_grande),
+      huevos_blanco_jumbo: Number.parseInt(huevos_blanco_jumbo),
+      observaciones: observaciones || null,
+      registrado_por: 1, // TODO: get from auth context
+      fecha_registro: new Date().toISOString(),
+    }
+
+    console.log("🥚 Inserting huevo data:", JSON.stringify(huevoData, null, 2))
+
+    const { data, error } = await supabase.from("huevo").insert([huevoData]).select("*").single()
 
     if (error) {
-      res.status(400).json({ error: error.message })
+      console.error("❌ Supabase error creating huevo:", error)
+      res.status(500).json({ error: `Error al crear el registro de huevos: ${error.message}` })
       return
     }
 
-    res.status(201).json(data)
+    console.log("✅ Huevo created successfully:", JSON.stringify(data, null, 2))
+    res.status(201).json({ success: true, data, message: "Registro de huevos creado exitosamente" })
   } catch (error) {
-    console.error("Error creating egg record:", error)
-    res.status(500).json({ error: "Internal server error" })
+    console.error("❌ Error in createHuevo:", error)
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
+// Crear múltiples huevos (bulk)
+export const createBulkHuevos = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { records } = req.body
+
+    if (!records || !Array.isArray(records) || records.length === 0) {
+      res.status(400).json({ error: "Se requiere un array de registros" })
+      return
+    }
+
+    const { data, error } = await supabase.from("huevo").insert(records).select()
+
+    if (error) {
+      console.error("Error creating bulk huevos:", error)
+      res.status(500).json({ error: "Error al crear los registros de huevos" })
+      return
+    }
+
+    res.status(201).json({
+      success: true,
+      data,
+      message: `${data.length} registros de huevos creados exitosamente`,
+    })
+  } catch (error) {
+    console.error("Error in createBulkHuevos:", error)
+    res.status(500).json({ error: "Error interno del servidor" })
+  }
+}
+
+// Actualizar huevo
 export const updateHuevo = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-    const updates = req.body
+    const updateData = req.body
 
-    // ✅ Validar suma si se están actualizando cantidades
-    if (updates.cantidad_total) {
-      const totalClasificado =
-        (updates.huevos_cafe_chico || 0) +
-        (updates.huevos_cafe_mediano || 0) +
-        (updates.huevos_cafe_grande || 0) +
-        (updates.huevos_cafe_jumbo || 0) +
-        (updates.huevos_blanco_chico || 0) +
-        (updates.huevos_blanco_mediano || 0) +
-        (updates.huevos_blanco_grande || 0) +
-        (updates.huevos_blanco_jumbo || 0)
+    // Verificar que el huevo existe
+    const { data: existingHuevo, error: fetchError } = await supabase
+      .from("huevo")
+      .select("id_huevo")
+      .eq("id_huevo", id)
+      .single()
 
-      if (totalClasificado > updates.cantidad_total) {
-        res.status(400).json({
-          error: `Classified eggs (${totalClasificado}) cannot exceed total (${updates.cantidad_total})`,
-        })
+    if (fetchError || !existingHuevo) {
+      res.status(404).json({ error: "Huevo no encontrado" })
+      return
+    }
+
+    // Si se está actualizando la jaula, verificar que existe
+    if (updateData.id_jaula) {
+      const { data: jaulaExists, error: jaulaError } = await supabase
+        .from("jaula")
+        .select("id_jaula")
+        .eq("id_jaula", updateData.id_jaula)
+        .single()
+
+      if (jaulaError || !jaulaExists) {
+        res.status(400).json({ error: "La jaula especificada no existe" })
         return
       }
     }
 
-    const { data, error } = await supabase
-      .from("huevo")
-      .update(updates)
-      .eq("id_huevo", id)
-      .select(`
-        *,
-        jaula:jaula(
-          id_jaula,
-          descripcion,
-          estanque:estanque(id_estanque)
-        )
-      `)
-      .single()
+    const { data, error } = await supabase.from("huevo").update(updateData).eq("id_huevo", id).select("*").single()
 
     if (error) {
-      res.status(400).json({ error: error.message })
+      console.error("Error updating huevo:", error)
+      res.status(500).json({ error: "Error al actualizar el huevo" })
       return
     }
 
-    if (!data) {
-      res.status(404).json({ error: "Egg record not found" })
-      return
-    }
-
-    res.status(200).json(data)
+    res.status(200).json({ success: true, data, message: "Huevo actualizado exitosamente" })
   } catch (error) {
-    console.error("Error updating egg record:", error)
-    res.status(500).json({ error: "Internal server error" })
+    console.error("Error in updateHuevo:", error)
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
+// Eliminar huevo
 export const deleteHuevo = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
 
-    const { error } = await supabase.from("huevo").delete().eq("id_huevo", id)
+    // Verificar que el huevo existe
+    const { data: existingHuevo, error: fetchError } = await supabase
+      .from("huevo")
+      .select("id_huevo")
+      .eq("id_huevo", id)
+      .single()
 
-    if (error) {
-      res.status(400).json({ error: error.message })
+    if (fetchError || !existingHuevo) {
+      res.status(404).json({ error: "Huevo no encontrado" })
       return
     }
 
-    res.status(200).json({ message: "Egg record deleted successfully" })
+    const { error } = await supabase.from("huevo").delete().eq("id_huevo", id)
+
+    if (error) {
+      console.error("Error deleting huevo:", error)
+      res.status(500).json({ error: "Error al eliminar el huevo" })
+      return
+    }
+
+    res.status(200).json({ success: true, message: "Huevo eliminado exitosamente" })
   } catch (error) {
-    console.error("Error deleting egg record:", error)
-    res.status(500).json({ error: "Internal server error" })
+    console.error("Error in deleteHuevo:", error)
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
+// Obtener huevos por rango de fechas
 export const getHuevosByDateRange = async (req: Request, res: Response): Promise<void> => {
   try {
     const { start, end } = req.params
+
     const { data, error } = await supabase
       .from("huevo")
-      .select(`
-        *,
-        jaula:jaula(
-          id_jaula,
-          descripcion,
-          estanque:estanque(id_estanque)
-        )
-      `)
+      .select("*")
       .gte("fecha_recoleccion", start)
       .lte("fecha_recoleccion", end)
       .order("fecha_recoleccion", { ascending: false })
 
     if (error) {
-      res.status(400).json({ error: error.message })
+      console.error("Error fetching huevos by date range:", error)
+      res.status(500).json({ error: "Error al obtener los huevos por fecha" })
       return
     }
 
-    res.status(200).json(data)
+    res.status(200).json({ success: true, data, message: "Huevos obtenidos exitosamente" })
   } catch (error) {
-    console.error("Error fetching egg records by date range:", error)
-    res.status(500).json({ error: "Internal server error" })
+    console.error("Error in getHuevosByDateRange:", error)
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
-// ✅ NUEVO: Obtener huevos por jaula
+// Obtener huevos por jaula
 export const getHuevosByJaula = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id_jaula } = req.params
+
     const { data, error } = await supabase
       .from("huevo")
-      .select(`
-        *,
-        jaula:jaula(
-          id_jaula,
-          descripcion,
-          estanque:estanque(id_estanque)
-        )
-      `)
+      .select("*")
       .eq("id_jaula", id_jaula)
       .order("fecha_recoleccion", { ascending: false })
 
     if (error) {
-      res.status(400).json({ error: error.message })
+      console.error("Error fetching huevos by jaula:", error)
+      res.status(500).json({ error: "Error al obtener los huevos por jaula" })
       return
     }
 
-    res.status(200).json(data)
+    res.status(200).json({ success: true, data, message: "Huevos obtenidos exitosamente" })
   } catch (error) {
-    console.error("Error fetching egg records by cage:", error)
-    res.status(500).json({ error: "Internal server error" })
+    console.error("Error in getHuevosByJaula:", error)
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
+// Obtener estadísticas de huevos - CORREGIDA
 export const getHuevosStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Total huevos este mes
-    const currentMonth = new Date().toISOString().slice(0, 7)
-    const { data: huevosEsteMes } = await supabase
-      .from("huevo")
-      .select(`
-        *,
-        jaula:jaula(descripcion)
-      `)
-      .gte("fecha_recoleccion", `${currentMonth}-01`)
+    console.log("📊 getHuevosStats called")
 
-    const totalEsteMes = huevosEsteMes?.reduce((sum, record) => sum + record.cantidad_total, 0) || 0
+    const { data: allHuevos, error: totalError } = await supabase.from("huevo").select("*")
 
-    // Huevos hoy
+    if (totalError) {
+      console.error("❌ Error fetching total huevos:", totalError)
+      res.status(500).json({ error: "Error al obtener estadísticas" })
+      return
+    }
+
+    console.log(`📊 Total huevos records found: ${allHuevos?.length || 0}`)
+
+    // Calcular totales
+    const totalEggs = allHuevos?.length || 0
+    const totalEggsCollected = allHuevos?.reduce((sum, record) => sum + (record.cantidad_total || 0), 0) || 0
+
+    // Huevos de hoy
     const today = new Date().toISOString().split("T")[0]
-    const { data: huevosHoy } = await supabase
-      .from("huevo")
-      .select("cantidad_total, jaula:jaula(descripcion)")
-      .eq("fecha_recoleccion", today)
+    const todayEggs = allHuevos?.filter((record) => record.fecha_recoleccion === today) || []
+    const totalEggsToday = todayEggs.reduce((sum, record) => sum + (record.cantidad_total || 0), 0)
 
-    const totalHoy = huevosHoy?.reduce((sum, record) => sum + record.cantidad_total, 0) || 0
+    // Huevos de este mes
+    const currentMonth = new Date().toISOString().slice(0, 7)
+    const thisMonthEggs = allHuevos?.filter((record) => record.fecha_recoleccion?.startsWith(currentMonth)) || []
+    const totalEggsThisMonth = thisMonthEggs.reduce((sum, record) => sum + (record.cantidad_total || 0), 0)
 
-    // Promedio diario este mes
-    const diasConRegistro = new Set(huevosEsteMes?.map((record) => record.fecha_recoleccion)).size || 1
-    const promedioDiario = Math.round(totalEsteMes / diasConRegistro)
+    console.log(`📊 Stats calculated:`)
+    console.log(`   - Total records: ${totalEggs}`)
+    console.log(`   - Total eggs collected: ${totalEggsCollected}`)
+    console.log(`   - Today's eggs: ${totalEggsToday}`)
+    console.log(`   - This month's eggs: ${totalEggsThisMonth}`)
 
-    // ✅ Jaulas productivas (que han registrado huevos este mes)
-    const jaulasProductivas = new Set(huevosEsteMes?.map((record) => record.id_jaula)).size
+    const stats = {
+      totalEggs: totalEggsCollected,
+      totalEggsToday: totalEggsToday,
+      totalEggsThisMonth: totalEggsThisMonth,
+      totalRecords: totalEggs,
+    }
 
-    // ✅ Mejor jaula del mes
-    const produccionPorJaula = huevosEsteMes?.reduce((acc, record) => {
-      const jaulaId = record.id_jaula
-      if (!acc[jaulaId]) {
-        acc[jaulaId] = {
-          id_jaula: jaulaId,
-          descripcion: record.jaula?.descripcion || `Jaula ${jaulaId}`,
-          produccion: 0,
-        }
-      }
-      acc[jaulaId].produccion += record.cantidad_total
-      return acc
-    }, {} as any)
-
-    const mejorJaula = Object.values(produccionPorJaula || {}).reduce(
-      (best: any, current: any) => (current.produccion > best.produccion ? current : best),
-      { id_jaula: 0, descripcion: "N/A", produccion: 0 },
-    )
-
-    // Distribución por tipo y tamaño este mes
-    const distribucionTipo = huevosEsteMes?.reduce(
-      (acc, record) => {
-        acc.cafe +=
-          record.huevos_cafe_chico + record.huevos_cafe_mediano + record.huevos_cafe_grande + record.huevos_cafe_jumbo
-        acc.blanco +=
-          record.huevos_blanco_chico +
-          record.huevos_blanco_mediano +
-          record.huevos_blanco_grande +
-          record.huevos_blanco_jumbo
-        return acc
-      },
-      { cafe: 0, blanco: 0 },
-    ) || { cafe: 0, blanco: 0 }
-
-    const distribucionTamano = huevosEsteMes?.reduce(
-      (acc, record) => {
-        acc.chico += record.huevos_cafe_chico + record.huevos_blanco_chico
-        acc.mediano += record.huevos_cafe_mediano + record.huevos_blanco_mediano
-        acc.grande += record.huevos_cafe_grande + record.huevos_blanco_grande
-        acc.jumbo += record.huevos_cafe_jumbo + record.huevos_blanco_jumbo
-        return acc
-      },
-      { chico: 0, mediano: 0, grande: 0, jumbo: 0 },
-    ) || { chico: 0, mediano: 0, grande: 0, jumbo: 0 }
-
+    // ✅ SOLUCIÓN: Asegurar formato consistente
     res.status(200).json({
-      totalHoy,
-      totalEsteMes,
-      promedioDiario,
-      diasConRegistro,
-      jaulasProductivas,
-      mejorJaula,
-      distribucionTipo,
-      distribucionTamano,
+      success: true,
+      data: stats,
+      message: "Estadísticas obtenidas exitosamente",
     })
   } catch (error) {
-    console.error("Error fetching egg statistics:", error)
-    res.status(500).json({ error: "Internal server error" })
-  }
-}
-
-// ✅ NUEVO: Crear registro masivo para múltiples jaulas
-export const createBulkHuevos = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { fecha_recoleccion, registros } = req.body
-
-    if (!fecha_recoleccion || !registros || !Array.isArray(registros)) {
-      res.status(400).json({ error: "fecha_recoleccion and registros array are required" })
-      return
-    }
-
-    // Validar cada registro
-    for (const registro of registros) {
-      if (!registro.id_jaula || !registro.cantidad_total) {
-        res.status(400).json({ error: "Each record must have id_jaula and cantidad_total" })
-        return
-      }
-    }
-
-    // Preparar datos para inserción
-    const huevosData = registros.map((registro: any) => ({
-      ...registro,
-      fecha_recoleccion,
-      registrado_por: 1, // TODO: obtener del token
-    }))
-
-    const { data, error } = await supabase
-      .from("huevo")
-      .insert(huevosData)
-      .select(`
-        *,
-        jaula:jaula(
-          id_jaula,
-          descripcion,
-          estanque:estanque(id_estanque)
-        )
-      `)
-
-    if (error) {
-      res.status(400).json({ error: error.message })
-      return
-    }
-
-    res.status(201).json(data)
-  } catch (error) {
-    console.error("Error creating bulk egg records:", error)
-    res.status(500).json({ error: "Internal server error" })
+    console.error("❌ Error in getHuevosStats:", error)
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
