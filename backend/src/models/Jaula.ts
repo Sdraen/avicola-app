@@ -1,6 +1,7 @@
 export interface Jaula {
   id_jaula: number
   id_estanque: number
+  codigo_jaula: string
   descripcion: string
 }
 

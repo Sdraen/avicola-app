@@ -1,60 +1,74 @@
-import { BaseValidator, type ValidationRule } from "./baseValidation"
-import { VALIDATION_LIMITS, VALID_ENUMS } from "./constants"
+import { z } from "zod"
 
-export const jaulaValidationRules: ValidationRule[] = [
-  {
-    field: "id_estanque",
-    required: true,
-    type: "number",
-    min: 1,
-  },
-  {
-    field: "descripcion",
-    required: false,
-    type: "string",
-    maxLength: VALIDATION_LIMITS.DESCRIPCION_MAX,
-  },
-]
+// Schema para crear una jaula (con tu validación personalizada de codigo_jaula)
+export const createJaulaSchema = z.object({
+  codigo_jaula: z
+    .string({
+      required_error: "El código de jaula es obligatorio",
+      invalid_type_error: "El código debe ser una cadena numérica",
+    })
+    .regex(/^\d{1,6}$/, "Debe contener entre 1 y 6 dígitos")
+    .refine((val) => Number.parseInt(val, 10) >= 1, {
+      message: "El número debe ser mayor o igual a 1",
+    }),
 
-export const validateJaula = (data: any) => {
-  return BaseValidator.validate(data, jaulaValidationRules)
-}
+  descripcion: z
+    .string({
+      invalid_type_error: "La descripción debe ser texto",
+    })
+    .max(255, "La descripción no puede tener más de 255 caracteres")
+    .optional(),
+})
 
-export const validateJaulaUpdate = (data: any) => {
-  const updateRules = jaulaValidationRules.map((rule) => ({
-    ...rule,
-    required: false,
-  }))
-  return BaseValidator.validate(data, updateRules)
-}
+// Schema para actualizar una jaula (codigo_jaula opcional pero con mismas validaciones)
+export const updateJaulaSchema = z.object({
+  codigo_jaula: z
+    .string({
+      invalid_type_error: "El código debe ser una cadena numérica",
+    })
+    .regex(/^\d{1,6}$/, "Debe contener entre 1 y 6 dígitos")
+    .refine((val) => Number.parseInt(val, 10) >= 1, {
+      message: "El número debe ser mayor o igual a 1",
+    })
+    .optional(),
 
-// Validation for hygiene services
-export const servicioHigieneValidationRules: ValidationRule[] = [
-  {
-    field: "tipo",
-    required: true,
-    type: "string",
-    enum: VALID_ENUMS.TIPO_HIGIENE,
-  },
-  {
-    field: "fecha",
-    required: false,
-    type: "date",
-    custom: (value) => {
-      if (value && new Date(value) > new Date()) {
-        return "fecha no puede ser futura"
-      }
-      return null
-    },
-  },
-  {
-    field: "descripcion",
-    required: false,
-    type: "string",
-    maxLength: VALIDATION_LIMITS.DESCRIPCION_MAX,
-  },
-]
+  descripcion: z
+    .string({
+      invalid_type_error: "La descripción debe ser texto",
+    })
+    .max(255, "La descripción no puede tener más de 255 caracteres")
+    .optional(),
+})
 
-export const validateServicioHigiene = (data: any) => {
-  return BaseValidator.validate(data, servicioHigieneValidationRules)
-}
+// Schema para servicios de higiene (sin cambios)
+export const createServicioHigieneSchema = z.object({
+  tipo: z.enum(["limpieza", "desinfeccion", "fumigacion", "mantenimiento"], {
+    required_error: "El tipo de servicio es obligatorio",
+    invalid_type_error: "Tipo de servicio inválido",
+  }),
+
+  fecha: z
+    .string({
+      invalid_type_error: "La fecha debe ser texto en formato YYYY-MM-DD",
+    })
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha debe tener formato YYYY-MM-DD")
+    .refine((date) => {
+      const parsedDate = new Date(date)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      return parsedDate <= today
+    }, "La fecha no puede ser futura")
+    .optional(),
+
+  descripcion: z
+    .string({
+      invalid_type_error: "La descripción debe ser texto",
+    })
+    .max(255, "La descripción no puede tener más de 255 caracteres")
+    .optional(),
+})
+
+// Tipos TypeScript derivados de los schemas
+export type CreateJaulaInput = z.infer<typeof createJaulaSchema>
+export type UpdateJaulaInput = z.infer<typeof updateJaulaSchema>
+export type CreateServicioHigieneInput = z.infer<typeof createServicioHigieneSchema>

@@ -1,11 +1,20 @@
 import type { Request, Response } from "express"
 import { supabase } from "../config/supabase"
+import {
+  createClienteSchema,
+  updateClienteSchema,
+  clienteIdSchema,
+  searchClienteSchema,
+  type CreateClienteInput,
+  type UpdateClienteInput,
+} from "../schemas/clienteSchema"
 
 export const getAllClientes = async (req: Request, res: Response): Promise<void> => {
   try {
     const { data, error } = await supabase.from("cliente").select("*").order("nombre")
 
     if (error) {
+      console.error("Error fetching clients:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -13,13 +22,27 @@ export const getAllClientes = async (req: Request, res: Response): Promise<void>
     res.status(200).json(data)
   } catch (error) {
     console.error("Error fetching clients:", error)
-    res.status(500).json({ error: "Internal server error" })
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
 export const getClienteById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    // Validar parámetros
+    const paramValidation = clienteIdSchema.safeParse(req.params)
+    if (!paramValidation.success) {
+      res.status(400).json({
+        error: "Parámetros inválidos",
+        details: paramValidation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
+
+    const { id } = paramValidation.data
+
     const { data, error } = await supabase
       .from("cliente")
       .select(`
@@ -30,85 +53,182 @@ export const getClienteById = async (req: Request, res: Response): Promise<void>
       .single()
 
     if (error) {
+      console.error("Error fetching client:", error)
+      if (error.code === "PGRST116") {
+        res.status(404).json({ error: "Cliente no encontrado" })
+        return
+      }
       res.status(400).json({ error: error.message })
-      return
-    }
-
-    if (!data) {
-      res.status(404).json({ error: "Client not found" })
       return
     }
 
     res.status(200).json(data)
   } catch (error) {
     console.error("Error fetching client:", error)
-    res.status(500).json({ error: "Internal server error" })
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
 export const createCliente = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nombre, direccion, telefono, tipo_cliente } = req.body
-
-    if (!nombre) {
-      res.status(400).json({ error: "nombre is required" })
+    // Validar datos de entrada
+    const validation = createClienteSchema.safeParse(req.body)
+    if (!validation.success) {
+      res.status(400).json({
+        error: "Datos de entrada inválidos",
+        details: validation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
       return
     }
 
-    const { data, error } = await supabase
+    const clienteData: CreateClienteInput = validation.data
+
+    // Verificar si ya existe un cliente con el mismo nombre
+    const { data: existingCliente } = await supabase
       .from("cliente")
-      .insert([
-        {
-          nombre,
-          direccion,
-          telefono,
-          tipo_cliente,
-        },
-      ])
-      .select()
+      .select("id_cliente")
+      .eq("nombre", clienteData.nombre)
       .single()
 
+    if (existingCliente) {
+      res.status(409).json({
+        error: "Ya existe un cliente con este nombre",
+        field: "nombre",
+      })
+      return
+    }
+
+    // Crear el cliente
+    const { data, error } = await supabase.from("cliente").insert([clienteData]).select().single()
+
     if (error) {
+      console.error("Error creating client:", error)
       res.status(400).json({ error: error.message })
       return
     }
 
+    console.log("Cliente creado exitosamente:", data.id_cliente)
     res.status(201).json(data)
   } catch (error) {
     console.error("Error creating client:", error)
-    res.status(500).json({ error: "Internal server error" })
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
 export const updateCliente = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
-    const updates = req.body
+    // Validar parámetros
+    const paramValidation = clienteIdSchema.safeParse(req.params)
+    if (!paramValidation.success) {
+      res.status(400).json({
+        error: "Parámetros inválidos",
+        details: paramValidation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
 
-    const { data, error } = await supabase.from("cliente").update(updates).eq("id_cliente", id).select().single()
+    // Validar datos de entrada
+    const bodyValidation = updateClienteSchema.safeParse(req.body)
+    if (!bodyValidation.success) {
+      res.status(400).json({
+        error: "Datos de entrada inválidos",
+        details: bodyValidation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
+
+    const { id } = paramValidation.data
+    const updates: UpdateClienteInput = bodyValidation.data
+
+    // Filtrar campos vacíos y campos que no deben actualizarse
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined && value !== "" && value !== null),
+    )
+
+    if (Object.keys(filteredUpdates).length === 0) {
+      res.status(400).json({ error: "No hay datos válidos para actualizar" })
+      return
+    }
+
+    // Verificar si el cliente existe
+    const { data: existingCliente } = await supabase
+      .from("cliente")
+      .select("id_cliente, nombre")
+      .eq("id_cliente", id)
+      .single()
+
+    if (!existingCliente) {
+      res.status(404).json({ error: "Cliente no encontrado" })
+      return
+    }
+
+    // Si se está actualizando el nombre, verificar que no exista otro cliente con el mismo nombre
+    if (filteredUpdates.nombre && filteredUpdates.nombre !== existingCliente.nombre) {
+      const { data: duplicateCliente } = await supabase
+        .from("cliente")
+        .select("id_cliente")
+        .eq("nombre", filteredUpdates.nombre)
+        .neq("id_cliente", id)
+        .single()
+
+      if (duplicateCliente) {
+        res.status(409).json({
+          error: "Ya existe otro cliente con este nombre",
+          field: "nombre",
+        })
+        return
+      }
+    }
+
+    // Actualizar el cliente
+    const { data, error } = await supabase
+      .from("cliente")
+      .update(filteredUpdates)
+      .eq("id_cliente", id)
+      .select()
+      .single()
 
     if (error) {
+      console.error("Error updating client:", error)
       res.status(400).json({ error: error.message })
       return
     }
 
-    if (!data) {
-      res.status(404).json({ error: "Client not found" })
-      return
-    }
-
+    console.log("Cliente actualizado exitosamente:", id)
     res.status(200).json(data)
   } catch (error) {
     console.error("Error updating client:", error)
-    res.status(500).json({ error: "Internal server error" })
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
 export const deleteCliente = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    // Validar parámetros
+    const paramValidation = clienteIdSchema.safeParse(req.params)
+    if (!paramValidation.success) {
+      res.status(400).json({
+        error: "Parámetros inválidos",
+        details: paramValidation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
 
-    // Check if client has sales
+    const { id } = paramValidation.data
+
+    // Verificar si el cliente tiene ventas
     const { count: salesCount } = await supabase
       .from("venta")
       .select("*", { count: "exact", head: true })
@@ -116,28 +236,45 @@ export const deleteCliente = async (req: Request, res: Response): Promise<void> 
 
     if (salesCount && salesCount > 0) {
       res.status(400).json({
-        error: "Cannot delete client with sales history. Consider deactivating instead.",
+        error: "No se puede eliminar un cliente con historial de ventas. Considera desactivarlo en su lugar.",
       })
       return
     }
 
+    // Eliminar el cliente
     const { error } = await supabase.from("cliente").delete().eq("id_cliente", id)
 
     if (error) {
+      console.error("Error deleting client:", error)
       res.status(400).json({ error: error.message })
       return
     }
 
-    res.status(200).json({ message: "Client deleted successfully" })
+    console.log("Cliente eliminado exitosamente:", id)
+    res.status(200).json({ message: "Cliente eliminado exitosamente" })
   } catch (error) {
     console.error("Error deleting client:", error)
-    res.status(500).json({ error: "Internal server error" })
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
 export const getClienteVentas = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    // Validar parámetros
+    const paramValidation = clienteIdSchema.safeParse(req.params)
+    if (!paramValidation.success) {
+      res.status(400).json({
+        error: "Parámetros inválidos",
+        details: paramValidation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
+
+    const { id } = paramValidation.data
+
     const { data, error } = await supabase
       .from("venta")
       .select(`
@@ -148,6 +285,7 @@ export const getClienteVentas = async (req: Request, res: Response): Promise<voi
       .order("fecha_venta", { ascending: false })
 
     if (error) {
+      console.error("Error fetching client sales:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -155,13 +293,27 @@ export const getClienteVentas = async (req: Request, res: Response): Promise<voi
     res.status(200).json(data)
   } catch (error) {
     console.error("Error fetching client sales:", error)
-    res.status(500).json({ error: "Internal server error" })
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
 export const searchClientes = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { query } = req.params
+    // Validar parámetros
+    const paramValidation = searchClienteSchema.safeParse(req.params)
+    if (!paramValidation.success) {
+      res.status(400).json({
+        error: "Parámetros inválidos",
+        details: paramValidation.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
+
+    const { query } = paramValidation.data
+
     const { data, error } = await supabase
       .from("cliente")
       .select("*")
@@ -169,6 +321,7 @@ export const searchClientes = async (req: Request, res: Response): Promise<void>
       .order("nombre")
 
     if (error) {
+      console.error("Error searching clients:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -176,7 +329,7 @@ export const searchClientes = async (req: Request, res: Response): Promise<void>
     res.status(200).json(data)
   } catch (error) {
     console.error("Error searching clients:", error)
-    res.status(500).json({ error: "Internal server error" })
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
@@ -218,6 +371,6 @@ export const getClientesStats = async (req: Request, res: Response): Promise<voi
     })
   } catch (error) {
     console.error("Error fetching client statistics:", error)
-    res.status(500).json({ error: "Internal server error" })
+    res.status(500).json({ error: "Error interno del servidor" })
   }
 }

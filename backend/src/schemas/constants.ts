@@ -28,7 +28,7 @@ export const VALIDATION_LIMITS = {
   // Text lengths
   NOMBRE_MIN: 2,
   NOMBRE_MAX: 100,
-  DESCRIPCION_MAX: 500,
+  DESCRIPCION_MAX: 250,
   OBSERVACIONES_MAX: 1000,
 
   // Numeric limits
