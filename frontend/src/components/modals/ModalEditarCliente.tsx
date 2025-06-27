@@ -84,8 +84,8 @@ const ModalEditarCliente: React.FC<ModalEditarClienteProps> = ({ isOpen, onClose
       newErrors.nombre = "El nombre no puede tener más de 100 caracteres"
     }
 
-    if (formData.direccion && formData.direccion.length > 255) {
-      newErrors.direccion = "La dirección no puede tener más de 255 caracteres"
+    if (formData.direccion && formData.direccion.length > 250) {
+      newErrors.direccion = "La dirección no puede tener más de 250 caracteres"
     }
 
     if (formData.telefono && (!/^\d+$/.test(formData.telefono) || formData.telefono.length > 15)) {
@@ -115,9 +115,9 @@ const ModalEditarCliente: React.FC<ModalEditarClienteProps> = ({ isOpen, onClose
     try {
       const updateData = {
         nombre: formData.nombre.trim(),
-        direccion: formData.direccion.trim() || null,
-        telefono: formData.telefono ? Number.parseInt(formData.telefono) : null,
-        tipo_cliente: formData.tipo_cliente || null,
+        direccion: formData.direccion.trim() || "",
+        telefono: formData.telefono || "",
+        tipo_cliente: formData.tipo_cliente || "",
       }
 
       await clientesAPI.update(clienteId, updateData)
@@ -138,20 +138,12 @@ const ModalEditarCliente: React.FC<ModalEditarClienteProps> = ({ isOpen, onClose
     }
   }
 
-  const handleBackdropKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault()
-      onClose()
-    }
-  }
-
   if (!isOpen) return null
 
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
       onClick={handleBackdropClick}
-      onKeyDown={handleBackdropKeyDown}
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"

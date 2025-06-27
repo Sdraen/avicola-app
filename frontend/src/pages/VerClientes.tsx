@@ -233,16 +233,27 @@ const VerClientes: React.FC = () => {
                       {cliente.nombre}
                     </div>
                   </td>
-                  <td className="table-cell">
-                    {cliente.direccion ? (
-                      <span className="flex items-center">
-                        <span className="text-sm mr-1">📍</span>
-                        {cliente.direccion.length > 30 ? `${cliente.direccion.substring(0, 30)}...` : cliente.direccion}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">Sin dirección</span>
-                    )}
-                  </td>
+                 <td className="table-cell">
+  {cliente.direccion ? (
+    <details className="group cursor-pointer max-w-md text-sm text-gray-800">
+      <summary
+        className="flex items-center overflow-hidden whitespace-nowrap text-ellipsis max-w-full"
+        title={cliente.direccion}
+      >
+        <span className="text-sm mr-1">📍</span>
+        {cliente.direccion.length > 40
+          ? cliente.direccion.slice(0, 40) + "..."
+          : cliente.direccion}
+        {cliente.direccion.length > 40 && (
+          <span className="ml-1 text-blue-500 group-hover:underline">ver más</span>
+        )}
+      </summary>
+      <div className="mt-1 ml-5 text-gray-700">{cliente.direccion}</div>
+    </details>
+  ) : (
+    <span className="text-gray-400">Sin dirección</span>
+  )}
+</td>
                   <td className="table-cell">
                     {cliente.telefono ? (
                       <span className="flex items-center">

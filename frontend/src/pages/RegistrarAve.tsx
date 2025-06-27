@@ -109,7 +109,7 @@ const RegistrarAve: React.FC = () => {
   }
 
   const formatJaulaOption = (jaula: Jaula) => {
-    let label = `🏠 Jaula ${jaula.numero_jaula || jaula.id_jaula}`
+    let label = `🏠 Jaula ${jaula.codigo_jaula}`
 
     if (jaula.descripcion) {
       label += ` - ${jaula.descripcion}`

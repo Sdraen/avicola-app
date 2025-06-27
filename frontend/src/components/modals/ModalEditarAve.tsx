@@ -340,7 +340,7 @@ const ModalEditarAve: React.FC<ModalEditarAveProps> = ({ isOpen, aveId, onClose,
                     <option value="">Seleccionar jaula</option>
                     {jaulas.map((jaula) => (
                       <option key={jaula.id_jaula} value={jaula.id_jaula}>
-                        {jaula.numero_jaula || "Jaula"} - {jaula.descripcion}
+                        {jaula.codigo_jaula || "Jaula"} - {jaula.descripcion}
                       </option>
                     ))}
                   </select>

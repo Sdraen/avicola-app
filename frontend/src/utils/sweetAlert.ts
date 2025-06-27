@@ -1,95 +1,97 @@
 import Swal from "sweetalert2"
 
 // Configuración base para SweetAlert2
-const swalConfig = {
+const baseConfig = {
   customClass: {
-    popup: "swal-popup",
-    title: "swal-title",
-    content: "swal-content",
-    confirmButton: "swal-confirm-btn",
-    cancelButton: "swal-cancel-btn",
+    popup: "rounded-xl shadow-2xl",
+    title: "text-xl font-bold",
+    content: "text-gray-600",
+    confirmButton: "bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg",
+    cancelButton: "bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-lg",
   },
   buttonsStyling: false,
 }
 
-// Modal de confirmación para eliminar
-export const showDeleteConfirmation = async (
-  title = "¿Eliminar registro?",
-  text = "Esta acción no se puede deshacer",
-  confirmButtonText = "Sí, eliminar",
-) => {
-  return await Swal.fire({
-    ...swalConfig,
-    title,
-    text,
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonText,
-    cancelButtonText: "Cancelar",
-    confirmButtonColor: "#dc2626",
-    cancelButtonColor: "#6b7280",
-    reverseButtons: true,
-    focusCancel: true,
-  })
-}
-
-// Modal de confirmación para actualizar
-export const showUpdateConfirmation = async (
-  title = "¿Guardar cambios?",
-  text = "Se actualizarán los datos del registro",
-  confirmButtonText = "Sí, guardar",
-) => {
-  return await Swal.fire({
-    ...swalConfig,
-    title,
-    text,
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonText,
-    cancelButtonText: "Cancelar",
-    confirmButtonColor: "#2563eb",
-    cancelButtonColor: "#6b7280",
-    reverseButtons: true,
-  })
-}
-
-// Modal de éxito
-export const showSuccessAlert = async (
-  title = "¡Éxito!",
-  text = "Operación completada correctamente",
-  timer = 2000,
-) => {
-  return await Swal.fire({
-    ...swalConfig,
+// Alerta de éxito
+export const showSuccessAlert = (title: string, text: string) => {
+  return Swal.fire({
+    ...baseConfig,
     title,
     text,
     icon: "success",
-    timer,
+    timer: 3000,
     showConfirmButton: false,
+    toast: true,
+    position: "top-end",
     timerProgressBar: true,
   })
 }
 
-// Modal de error
-export const showErrorAlert = async (
-  title = "Error",
-  text = "Ha ocurrido un error inesperado",
-  confirmButtonText = "Entendido",
-) => {
-  return await Swal.fire({
-    ...swalConfig,
+// Alerta de error
+export const showErrorAlert = (title: string, text: string) => {
+  return Swal.fire({
+    ...baseConfig,
     title,
     text,
     icon: "error",
-    confirmButtonText,
-    confirmButtonColor: "#dc2626",
+    confirmButtonText: "Entendido",
+    customClass: {
+      ...baseConfig.customClass,
+      confirmButton: "bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg",
+    },
   })
 }
 
-// Modal de carga
-export const showLoadingAlert = (title = "Procesando...", text = "Por favor espere") => {
-  Swal.fire({
-    ...swalConfig,
+// Alerta de advertencia
+export const showWarningAlert = (title: string, text: string) => {
+  return Swal.fire({
+    ...baseConfig,
+    title,
+    text,
+    icon: "warning",
+    confirmButtonText: "Entendido",
+    customClass: {
+      ...baseConfig.customClass,
+      confirmButton: "bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-lg",
+    },
+  })
+}
+
+// Diálogo de confirmación
+export const showConfirmDialog = (title: string, text: string, confirmText = "Confirmar", cancelText = "Cancelar") => {
+  return Swal.fire({
+    ...baseConfig,
+    title,
+    text,
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: confirmText,
+    cancelButtonText: cancelText,
+    reverseButtons: true,
+    focusCancel: true,
+    customClass: {
+      ...baseConfig.customClass,
+      confirmButton: "bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg",
+      cancelButton: "bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-lg",
+    },
+  }).then((result) => result.isConfirmed)
+}
+
+// Alerta de información
+export const showInfoAlert = (title: string, text: string) => {
+  return Swal.fire({
+    ...baseConfig,
+    title,
+    text,
+    icon: "info",
+    confirmButtonText: "Entendido",
+  })
+}
+
+// Alerta de carga
+export const showLoadingAlert = (title: string, text: string) => {
+  return Swal.fire({
+    ...baseConfig,
     title,
     text,
     allowOutsideClick: false,
@@ -101,21 +103,72 @@ export const showLoadingAlert = (title = "Procesando...", text = "Por favor espe
   })
 }
 
-// Cerrar modal de carga
+// Cerrar alerta de carga
 export const closeLoadingAlert = () => {
   Swal.close()
 }
 
-// Modal de información
-export const showInfoAlert = async (title: string, text: string, confirmButtonText = "Entendido") => {
-  return await Swal.fire({
-    ...swalConfig,
+// Toast personalizado
+export const showToast = (
+  message: string,
+  type: "success" | "error" | "warning" | "info" = "info",
+  duration = 3000,
+) => {
+  return Swal.fire({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: duration,
+    timerProgressBar: true,
+    icon: type,
+    title: message,
+    customClass: {
+      popup: "rounded-lg shadow-lg",
+    },
+  })
+}
+
+// Modal de confirmación para eliminar
+export const showDeleteConfirmation = async (
+  title = "¿Eliminar registro?",
+  text = "Esta acción no se puede deshacer",
+  confirmButtonText = "Sí, eliminar",
+) => {
+  const result = await Swal.fire({
+    ...baseConfig,
     title,
     text,
-    icon: "info",
+    icon: "warning",
+    showCancelButton: true,
     confirmButtonText,
-    confirmButtonColor: "#2563eb",
+    cancelButtonText: "Cancelar",
+    confirmButtonColor: "#dc2626",
+    cancelButtonColor: "#6b7280",
+    reverseButtons: true,
+    focusCancel: true,
   })
+  return result.isConfirmed
+}
+
+// Modal de confirmación para actualizar
+export const showUpdateConfirmation = async (
+  title = "¿Guardar cambios?",
+  text = "Se actualizarán los datos del registro",
+  confirmButtonText = "Sí, guardar",
+) => {
+  const result = await Swal.fire({
+    ...baseConfig,
+    title,
+    text,
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText,
+    cancelButtonText: "Cancelar",
+    confirmButtonColor: "#2563eb",
+    cancelButtonColor: "#6b7280",
+    reverseButtons: true,
+  })
+  return result.isConfirmed
 }
 
 // Modal de edición de Ave con SweetAlert2 - CORREGIDO
@@ -324,6 +377,69 @@ export const showEditHuevoModal = async (huevo: any, jaulas: any[]) => {
         huevos_blanco_grande: Number(huevos_blanco_grande) || 0,
         huevos_blanco_jumbo: Number(huevos_blanco_jumbo) || 0,
         observaciones: observaciones?.trim() || null,
+      }
+    },
+  })
+
+  return formValues
+}
+
+// Modal de edición de Cliente con SweetAlert2
+export const showEditClienteModal = async (cliente: any) => {
+  const { value: formValues } = await Swal.fire({
+    title: `👤 Editar Cliente #${cliente.id_cliente}`,
+    html: `
+      <div class="swal-form">
+        <div class="swal-form-group">
+          <label class="swal-label">👤 Nombre *</label>
+          <input id="nombre" class="swal-input" type="text" value="${cliente.nombre || ""}" placeholder="Nombre completo" required>
+        </div>
+        
+        <div class="swal-form-group">
+          <label class="swal-label">📍 Dirección</label>
+          <textarea id="direccion" class="swal-textarea" rows="2" placeholder="Dirección completa">${cliente.direccion || ""}</textarea>
+        </div>
+        
+        <div class="swal-form-group">
+          <label class="swal-label">📞 Teléfono</label>
+          <input id="telefono" class="swal-input" type="tel" value="${cliente.telefono || ""}" placeholder="Número de teléfono">
+        </div>
+        
+        <div class="swal-form-group">
+          <label class="swal-label">🏷️ Tipo de Cliente</label>
+          <select id="tipo_cliente" class="swal-select">
+            <option value="Mayorista" ${cliente.tipo_cliente === "Mayorista" ? "selected" : ""}>🏢 Mayorista</option>
+            <option value="Minorista" ${cliente.tipo_cliente === "Minorista" ? "selected" : ""}>🛒 Minorista</option>
+          </select>
+        </div>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: "💾 Guardar Cambios",
+    cancelButtonText: "Cancelar",
+    confirmButtonColor: "#2563eb",
+    cancelButtonColor: "#6b7280",
+    width: "500px",
+    customClass: {
+      popup: "swal-wide-popup",
+    },
+    focusConfirm: false,
+    preConfirm: () => {
+      const nombre = (document.getElementById("nombre") as HTMLInputElement)?.value?.trim()
+      const direccion = (document.getElementById("direccion") as HTMLTextAreaElement)?.value?.trim()
+      const telefono = (document.getElementById("telefono") as HTMLInputElement)?.value?.trim()
+      const tipo_cliente = (document.getElementById("tipo_cliente") as HTMLSelectElement)?.value
+
+      if (!nombre) {
+        Swal.showValidationMessage("❌ El nombre es requerido")
+        return false
+      }
+
+      return {
+        nombre,
+        direccion: direccion || null,
+        telefono: telefono || null,
+        tipo_cliente,
       }
     },
   })

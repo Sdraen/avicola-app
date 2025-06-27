@@ -456,3 +456,8 @@
   gap: 8px;
   align-items: center;
 }
+
+/* Clase para recortar dirección larga con tooltip */
+.direccion-corta {
+  @apply max-w-md whitespace-nowrap overflow-hidden text-ellipsis;
+}

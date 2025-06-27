@@ -29,16 +29,15 @@ const RegistrarCliente: React.FC = () => {
 
     try {
       const clienteData = {
-        nombre: form.nombre,
-        direccion: form.direccion,
-        telefono: form.telefono ? Number.parseInt(form.telefono) : undefined,
+        nombre: form.nombre.trim(),
+        direccion: form.direccion.trim() || "",
+        telefono: form.telefono.replace(/\D/g, "") || "",
         tipo_cliente: form.tipo_cliente,
       }
 
       await clientesAPI.create(clienteData)
       setSuccess("Cliente registrado exitosamente")
 
-      // Limpiar formulario
       setForm({
         nombre: "",
         direccion: "",
@@ -46,7 +45,6 @@ const RegistrarCliente: React.FC = () => {
         tipo_cliente: "",
       })
 
-      // Redirigir después de 2 segundos
       setTimeout(() => {
         navigate("/ver-clientes")
       }, 2000)
@@ -67,7 +65,6 @@ const RegistrarCliente: React.FC = () => {
 
       <form className="registrar-ave-form" onSubmit={handleSubmit}>
         {error && <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
-
         {success && (
           <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">{success}</div>
         )}
