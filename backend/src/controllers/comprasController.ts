@@ -119,26 +119,63 @@ export const createCompra = async (req: Request, res: Response): Promise<void> =
 export const updateCompra = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-    const updates = req.body
+    const { implementos, ...fields } = req.body
 
-    const { data, error } = await supabase.from("compras").update(updates).eq("id_compras", id).select().single()
+    // 1. Actualizar la compra
+    const { error: updateError } = await supabase
+      .from("compras")
+      .update(fields)
+      .eq("id_compras", id)
+      .select()
+      .single()
 
-    if (error) {
-      res.status(400).json({ error: error.message })
+    if (updateError) {
+      res.status(400).json({ error: updateError.message })
       return
     }
 
-    if (!data) {
-      res.status(404).json({ error: "Purchase not found" })
+    // 2. Eliminar implementos existentes (si vienen nuevos)
+    if (Array.isArray(implementos)) {
+      const { error: deleteError } = await supabase.from("implementos").delete().eq("id_compras", id)
+
+      if (deleteError) {
+        res.status(400).json({ error: deleteError.message })
+        return
+      }
+
+      // 3. Insertar implementos nuevos
+      const nuevos = implementos.map((i) => ({
+        ...i,
+        id_compras: parseInt(id), // asegurar int4
+      }))
+
+      const { error: insertError } = await supabase.from("implementos").insert(nuevos)
+
+      if (insertError) {
+        res.status(400).json({ error: insertError.message })
+        return
+      }
+    }
+
+    // 4. Devolver compra actualizada con implementos
+    const { data: finalData, error: fetchError } = await supabase
+      .from("compras")
+      .select(`*, implementos:implementos(*)`)
+      .eq("id_compras", id)
+      .single()
+
+    if (fetchError) {
+      res.status(400).json({ error: fetchError.message })
       return
     }
 
-    res.status(200).json(data)
+    res.status(200).json(finalData)
   } catch (error) {
     console.error("Error updating purchase:", error)
     res.status(500).json({ error: "Internal server error" })
   }
 }
+
 
 export const deleteCompra = async (req: Request, res: Response): Promise<void> => {
   try {
