@@ -69,7 +69,7 @@ const VerHuevos: React.FC = () => {
       "Sí, eliminar",
     )
 
-    if (result.isConfirmed) {
+    if (result) {
       try {
         showLoadingAlert("Eliminando registro...", "Por favor espere")
 
@@ -84,6 +84,24 @@ const VerHuevos: React.FC = () => {
         console.error("Error al eliminar el registro", err)
       }
     }
+  }
+
+  // Función helper para formatear fechas correctamente
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return "-"
+
+    // Si la fecha ya está en formato YYYY-MM-DD, usarla directamente
+    if (dateString.includes("T")) {
+      return dateString.split("T")[0]
+    }
+
+    // Si es solo la fecha, crear un objeto Date sin conversión de zona horaria
+    const date = new Date(dateString + "T00:00:00")
+    return date.toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
   }
 
   const isAdmin =
@@ -207,7 +225,9 @@ const VerHuevos: React.FC = () => {
                   <tr key={h.id_huevo} className="table-row">
                     <td className="table-cell id-cell">{h.id_huevo}</td>
                     <td className="table-cell">{h.jaula?.descripcion || `Jaula ${h.id_jaula}`}</td>
-                    <td className="table-cell">{new Date(h.fecha_recoleccion).toLocaleDateString()}</td>
+                    <td className="table-cell">
+                      <span className="text-sm font-medium">{formatDate(h.fecha_recoleccion)}</span>
+                    </td>
                     <td className="table-cell">
                       <span className="cantidad-badge">{h.cantidad_total}</span>
                     </td>

@@ -11,7 +11,7 @@ const RegistrarHuevos: React.FC = () => {
   const [jaulas, setJaulas] = useState<Jaula[]>([])
   const [form, setForm] = useState({
     id_jaula: "",
-    fecha_recoleccion: new Date().toISOString().split("T")[0],
+    fecha_recoleccion: new Date().toISOString().split("T")[0], // Fecha local sin conversión
     cantidad_total: "",
     huevos_cafe_chico: "",
     huevos_cafe_mediano: "",
@@ -65,9 +65,10 @@ const RegistrarHuevos: React.FC = () => {
     setLoading(true)
 
     try {
+      // Asegurar que la fecha se envíe en formato correcto (YYYY-MM-DD)
       const huevoData = {
         id_jaula: Number.parseInt(form.id_jaula),
-        fecha_recoleccion: form.fecha_recoleccion,
+        fecha_recoleccion: form.fecha_recoleccion, // Ya está en formato YYYY-MM-DD
         cantidad_total: Number.parseInt(form.cantidad_total),
         huevos_cafe_chico: Number.parseInt(form.huevos_cafe_chico || "0"),
         huevos_cafe_mediano: Number.parseInt(form.huevos_cafe_mediano || "0"),
@@ -79,6 +80,8 @@ const RegistrarHuevos: React.FC = () => {
         huevos_blanco_jumbo: Number.parseInt(form.huevos_blanco_jumbo || "0"),
         observaciones: form.observaciones,
       }
+
+      console.log("📅 Enviando fecha:", huevoData.fecha_recoleccion)
 
       await huevosAPI.create(huevoData)
       setSuccess("Registro de huevos creado exitosamente")
@@ -104,6 +107,7 @@ const RegistrarHuevos: React.FC = () => {
         navigate("/ver-huevos")
       }, 2000)
     } catch (err: any) {
+      console.error("Error al registrar huevos:", err)
       setError(err.response?.data?.error || "Error al registrar los huevos")
     } finally {
       setLoading(false)
@@ -153,7 +157,11 @@ const RegistrarHuevos: React.FC = () => {
               onChange={handleChange}
               className="form-input"
               required
+              max={new Date().toISOString().split("T")[0]} // No permitir fechas futuras
             />
+            <small className="text-gray-500 text-xs mt-1 block">
+              📅 Fecha seleccionada: {new Date(form.fecha_recoleccion + "T00:00:00").toLocaleDateString("es-ES")}
+            </small>
           </div>
         </div>
 

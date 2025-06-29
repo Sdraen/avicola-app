@@ -44,7 +44,6 @@ const Layout: React.FC = () => {
       submenu: [
         { title: "Ver Huevos", path: "/ver-huevos" },
         { title: "Registrar Huevos", path: "/registrar-huevos" },
-        { title: "Registro Diario", path: "/registro-huevos-diario" },
       ],
     },
     {
