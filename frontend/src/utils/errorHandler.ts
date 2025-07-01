@@ -128,9 +128,9 @@ export const showApiError = async (error: ApiError) => {
     // Mostrar errores de validación
     const errorList = error.details.map((detail) => `• ${detail.field}: ${detail.message}`).join("\n")
 
-    await showErrorAlert("Errores de validación", errorList, "Corregir errores")
+    await showErrorAlert("Errores de validación", errorList)
   } else {
     // Mostrar error general
-    await showErrorAlert("Error", error.message, "Entendido")
+    await showErrorAlert("Error", error.message)
   }
 }

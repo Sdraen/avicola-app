@@ -49,14 +49,22 @@ export interface Cliente {
   tipo_cliente: string
 }
 
+export interface Bandeja {
+  id_bandeja: number
+  id_venta: number
+  cantidad_huevos: number
+  tipo_bandeja: string
+  huevos?: Huevo[]
+}
+
 export interface Venta {
   id_venta: number
   id_cliente: number
-  codigo_barras: number
   fecha_venta: string
   costo_total: number
   cantidad_total: number
   cliente?: Cliente
+  bandejas?: Bandeja[]
 }
 
 export interface Compra {
@@ -130,6 +138,11 @@ export interface RegistroHuevosDiario {
   observaciones?: string
   registrado_por: number
   fecha_registro: string
+}
+
+export interface HuevoBandeja {
+  id_bandeja: number
+  id_huevo: number
 }
 
 export interface User {
