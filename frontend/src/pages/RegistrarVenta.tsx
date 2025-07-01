@@ -1,49 +1,62 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { ventasAPI, clientesAPI } from "../services/api"
-import type { Cliente } from "../types"
+import Select from "react-select"
+import { ventasAPI, huevosAPI, clientesAPI } from "../services/api"
+import type { Huevo, Cliente } from "../types"
 
 const RegistrarVenta: React.FC = () => {
   const navigate = useNavigate()
-  const [clientes, setClientes] = useState<Cliente[]>([])
+
+  const today = new Date()
+  const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+  const fechaLocal = localDate.toISOString().split("T")[0]
+
   const [form, setForm] = useState({
+    fecha: fechaLocal,
     id_cliente: "",
-    codigo_barras: "",
-    fecha_venta: new Date().toISOString().split("T")[0],
+    huevosSeleccionados: [] as number[],
+    cantidad_bandejas: "",
     costo_total: "",
-    cantidad_total: "",
   })
+
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [huevos, setHuevos] = useState<Huevo[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
   useEffect(() => {
-    const fetchClientes = async () => {
+    const fetchData = async () => {
       try {
-        const response = await clientesAPI.getAll()
-        setClientes(response.data)
+        const [clientesRes, huevosRes] = await Promise.all([
+          clientesAPI.getAll(),
+          huevosAPI.getAll(),
+        ])
+
+        const clientesList = clientesRes.data?.data || clientesRes.data || []
+        const huevosList = huevosRes.data?.data || huevosRes.data || []
+
+        setClientes(Array.isArray(clientesList) ? clientesList : [])
+        setHuevos(Array.isArray(huevosList) ? huevosList : [])
       } catch (err) {
-        console.error("Error fetching clientes:", err)
+        console.error("Error al cargar datos:", err)
       }
     }
 
-    fetchClientes()
+    fetchData()
   }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+    const raw = name === "costo_total" ? value.replace(/\D/g, "") : value
+    setForm({ ...form, [name]: raw })
   }
 
-  const calculateUnitPrice = () => {
-    const total = Number.parseFloat(form.costo_total)
-    const cantidad = Number.parseInt(form.cantidad_total)
-    if (total && cantidad) {
-      return (total / cantidad).toFixed(2)
-    }
-    return "0.00"
+  const handleSelectHuevos = (selected: any) => {
+    const ids = selected.map((item: any) => item.value)
+    setForm((prev) => ({ ...prev, huevosSeleccionados: ids }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,144 +66,133 @@ const RegistrarVenta: React.FC = () => {
     setLoading(true)
 
     try {
-      const ventaData = {
-        id_cliente: Number.parseInt(form.id_cliente),
-        codigo_barras: Number.parseInt(form.codigo_barras),
-        fecha_venta: form.fecha_venta,
-        costo_total: Number.parseFloat(form.costo_total),
-        cantidad_total: Number.parseInt(form.cantidad_total),
+      const payload = {
+        id_cliente: parseInt(form.id_cliente),
+        fecha_venta: form.fecha,
+        cantidad_total: parseInt(form.cantidad_bandejas),
+        costo_total: parseInt(form.costo_total),
+        bandejas: form.huevosSeleccionados.map((id) => ({ id_huevo: id })),
       }
 
-      await ventasAPI.create(ventaData)
+      await ventasAPI.create(payload)
       setSuccess("Venta registrada exitosamente")
 
-      // Limpiar formulario
       setForm({
+        fecha: fechaLocal,
         id_cliente: "",
-        codigo_barras: "",
-        fecha_venta: new Date().toISOString().split("T")[0],
+        huevosSeleccionados: [],
+        cantidad_bandejas: "",
         costo_total: "",
-        cantidad_total: "",
       })
 
-      // Redirigir después de 2 segundos
       setTimeout(() => {
         navigate("/ver-ventas")
-      }, 2000)
+      }, 1500)
     } catch (err: any) {
+      console.error("Error al registrar venta:", err)
       setError(err.response?.data?.error || "Error al registrar la venta")
     } finally {
       setLoading(false)
     }
   }
 
+  const formatFecha = (iso: string) => {
+    const raw = new Date(iso)
+    const local = new Date(raw.getTime() + raw.getTimezoneOffset() * 60000)
+    return local.toLocaleDateString("es-CL")
+  }
+
+  const huevosOptions = huevos.map((h) => ({
+    value: h.id_huevo,
+    label: `🥚 Jaula ${h.jaula?.codigo_jaula || "?"} - ${formatFecha(h.fecha_recoleccion)} - ${h.cantidad_total} huevos`,
+  }))
+
   return (
     <div className="registrar-ave-container">
       <div className="form-header">
-        <div className="form-icon">💰</div>
-        <h2 className="form-title">Registrar Nueva Venta</h2>
-        <p className="form-subtitle">Complete los datos para registrar una venta en el sistema</p>
+        <div className="form-icon">🥚</div>
+        <h2 className="form-title">Registrar Nueva Venta de Huevos</h2>
+        <p className="form-subtitle">Seleccione cliente, huevos recolectados y registre la venta</p>
       </div>
 
       <form className="registrar-ave-form" onSubmit={handleSubmit}>
-        {error && <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
-
-        {success && (
-          <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">{success}</div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="form-group">
-            <label className="form-label">
-              <span className="label-icon">👤</span>
-              Cliente:
-            </label>
-            <select name="id_cliente" value={form.id_cliente} onChange={handleChange} className="form-input" required>
-              <option value="">Seleccionar cliente</option>
-              {clientes.map((cliente) => (
-                <option key={cliente.id_cliente} value={cliente.id_cliente}>
-                  {cliente.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              <span className="label-icon">📅</span>
-              Fecha de Venta:
-            </label>
-            <input
-              type="date"
-              name="fecha_venta"
-              value={form.fecha_venta}
-              onChange={handleChange}
-              className="form-input"
-              required
-            />
-          </div>
-        </div>
+        {error && <div className="error-message">{error}</div>}
+        {success && <div className="success-message">{success}</div>}
 
         <div className="form-group">
-          <label className="form-label">
-            <span className="label-icon">🏷️</span>
-            Código de Barras:
-          </label>
+          <label className="form-label">📅 Fecha:</label>
           <input
-            type="number"
-            name="codigo_barras"
-            value={form.codigo_barras}
+            type="date"
+            name="fecha"
+            value={form.fecha}
             onChange={handleChange}
             className="form-input"
-            placeholder="Código de barras del producto"
             required
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="form-group">
-            <label className="form-label">
-              <span className="label-icon">📦</span>
-              Cantidad Total:
-            </label>
-            <input
-              type="number"
-              name="cantidad_total"
-              value={form.cantidad_total}
-              onChange={handleChange}
-              className="form-input"
-              min="1"
-              placeholder="Cantidad de productos"
-              required
-            />
-          </div>
+        <div className="form-group">
+          <label className="form-label">👤 Cliente:</label>
+          <select
+            name="id_cliente"
+            value={form.id_cliente}
+            onChange={handleChange}
+            className="form-input"
+            required
+          >
+            <option value="">Seleccione un cliente</option>
+            {clientes.map((cliente) => (
+              <option key={cliente.id_cliente} value={cliente.id_cliente}>
+                {cliente.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="form-group">
-            <label className="form-label">
-              <span className="label-icon">💰</span>
-              Costo Total:
-            </label>
+        <div className="form-group">
+          <label className="form-label">📦 Seleccionar huevos para bandejas:</label>
+          <Select
+            isMulti
+            options={huevosOptions}
+            onChange={handleSelectHuevos}
+            value={huevosOptions.filter((opt) => form.huevosSeleccionados.includes(opt.value))}
+            className="react-select-container"
+            classNamePrefix="react-select"
+            placeholder="Seleccione huevos..."
+          />
+          <small className="text-gray-500 mt-1 block">Mantenga presionada Ctrl o Cmd para seleccionar múltiples</small>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="cantidad_bandejas">🥚 Cantidad de bandejas:</label>
+          <input
+            type="number"
+            id="cantidad_bandejas"
+            name="cantidad_bandejas"
+            value={form.cantidad_bandejas}
+            onChange={handleChange}
+            className="form-input"
+            min={1}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="costo_total">💰 Costo Total (CLP):</label>
+          <div className="relative">
+            <span className="absolute left-3 top-3 text-gray-500">$</span>
             <input
-              type="number"
+              type="text"
+              id="costo_total"
               name="costo_total"
-              value={form.costo_total}
+              inputMode="numeric"
+              className="form-input pl-7"
+              value={Number(form.costo_total || 0).toLocaleString("es-CL")}
               onChange={handleChange}
-              className="form-input"
-              step="0.01"
-              min="0.01"
-              placeholder="Precio total de la venta"
               required
             />
           </div>
         </div>
-
-        {form.costo_total && form.cantidad_total && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-blue-800">
-              <strong>Precio por unidad:</strong> ${calculateUnitPrice()}
-            </p>
-          </div>
-        )}
 
         <button type="submit" className="submit-button" disabled={loading}>
           <span className="button-icon">💾</span>

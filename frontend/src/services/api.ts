@@ -133,12 +133,29 @@ export const clientesAPI = {
 export const ventasAPI = {
   getAll: () => api.get("/ventas"),
   getById: (id: number) => api.get(`/ventas/${id}`),
-  create: (data: any) => api.post("/ventas", data),
+  create: (data: {
+    id_cliente: number
+    fecha_venta: string
+    costo_total: number
+    cantidad_total: number
+    bandejas: { id_huevo: number }[]
+  }) => api.post("/ventas", data),
   update: (id: number, data: any) => api.put(`/ventas/${id}`, data),
   delete: (id: number) => api.delete(`/ventas/${id}`),
   getByDateRange: (start: string, end: string) => api.get(`/ventas/fecha/${start}/${end}`),
   getStats: () => api.get("/ventas/stats/overview"),
 }
+
+// Servicios de bandejas
+/*export const bandejasAPI = {
+  getAll: () => api.get("/bandejas"),
+  getById: (id: number) => api.get(`/bandejas/${id}`),
+  create: (data: any) => api.post("/bandejas", data),
+  update: (id: number, data: any) => api.put(`/bandejas/${id}`, data),
+  delete: (id: number) => api.delete(`/bandejas/${id}`),
+  getByVenta: (id_venta: number) => api.get(`/bandejas/venta/${id_venta}`),
+  search: (query: string) => api.get(`/bandejas/search/${query}`),
+}*/
 
 // Servicios de compras
 export const comprasAPI = {

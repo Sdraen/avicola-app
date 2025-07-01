@@ -143,14 +143,9 @@ export const huevoDateRangeSchema = z
     },
   )
 
-// Schema para validar ID de jaula - corregido para coincidir con el parámetro de la ruta
+// Cambiar el huevoJaulaIdSchema para que coincida con el parámetro de la URL
 export const huevoJaulaIdSchema = z.object({
   id_jaula: z.string().regex(/^\d+$/, "ID de jaula debe ser un número válido").transform(Number),
-})
-
-// Schema alternativo si el parámetro se llama diferente en la ruta
-export const jaulaParamSchema = z.object({
-  jaulaId: z.string().regex(/^\d+$/, "ID de jaula debe ser un número válido").transform(Number),
 })
 
 // Schema para query parameters de búsqueda
@@ -170,14 +165,8 @@ export const huevoQuerySchema = z.object({
 
 // Schema para estadísticas de huevos
 export const huevoStatsSchema = z.object({
-  fecha_inicio: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de inicio debe tener formato YYYY-MM-DD")
-    .optional(),
-  fecha_fin: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de fin debe tener formato YYYY-MM-DD")
-    .optional(),
+  fecha_inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de inicio debe tener formato YYYY-MM-DD"),
+  fecha_fin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de fin debe tener formato YYYY-MM-DD"),
   id_jaula: z.string().regex(/^\d+$/, "ID de jaula debe ser un número").transform(Number).optional(),
 })
 

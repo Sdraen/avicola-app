@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { huevosAPI, jaulasAPI } from "../../services/api"
-import type { Jaula } from "../../types"
+import type { Huevo, Jaula } from "../../types"
 import { showSuccessAlert, showErrorAlert, showLoadingAlert, closeLoadingAlert } from "../../utils/sweetAlert"
 
 interface ModalEditarHuevoProps {
@@ -13,77 +13,137 @@ interface ModalEditarHuevoProps {
   onUpdate: () => void
 }
 
-interface FormData {
-  id_jaula: number | null
-  cantidad_total: number
-  huevos_cafe_chico: number
-  huevos_cafe_mediano: number
-  huevos_cafe_grande: number
-  huevos_cafe_jumbo: number
-  huevos_blanco_chico: number
-  huevos_blanco_mediano: number
-  huevos_blanco_grande: number
-  huevos_blanco_jumbo: number
-  observaciones: string
-}
-
 const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, onClose, onUpdate }) => {
-  const [formData, setFormData] = useState<FormData>({
-    id_jaula: null,
-    cantidad_total: 0,
-    huevos_cafe_chico: 0,
-    huevos_cafe_mediano: 0,
-    huevos_cafe_grande: 0,
-    huevos_cafe_jumbo: 0,
-    huevos_blanco_chico: 0,
-    huevos_blanco_mediano: 0,
-    huevos_blanco_grande: 0,
-    huevos_blanco_jumbo: 0,
+  const [huevo, setHuevo] = useState<Huevo | null>(null)
+  const [jaulas, setJaulas] = useState<Jaula[]>([])
+  const [form, setForm] = useState({
+    id_jaula: "",
+    fecha_recoleccion: "",
+    cantidad_total: "",
+    huevos_cafe_chico: "",
+    huevos_cafe_mediano: "",
+    huevos_cafe_grande: "",
+    huevos_cafe_jumbo: "",
+    huevos_blanco_chico: "",
+    huevos_blanco_mediano: "",
+    huevos_blanco_grande: "",
+    huevos_blanco_jumbo: "",
     observaciones: "",
   })
-  const [jaulas, setJaulas] = useState<Jaula[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Función helper para formatear fecha para input date
+  const formatDateForInput = (dateString: string | null | undefined): string => {
+    if (!dateString) return ""
+
+    try {
+      // Si la fecha ya está en formato YYYY-MM-DD, usarla directamente
+      if (dateString.includes("T")) {
+        return dateString.split("T")[0]
+      }
+
+      // Si es solo la fecha, asegurar formato correcto
+      return dateString
+    } catch (error) {
+      console.error("Error formatting date:", error)
+      return ""
+    }
+  }
+
+  // Función helper para convertir valores a string de forma segura
+  const safeToString = (value: any): string => {
+    if (value === null || value === undefined) return ""
+    return String(value)
+  }
 
   useEffect(() => {
     if (isOpen && huevoId) {
-      fetchData()
+      fetchHuevoData()
+      fetchJaulas()
     }
   }, [isOpen, huevoId])
 
-  const fetchData = async () => {
+  const fetchHuevoData = async () => {
     try {
       setLoading(true)
-      const [huevoResponse, jaulasResponse] = await Promise.all([huevosAPI.getById(huevoId), jaulasAPI.getAll()])
+      console.log("🔍 Fetching huevo data for ID:", huevoId)
 
-      const huevoData = huevoResponse.data
-      setFormData({
-        id_jaula: huevoData.id_jaula || null,
-        cantidad_total: huevoData.cantidad_total || 0,
-        huevos_cafe_chico: huevoData.huevos_cafe_chico || 0,
-        huevos_cafe_mediano: huevoData.huevos_cafe_mediano || 0,
-        huevos_cafe_grande: huevoData.huevos_cafe_grande || 0,
-        huevos_cafe_jumbo: huevoData.huevos_cafe_jumbo || 0,
-        huevos_blanco_chico: huevoData.huevos_blanco_chico || 0,
-        huevos_blanco_mediano: huevoData.huevos_blanco_mediano || 0,
-        huevos_blanco_grande: huevoData.huevos_blanco_grande || 0,
-        huevos_blanco_jumbo: huevoData.huevos_blanco_jumbo || 0,
-        observaciones: huevoData.observaciones || "",
+      const response = await huevosAPI.getById(huevoId)
+      console.log("📥 Huevo data received:", response.data)
+
+      const huevoData = response.data
+
+      if (!huevoData) {
+        throw new Error("No se encontraron datos del huevo")
+      }
+
+      setHuevo(huevoData)
+
+      // Usar valores por defecto si las propiedades no existen
+      setForm({
+        id_jaula: safeToString(huevoData.id_jaula),
+        fecha_recoleccion: formatDateForInput(huevoData.fecha_recoleccion),
+        cantidad_total: safeToString(huevoData.cantidad_total || 0),
+        huevos_cafe_chico: safeToString(huevoData.huevos_cafe_chico || 0),
+        huevos_cafe_mediano: safeToString(huevoData.huevos_cafe_mediano || 0),
+        huevos_cafe_grande: safeToString(huevoData.huevos_cafe_grande || 0),
+        huevos_cafe_jumbo: safeToString(huevoData.huevos_cafe_jumbo || 0),
+        huevos_blanco_chico: safeToString(huevoData.huevos_blanco_chico || 0),
+        huevos_blanco_mediano: safeToString(huevoData.huevos_blanco_mediano || 0),
+        huevos_blanco_grande: safeToString(huevoData.huevos_blanco_grande || 0),
+        huevos_blanco_jumbo: safeToString(huevoData.huevos_blanco_jumbo || 0),
+        observaciones: safeToString(huevoData.observaciones || ""),
       })
-      setJaulas(jaulasResponse.data)
-    } catch (error) {
-      await showErrorAlert("Error", "No se pudieron cargar los datos")
+
+      console.log("✅ Form data set successfully")
+    } catch (error: any) {
+      console.error("❌ Error fetching huevo:", error)
+      await showErrorAlert("Error", error.message || "No se pudo cargar la información del registro")
+      onClose()
     } finally {
       setLoading(false)
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const fetchJaulas = async () => {
+    try {
+      console.log("🏠 Fetching jaulas...")
+      const response = await jaulasAPI.getAll()
+      console.log("📥 Jaulas received:", response.data)
+
+      // Asegurar que sea un array
+      const jaulasData = Array.isArray(response.data)
+        ? response.data
+        : Array.isArray(response.data?.data)
+          ? response.data.data
+          : []
+
+      setJaulas(jaulasData)
+      console.log("✅ Jaulas set successfully:", jaulasData.length)
+    } catch (error) {
+      console.error("❌ Error fetching jaulas:", error)
+      // No cerrar el modal por este error, solo mostrar mensaje
+      setJaulas([])
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        name === "id_jaula" ? (value ? Number(value) : null) : name === "observaciones" ? value : Number(value) || 0,
-    }))
+    setForm({ ...form, [name]: value })
+  }
+
+  const calculateTotal = () => {
+    const total =
+      Number(form.huevos_cafe_chico || 0) +
+      Number(form.huevos_cafe_mediano || 0) +
+      Number(form.huevos_cafe_grande || 0) +
+      Number(form.huevos_cafe_jumbo || 0) +
+      Number(form.huevos_blanco_chico || 0) +
+      Number(form.huevos_blanco_mediano || 0) +
+      Number(form.huevos_blanco_grande || 0) +
+      Number(form.huevos_blanco_jumbo || 0)
+
+    setForm({ ...form, cantidad_total: total.toString() })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,19 +152,39 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
     try {
       showLoadingAlert("Actualizando registro...", "Por favor espere")
 
-      await huevosAPI.update(huevoId, formData)
+      const updateData = {
+        id_jaula: Number.parseInt(form.id_jaula),
+        fecha_recoleccion: form.fecha_recoleccion, // Ya está en formato YYYY-MM-DD
+        cantidad_total: Number.parseInt(form.cantidad_total || "0"),
+        huevos_cafe_chico: Number.parseInt(form.huevos_cafe_chico || "0"),
+        huevos_cafe_mediano: Number.parseInt(form.huevos_cafe_mediano || "0"),
+        huevos_cafe_grande: Number.parseInt(form.huevos_cafe_grande || "0"),
+        huevos_cafe_jumbo: Number.parseInt(form.huevos_cafe_jumbo || "0"),
+        huevos_blanco_chico: Number.parseInt(form.huevos_blanco_chico || "0"),
+        huevos_blanco_mediano: Number.parseInt(form.huevos_blanco_mediano || "0"),
+        huevos_blanco_grande: Number.parseInt(form.huevos_blanco_grande || "0"),
+        huevos_blanco_jumbo: Number.parseInt(form.huevos_blanco_jumbo || "0"),
+        observaciones: form.observaciones || "",
+      }
+
+      console.log("📅 Actualizando con fecha:", updateData.fecha_recoleccion)
+      console.log("📊 Datos a actualizar:", updateData)
+
+      await huevosAPI.update(huevoId, updateData)
 
       closeLoadingAlert()
-      await showSuccessAlert("¡Registro actualizado!", "Los datos se han guardado correctamente")
+      await showSuccessAlert("¡Registro actualizado!", "El registro de huevos ha sido actualizado correctamente")
 
       onUpdate()
       onClose()
     } catch (error: any) {
       closeLoadingAlert()
-      await showErrorAlert("Error al actualizar", error?.response?.data?.message || "No se pudo actualizar el registro")
+      console.error("❌ Error updating huevo:", error)
+      await showErrorAlert("Error al actualizar", error.response?.data?.error || "No se pudo actualizar el registro")
     }
   }
 
+  // Función para cerrar modal con escape
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
@@ -139,7 +219,7 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
       />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
+        <div className="relative w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
           {/* Header */}
           <div className="bg-gradient-to-r from-yellow-500 to-orange-500 px-6 py-4">
             <div className="flex items-center justify-between">
@@ -178,8 +258,8 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
           ) : (
             <>
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                {/* Jaula y Cantidad Total */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Jaula y Fecha */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label
                       htmlFor="id_jaula"
@@ -193,14 +273,15 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
                     <select
                       id="id_jaula"
                       name="id_jaula"
-                      value={formData.id_jaula || ""}
-                      onChange={handleInputChange}
+                      value={form.id_jaula}
+                      onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all bg-white"
+                      required
                     >
                       <option value="">Seleccionar jaula</option>
                       {jaulas.map((jaula) => (
                         <option key={jaula.id_jaula} value={jaula.id_jaula}>
-                          {jaula.numero_jaula || "Jaula"} - {jaula.descripcion}
+                          {jaula.descripcion || `Jaula ${jaula.id_jaula}`}
                         </option>
                       ))}
                     </select>
@@ -208,23 +289,63 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
 
                   <div>
                     <label
-                      htmlFor="cantidad_total"
+                      htmlFor="fecha_recoleccion"
                       className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2"
                     >
-                      <span className="text-lg" role="img" aria-label="Gráfico">
-                        📊
+                      <span className="text-lg" role="img" aria-label="Calendario">
+                        📅
                       </span>
-                      <span>Cantidad Total</span>
+                      <span>Fecha de Recolección</span>
                     </label>
+                    <input
+                      id="fecha_recoleccion"
+                      type="date"
+                      name="fecha_recoleccion"
+                      value={form.fecha_recoleccion}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all"
+                      required
+                      max={new Date().toISOString().split("T")[0]}
+                    />
+                    {form.fecha_recoleccion && (
+                      <small className="text-gray-500 text-xs mt-1 block">
+                        📅 Fecha seleccionada:{" "}
+                        {new Date(form.fecha_recoleccion + "T00:00:00").toLocaleDateString("es-ES")}
+                      </small>
+                    )}
+                  </div>
+                </div>
+
+                {/* Cantidad Total */}
+                <div>
+                  <label
+                    htmlFor="cantidad_total"
+                    className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2"
+                  >
+                    <span className="text-lg" role="img" aria-label="Gráfico">
+                      📊
+                    </span>
+                    <span>Cantidad Total</span>
+                  </label>
+                  <div className="flex gap-2">
                     <input
                       id="cantidad_total"
                       type="number"
                       name="cantidad_total"
-                      value={formData.cantidad_total}
-                      onChange={handleInputChange}
+                      value={form.cantidad_total}
+                      onChange={handleChange}
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all"
                       min="0"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all"
+                      required
                     />
+                    <button
+                      type="button"
+                      onClick={calculateTotal}
+                      className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                      title="Calcular total automáticamente"
+                    >
+                      🧮 Calcular
+                    </button>
                   </div>
                 </div>
 
@@ -236,7 +357,7 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
                     </span>
                     <span>Huevos Café</span>
                   </legend>
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {["chico", "mediano", "grande", "jumbo"].map((size) => (
                       <div key={size}>
                         <label
@@ -249,9 +370,10 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
                           id={`huevos_cafe_${size}`}
                           type="number"
                           name={`huevos_cafe_${size}`}
-                          value={formData[`huevos_cafe_${size}` as keyof FormData] as number}
-                          onChange={handleInputChange}
+                          value={form[`huevos_cafe_${size}` as keyof typeof form]}
+                          onChange={handleChange}
                           min="0"
+                          placeholder="0"
                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
                         />
                       </div>
@@ -267,7 +389,7 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
                     </span>
                     <span>Huevos Blancos</span>
                   </legend>
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {["chico", "mediano", "grande", "jumbo"].map((size) => (
                       <div key={size}>
                         <label
@@ -280,9 +402,10 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
                           id={`huevos_blanco_${size}`}
                           type="number"
                           name={`huevos_blanco_${size}`}
-                          value={formData[`huevos_blanco_${size}` as keyof FormData] as number}
-                          onChange={handleInputChange}
+                          value={form[`huevos_blanco_${size}` as keyof typeof form]}
+                          onChange={handleChange}
                           min="0"
+                          placeholder="0"
                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all"
                         />
                       </div>
@@ -304,8 +427,8 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
                   <textarea
                     id="observaciones"
                     name="observaciones"
-                    value={formData.observaciones}
-                    onChange={handleInputChange}
+                    value={form.observaciones}
+                    onChange={handleChange}
                     rows={3}
                     placeholder="Observaciones adicionales..."
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all resize-none"
