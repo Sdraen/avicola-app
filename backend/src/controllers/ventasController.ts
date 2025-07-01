@@ -8,7 +8,7 @@ export const getAllVentas = async (req: Request, res: Response): Promise<void> =
       .select(`
         *,
         cliente:cliente(*),
-        bandeja:bandeja(*)
+        bandejas:bandeja(*)
       `)
       .order("fecha_venta", { ascending: false })
 
@@ -32,7 +32,7 @@ export const getVentaById = async (req: Request, res: Response): Promise<void> =
       .select(`
         *,
         cliente:cliente(*),
-        bandeja:bandeja(*)
+        bandejas:bandeja(*)
       `)
       .eq("id_venta", id)
       .single()
@@ -43,7 +43,7 @@ export const getVentaById = async (req: Request, res: Response): Promise<void> =
     }
 
     if (!data) {
-      res.status(404).json({ error: "Sale not found" })
+      res.status(404).json({ error: "Venta no encontrada" })
       return
     }
 
@@ -56,21 +56,18 @@ export const getVentaById = async (req: Request, res: Response): Promise<void> =
 
 export const createVenta = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id_cliente, codigo_barras, costo_total, cantidad_total } = req.body
+    const { id_cliente, costo_total, cantidad_total, bandejas } = req.body
 
-    if (!id_cliente || !codigo_barras || !costo_total || !cantidad_total) {
-      res.status(400).json({
-        error: "id_cliente, codigo_barras, costo_total, and cantidad_total are required",
-      })
+    if (!id_cliente || !costo_total || !cantidad_total || !Array.isArray(bandejas) || bandejas.length === 0) {
+      res.status(400).json({ error: "Faltan datos o bandejas inválidas" })
       return
     }
 
-    const { data, error } = await supabase
+    const { data: venta, error: ventaError } = await supabase
       .from("venta")
       .insert([
         {
           id_cliente,
-          codigo_barras,
           costo_total,
           cantidad_total,
           fecha_venta: new Date().toISOString().split("T")[0],
@@ -79,12 +76,25 @@ export const createVenta = async (req: Request, res: Response): Promise<void> =>
       .select()
       .single()
 
-    if (error) {
-      res.status(400).json({ error: error.message })
+    if (ventaError) {
+      res.status(400).json({ error: ventaError.message })
       return
     }
 
-    res.status(201).json(data)
+    const bandejasConVenta = bandejas.map((b) => ({
+      ...b,
+      id_venta: venta.id_venta,
+    }))
+
+    const { error: bandejaError } = await supabase.from("bandeja").insert(bandejasConVenta)
+
+    if (bandejaError) {
+      console.error("Error inserting bandejas:", bandejaError)
+      res.status(400).json({ error: "Venta creada, pero error al insertar bandejas" })
+      return
+    }
+
+    res.status(201).json({ success: true, data: venta, message: "Venta y bandejas registradas exitosamente" })
   } catch (error) {
     console.error("Error creating sale:", error)
     res.status(500).json({ error: "Internal server error" })
@@ -104,7 +114,7 @@ export const updateVenta = async (req: Request, res: Response): Promise<void> =>
     }
 
     if (!data) {
-      res.status(404).json({ error: "Sale not found" })
+      res.status(404).json({ error: "Venta no encontrada" })
       return
     }
 
@@ -119,6 +129,9 @@ export const deleteVenta = async (req: Request, res: Response): Promise<void> =>
   try {
     const { id } = req.params
 
+    // Primero eliminar las bandejas asociadas
+    await supabase.from("bandeja").delete().eq("id_venta", id)
+
     const { error } = await supabase.from("venta").delete().eq("id_venta", id)
 
     if (error) {
@@ -126,7 +139,7 @@ export const deleteVenta = async (req: Request, res: Response): Promise<void> =>
       return
     }
 
-    res.status(200).json({ message: "Sale deleted successfully" })
+    res.status(200).json({ message: "Venta eliminada exitosamente" })
   } catch (error) {
     console.error("Error deleting sale:", error)
     res.status(500).json({ error: "Internal server error" })
@@ -160,22 +173,18 @@ export const getVentasByDateRange = async (req: Request, res: Response): Promise
 
 export const getVentasStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Total sales
     const { count: totalSales } = await supabase.from("venta").select("*", { count: "exact", head: true })
 
-    // Sales today
     const today = new Date().toISOString().split("T")[0]
     const { count: salesToday } = await supabase
       .from("venta")
       .select("*", { count: "exact", head: true })
       .eq("fecha_venta", today)
 
-    // Revenue today
     const { data: revenueToday } = await supabase.from("venta").select("costo_total").eq("fecha_venta", today)
 
     const totalRevenueToday = revenueToday?.reduce((sum, sale) => sum + sale.costo_total, 0) || 0
 
-    // Revenue this month
     const currentMonth = new Date().toISOString().slice(0, 7)
     const { data: revenueThisMonth } = await supabase
       .from("venta")
@@ -184,7 +193,6 @@ export const getVentasStats = async (req: Request, res: Response): Promise<void>
 
     const totalRevenueThisMonth = revenueThisMonth?.reduce((sum, sale) => sum + sale.costo_total, 0) || 0
 
-    // Top customers
     const { data: topCustomers } = await supabase
       .from("venta")
       .select(`
@@ -207,3 +215,28 @@ export const getVentasStats = async (req: Request, res: Response): Promise<void>
     res.status(500).json({ error: "Internal server error" })
   }
 }
+export const getVentasByCliente = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id_cliente } = req.params
+    const { data, error } = await supabase
+      .from("venta")
+      .select(`
+        *,
+        cliente:cliente(*),
+        bandejas:bandeja(*)
+      `)
+      .eq("id_cliente", id_cliente)
+      .order("fecha_venta", { ascending: false })
+
+    if (error) {
+      res.status(400).json({ error: error.message })
+      return
+    }
+
+    res.status(200).json(data)
+  } catch (error) {
+    console.error("Error fetching sales by client:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
