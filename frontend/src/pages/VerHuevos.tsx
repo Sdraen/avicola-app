@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { huevosAPI } from "../services/api"
 import type { Huevo } from "../types"
 import ModalEditarHuevo from "../components/modals/ModalEditarHuevo"
+import ModalArmarBandeja from "../components/modals/ModalArmarBandeja"
 import {
   showDeleteConfirmation,
   showSuccessAlert,
@@ -17,17 +18,13 @@ const VerHuevos: React.FC = () => {
   const [huevos, setHuevos] = useState<Huevo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-
-  // Estados para el modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedHuevoId, setSelectedHuevoId] = useState<number | null>(null)
+  const [isModalBandejaOpen, setIsModalBandejaOpen] = useState(false)
 
   const fetchHuevos = async () => {
     try {
       const response = await huevosAPI.getAll()
-      console.log("Respuesta del API:", response) // Para debugging
-
-      // Asegurar que siempre sea un array
       const huevosData = Array.isArray(response.data)
         ? response.data
         : Array.isArray(response.data?.data)
@@ -38,7 +35,7 @@ const VerHuevos: React.FC = () => {
     } catch (err) {
       console.error("Error al cargar los huevos", err)
       setError("Error al cargar los huevos")
-      setHuevos([]) // Asegurar que sea array vacío en caso de error
+      setHuevos([])
     } finally {
       setLoading(false)
     }
@@ -59,7 +56,7 @@ const VerHuevos: React.FC = () => {
   }
 
   const handleUpdateSuccess = () => {
-    fetchHuevos() // Recargar la lista después de actualizar
+    fetchHuevos()
   }
 
   const handleDelete = async (id: number) => {
@@ -72,10 +69,8 @@ const VerHuevos: React.FC = () => {
     if (result) {
       try {
         showLoadingAlert("Eliminando registro...", "Por favor espere")
-
         await huevosAPI.delete(id)
         setHuevos((prev) => prev.filter((h) => h.id_huevo !== id))
-
         closeLoadingAlert()
         await showSuccessAlert("¡Registro eliminado!", "El registro de huevos ha sido eliminado correctamente")
       } catch (err) {
@@ -86,16 +81,11 @@ const VerHuevos: React.FC = () => {
     }
   }
 
-  // Función helper para formatear fechas correctamente
   const formatDate = (dateString: string): string => {
     if (!dateString) return "-"
-
-    // Si la fecha ya está en formato YYYY-MM-DD, usarla directamente
     if (dateString.includes("T")) {
       return dateString.split("T")[0]
     }
-
-    // Si es solo la fecha, crear un objeto Date sin conversión de zona horaria
     const date = new Date(dateString + "T00:00:00")
     return date.toLocaleDateString("es-ES", {
       year: "numeric",
@@ -146,6 +136,19 @@ const VerHuevos: React.FC = () => {
             <h1 className="table-title">Registros de Huevos</h1>
             <p className="table-subtitle">Total: {huevos.length}</p>
           </div>
+        </div>
+
+        {/* Botón Armar Bandeja */}
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setIsModalBandejaOpen(true)}
+            className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors shadow-sm"
+          >
+            <span role="img" aria-label="Bandeja">
+              🧺
+            </span>
+            <span>Armar Bandeja</span>
+          </button>
         </div>
       </div>
 
@@ -276,6 +279,15 @@ const VerHuevos: React.FC = () => {
           isOpen={isEditModalOpen}
           huevoId={selectedHuevoId}
           onClose={handleCloseModal}
+          onUpdate={handleUpdateSuccess}
+        />
+      )}
+
+      {/* Modal de bandeja */}
+      {isModalBandejaOpen && (
+        <ModalArmarBandeja
+          isOpen={isModalBandejaOpen}
+          onClose={() => setIsModalBandejaOpen(false)}
           onUpdate={handleUpdateSuccess}
         />
       )}

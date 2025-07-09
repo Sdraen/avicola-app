@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { huevosAPI, jaulasAPI } from "../../services/api"
-import type { Huevo, Jaula } from "../../types"
+import type { Jaula } from "../../types"
 import { showSuccessAlert, showErrorAlert, showLoadingAlert, closeLoadingAlert } from "../../utils/sweetAlert"
 
 interface ModalEditarHuevoProps {
@@ -13,8 +13,34 @@ interface ModalEditarHuevoProps {
   onUpdate: () => void
 }
 
+// Interfaces para tipado de respuestas del API
+interface ApiResponse<T> {
+  success: boolean
+  data: T
+  message?: string
+}
+
+interface HuevoApiResponse {
+  id_huevo: number
+  id_jaula: number
+  fecha_recoleccion: string
+  cantidad_total: number
+  huevos_cafe_chico: number
+  huevos_cafe_mediano: number
+  huevos_cafe_grande: number
+  huevos_cafe_jumbo: number
+  huevos_blanco_chico: number
+  huevos_blanco_mediano: number
+  huevos_blanco_grande: number
+  huevos_blanco_jumbo: number
+  observaciones?: string
+  registrado_por?: number
+  fecha_registro?: string
+  jaula?: Jaula
+}
+
 const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, onClose, onUpdate }) => {
-  const [huevo, setHuevo] = useState<Huevo | null>(null)
+  const [huevo, setHuevo] = useState<HuevoApiResponse | null>(null)
   const [jaulas, setJaulas] = useState<Jaula[]>([])
   const [form, setForm] = useState({
     id_jaula: "",
@@ -38,6 +64,11 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
 
     try {
       // Si la fecha ya está en formato YYYY-MM-DD, usarla directamente
+      if (typeof dateString === "string" && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        return dateString
+      }
+
+      // Si la fecha incluye tiempo, extraer solo la fecha
       if (dateString.includes("T")) {
         return dateString.split("T")[0]
       }
@@ -69,19 +100,46 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
       console.log("🔍 Fetching huevo data for ID:", huevoId)
 
       const response = await huevosAPI.getById(huevoId)
-      console.log("📥 Huevo data received:", response.data)
+      console.log("📥 Full API response:", response)
+      console.log("📥 Response data:", response.data)
 
-      const huevoData = response.data
+      // ✅ Manejar diferentes estructuras de respuesta con tipado seguro
+      let huevoData: HuevoApiResponse | null = null
 
-      if (!huevoData) {
-        throw new Error("No se encontraron datos del huevo")
+      if (response.data) {
+        // Si la respuesta tiene success y data anidado
+        if (typeof response.data === "object" && "success" in response.data && "data" in response.data) {
+          const apiResponse = response.data as ApiResponse<HuevoApiResponse>
+          if (apiResponse.success && apiResponse.data) {
+            huevoData = apiResponse.data
+            console.log("📦 Using nested data structure:", huevoData)
+          }
+        }
+        // Si la respuesta es directa y tiene id_huevo
+        else if (typeof response.data === "object" && "id_huevo" in response.data) {
+          huevoData = response.data as HuevoApiResponse
+          console.log("📦 Using direct data structure:", huevoData)
+        }
+        // Si hay un array y tomamos el primer elemento
+        else if (Array.isArray(response.data) && response.data.length > 0) {
+          const firstItem = response.data[0]
+          if (typeof firstItem === "object" && "id_huevo" in firstItem) {
+            huevoData = firstItem as HuevoApiResponse
+            console.log("📦 Using array data structure:", huevoData)
+          }
+        }
       }
 
+      if (!huevoData || !huevoData.id_huevo) {
+        throw new Error("No se encontraron datos del huevo o estructura de datos inválida")
+      }
+
+      console.log("✅ Huevo data to use:", huevoData)
       setHuevo(huevoData)
 
-      // Usar valores por defecto si las propiedades no existen
-      setForm({
-        id_jaula: safeToString(huevoData.id_jaula),
+      // ✅ Asignar datos al formulario con valores por defecto seguros
+      const formData = {
+        id_jaula: safeToString(huevoData.id_jaula || ""),
         fecha_recoleccion: formatDateForInput(huevoData.fecha_recoleccion),
         cantidad_total: safeToString(huevoData.cantidad_total || 0),
         huevos_cafe_chico: safeToString(huevoData.huevos_cafe_chico || 0),
@@ -93,7 +151,10 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
         huevos_blanco_grande: safeToString(huevoData.huevos_blanco_grande || 0),
         huevos_blanco_jumbo: safeToString(huevoData.huevos_blanco_jumbo || 0),
         observaciones: safeToString(huevoData.observaciones || ""),
-      })
+      }
+
+      console.log("📝 Form data to set:", formData)
+      setForm(formData)
 
       console.log("✅ Form data set successfully")
     } catch (error: any) {
@@ -109,14 +170,26 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
     try {
       console.log("🏠 Fetching jaulas...")
       const response = await jaulasAPI.getAll()
-      console.log("📥 Jaulas received:", response.data)
+      console.log("📥 Jaulas response:", response)
 
-      // Asegurar que sea un array
-      const jaulasData = Array.isArray(response.data)
-        ? response.data
-        : Array.isArray(response.data?.data)
-          ? response.data.data
-          : []
+      // Manejar diferentes estructuras de respuesta para jaulas con tipado seguro
+      let jaulasData: Jaula[] = []
+
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          jaulasData = response.data as Jaula[]
+        } else if (typeof response.data === "object" && "data" in response.data) {
+          const nestedData = (response.data as any).data
+          if (Array.isArray(nestedData)) {
+            jaulasData = nestedData as Jaula[]
+          }
+        } else if (typeof response.data === "object" && "success" in response.data && "data" in response.data) {
+          const apiResponse = response.data as ApiResponse<Jaula[]>
+          if (apiResponse.success && Array.isArray(apiResponse.data)) {
+            jaulasData = apiResponse.data
+          }
+        }
+      }
 
       setJaulas(jaulasData)
       console.log("✅ Jaulas set successfully:", jaulasData.length)
@@ -129,7 +202,8 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setForm({ ...form, [name]: value })
+    console.log(`📝 Form field changed: ${name} = ${value}`)
+    setForm((prev) => ({ ...prev, [name]: value }))
   }
 
   const calculateTotal = () => {
@@ -143,7 +217,8 @@ const ModalEditarHuevo: React.FC<ModalEditarHuevoProps> = ({ isOpen, huevoId, on
       Number(form.huevos_blanco_grande || 0) +
       Number(form.huevos_blanco_jumbo || 0)
 
-    setForm({ ...form, cantidad_total: total.toString() })
+    console.log("🧮 Calculated total:", total)
+    setForm((prev) => ({ ...prev, cantidad_total: total.toString() }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

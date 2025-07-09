@@ -105,6 +105,21 @@ export const huevosAPI = {
   getStats: () => api.get("/huevos/stats/overview"),
 }
 
+// Servicios de bandejas
+export const bandejasAPI = {
+  getAll: () => api.get("/bandejas"),
+  getById: (id: number) => api.get(`/bandejas/${id}`),
+  create: (data: { tipo: string; tamaño: string; id_huevos: number[] }) => api.post("/bandejas", data),
+  update: (id: number, data: { tipo_huevo?: string; tamaño_huevo?: string; estado?: string }) =>
+    api.put(`/bandejas/${id}`, data),
+  delete: (id: number) => api.delete(`/bandejas/${id}`),
+  asignarHuevos: (id: number, id_huevos: number[]) => api.post(`/bandejas/${id}/asignar`, { id_huevos }),
+  eliminarHuevos: (id: number, id_huevos: number[]) => api.post(`/bandejas/${id}/eliminar-huevos`, { id_huevos }),
+  getHuevosDisponibles: (tipo: string, tamaño: string) => api.get(`/bandejas/huevos-disponibles/${tipo}/${tamaño}`),
+}
+
+
+
 // Servicios de jaulas
 export const jaulasAPI = {
   getAll: () => api.get("/jaulas"),

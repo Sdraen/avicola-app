@@ -106,6 +106,7 @@ const VerJaulas: React.FC = () => {
               <th><span className="th-content"><span className="th-icon">🆔</span>ID</span></th>
               <th><span className="th-content"><span className="th-icon">🔢</span>Código</span></th>
               <th><span className="th-content"><span className="th-icon">📝</span>Descripción</span></th>
+              {/* modificar para que el estante no se vea */}
               <th><span className="th-content"><span className="th-icon">🏊</span>Estanque</span></th>
               <th><span className="th-content"><span className="th-icon">🐓</span>Aves</span></th>
               <th><span className="th-content"><span className="th-icon">📊</span>Ocupación</span></th>

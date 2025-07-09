@@ -51,11 +51,15 @@ export interface Cliente {
 
 export interface Bandeja {
   id_bandeja: number
-  id_venta: number
+  tipo_huevo: string
+  tamaño_huevo: string
   cantidad_huevos: number
-  tipo_bandeja: string
-  huevos?: Huevo[]
+  fecha_creacion: string
+  estado: "disponible" | "vendida" | "reservada"
+  id_venta?: number
+  huevo_bandeja?: HuevoBandeja[]
 }
+
 
 export interface Venta {
   id_venta: number
@@ -64,7 +68,7 @@ export interface Venta {
   costo_total: number
   cantidad_total: number
   cliente?: Cliente
-  bandejas?: Bandeja[]
+  bandeja?: Bandeja[]
 }
 
 export interface Compra {
@@ -167,4 +171,17 @@ export interface DashboardStats {
   totalEggs: number
   totalSales: number
   totalRevenue: number
+}
+
+// Interfaces para huevos disponibles en bandejas
+export interface HuevoDisponible {
+  id_huevo: number
+  id_jaula: number
+  fecha_recoleccion: string
+  cantidad_disponible: number
+  jaula?: {
+    descripcion: string
+  }
+  tipo: string
+  tamaño: string
 }
