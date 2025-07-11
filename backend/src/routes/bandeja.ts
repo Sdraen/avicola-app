@@ -21,7 +21,8 @@ router.get("/:id", authenticateToken, requireRole(["admin", "operador"]), obtene
 router.post("/", authenticateToken, requireRole(["admin", "operador"]), crearBandeja)
 
 // 🔍 Obtener huevos disponibles (admin y operador)
-router.get("/:id/huevos-disponibles", authenticateToken, requireRole(["admin", "operador"]), obtenerHuevosDisponibles)
+router.get("/huevos-disponibles/:tipo/:tamaño", authenticateToken, requireRole(["admin", "operador"]), obtenerHuevosDisponibles)
+
 
 // ✏️ Editar bandeja (admin y operador)
 router.put("/:id", authenticateToken, requireRole(["admin", "operador"]), actualizarBandeja)

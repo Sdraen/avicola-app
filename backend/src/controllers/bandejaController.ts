@@ -1,17 +1,17 @@
 import type { Request, Response } from "express"
 import { supabase } from "../config/supabase"
 
-// Función auxiliar: cantidad mínima según tamaño
+// Cantidad mínima según tamaño
 const getCantidadMinima = (tamaño: string): number => {
   return tamaño === "jumbo" ? 24 : 30
 }
 
-// Función auxiliar: verificar huevos ya asignados
+// Verificar si los huevos ya están asignados
 const verificarHuevosAsignados = async (id_huevos: number[]) => {
   return await supabase.from("huevo_bandeja").select("id_huevo").in("id_huevo", id_huevos)
 }
 
-// Obtener huevos disponibles por tipo y tamaño
+// Obtener huevos disponibles
 export const obtenerHuevosDisponibles = async (req: Request, res: Response): Promise<void> => {
   try {
     const { tipo, tamaño } = req.params
@@ -21,9 +21,6 @@ export const obtenerHuevosDisponibles = async (req: Request, res: Response): Pro
       return
     }
 
-    console.log(`🔍 Buscando huevos disponibles: ${tipo} ${tamaño}`)
-
-    // Obtener todos los huevos con información de jaula
     const { data: huevos, error: huevosError } = await supabase
       .from("huevo")
       .select(`
@@ -46,39 +43,24 @@ export const obtenerHuevosDisponibles = async (req: Request, res: Response): Pro
       .order("fecha_recoleccion", { ascending: false })
 
     if (huevosError) {
-      console.error("❌ Error fetching huevos:", huevosError)
       res.status(500).json({ error: "Error al obtener huevos" })
       return
     }
 
-    // Obtener huevos ya asignados a bandejas
-    const { data: huevosAsignados, error: asignacionError } = await supabase.from("huevo_bandeja").select("id_huevo")
-
-    if (asignacionError) {
-      console.error("❌ Error fetching assigned eggs:", asignacionError)
-      res.status(500).json({ error: "Error al verificar huevos asignados" })
-      return
-    }
-
+    const { data: huevosAsignados } = await supabase.from("huevo_bandeja").select("id_huevo")
     const idsAsignados = huevosAsignados?.map((h) => h.id_huevo) || []
 
-    // Filtrar huevos disponibles del tipo y tamaño solicitado
     const huevosDisponibles =
       huevos
         ?.filter((huevo) => {
-          // No incluir huevos ya asignados
           if (idsAsignados.includes(huevo.id_huevo)) return false
-
-          // Obtener la cantidad del tipo y tamaño específico
           const campo = `huevos_${tipo}_${tamaño}`
           const cantidad = (huevo[campo as keyof typeof huevo] as number) || 0
-
           return cantidad > 0
         })
         .map((huevo) => {
           const campo = `huevos_${tipo}_${tamaño}`
           const cantidad = (huevo[campo as keyof typeof huevo] as number) || 0
-
           return {
             id_huevo: huevo.id_huevo,
             id_jaula: huevo.id_jaula,
@@ -90,8 +72,6 @@ export const obtenerHuevosDisponibles = async (req: Request, res: Response): Pro
           }
         }) || []
 
-    console.log(`✅ Found ${huevosDisponibles.length} available eggs of type ${tipo} ${tamaño}`)
-
     res.status(200).json({
       success: true,
       data: huevosDisponibles,
@@ -99,30 +79,58 @@ export const obtenerHuevosDisponibles = async (req: Request, res: Response): Pro
       cantidadMinima: getCantidadMinima(tamaño),
     })
   } catch (error) {
-    console.error("❌ Error en obtenerHuevosDisponibles:", error)
     res.status(500).json({ error: "Error interno del servidor" })
   }
 }
 
-// Crear nueva bandeja
 export const crearBandeja = async (req: Request, res: Response): Promise<void> => {
   try {
     const { tipo, tamaño, id_huevos } = req.body
 
-    if (!tipo || !tamaño || !Array.isArray(id_huevos)) {
-      res.status(400).json({ error: "Faltan campos obligatorios" })
+    if (!tipo || !tamaño || !Array.isArray(id_huevos) || id_huevos.length === 0) {
+      res.status(400).json({ error: "Faltan campos obligatorios o la lista de huevos está vacía" })
       return
     }
 
     const cantidadMinima = getCantidadMinima(tamaño)
-    if (id_huevos.length < cantidadMinima) {
+    const campoCantidad = `huevos_${tipo}_${tamaño}`
+
+    const { data: huevosSeleccionados, error: errorHuevos } = await supabase
+      .from("huevo")
+      .select("*")
+      .in("id_huevo", id_huevos)
+
+    if (errorHuevos || !huevosSeleccionados) {
+      res.status(500).json({ error: "Error al obtener huevos seleccionados" })
+      return
+    }
+
+    let totalDisponible = 0
+
+    console.log("📦 Huevos seleccionados:", huevosSeleccionados)
+    console.log("🔍 Campo que se buscará:", campoCantidad)
+
+    for (const huevo of huevosSeleccionados) {
+      const valor = huevo[campoCantidad]
+      if (typeof valor !== "number") {
+        console.error(`❌ El campo ${campoCantidad} no existe o no es numérico en huevo ID ${huevo.id_huevo}`)
+        res.status(500).json({
+          error: `Error interno: el campo ${campoCantidad} no es válido en uno de los registros.`,
+        })
+        return
+      }
+      totalDisponible += valor
+    }
+
+    console.log("✅ Total disponible calculado:", totalDisponible)
+
+    if (totalDisponible < cantidadMinima) {
       res.status(400).json({
         error: `Se requieren al menos ${cantidadMinima} huevos para una bandeja de tamaño ${tamaño}`,
       })
       return
     }
 
-    // Verificar que los huevos no estén ya asignados
     const { data: asignados, error: errorAsignados } = await verificarHuevosAsignados(id_huevos)
     if (errorAsignados) {
       res.status(500).json({ error: "Error al verificar huevos asignados" })
@@ -137,14 +145,14 @@ export const crearBandeja = async (req: Request, res: Response): Promise<void> =
       return
     }
 
-    // Crear la bandeja
+    // ➕ Crear la bandeja
     const { data: nuevaBandeja, error: errorBandeja } = await supabase
       .from("bandeja")
       .insert([
         {
           tipo_huevo: tipo,
           tamaño_huevo: tamaño,
-          cantidad_huevos: id_huevos.length,
+          cantidad_huevos: cantidadMinima,
           fecha_creacion: new Date().toISOString(),
           estado: "disponible",
         },
@@ -153,26 +161,47 @@ export const crearBandeja = async (req: Request, res: Response): Promise<void> =
       .single()
 
     if (errorBandeja || !nuevaBandeja) {
-      console.error("❌ Error creating bandeja:", errorBandeja)
       res.status(500).json({ error: "Error al crear la bandeja" })
       return
     }
 
-    // Asignar huevos a la bandeja
-    const insertData = id_huevos.map((id_huevo: number) => ({
-      id_bandeja: nuevaBandeja.id_bandeja,
-      id_huevo,
-    }))
+    // 🔄 Asignar huevos y calcular nuevo stock por cada uno
+    let restantePorAsignar = cantidadMinima
+    const insertData: { id_huevo: number; id_bandeja: number }[] = []
 
+    for (const huevo of huevosSeleccionados) {
+      const disponibles = huevo[campoCantidad]
+
+      if (restantePorAsignar <= 0) break
+      if (disponibles <= 0) continue
+
+      const usar = Math.min(disponibles, restantePorAsignar)
+      const cantidadRestante = disponibles - usar
+
+      // 1️⃣ Insertar relación en huevo_bandeja
+      insertData.push({ id_huevo: huevo.id_huevo, id_bandeja: nuevaBandeja.id_bandeja })
+
+      // 2️⃣ Actualizar el valor del campo en la tabla huevo
+      const { error: updateError } = await supabase
+        .from("huevo")
+        .update({ [campoCantidad]: cantidadRestante })
+        .eq("id_huevo", huevo.id_huevo)
+
+      if (updateError) {
+        console.error(`Error actualizando huevo ${huevo.id_huevo}:`, updateError.message)
+        res.status(500).json({ error: "Error al actualizar registros de huevo" })
+        return
+      }
+
+      restantePorAsignar -= usar
+    }
+
+    // 🧺 Insertar en tabla huevo_bandeja
     const { error: errorAsignacion } = await supabase.from("huevo_bandeja").insert(insertData)
-
     if (errorAsignacion) {
-      console.error("❌ Error assigning eggs:", errorAsignacion)
       res.status(500).json({ error: "Error al asignar huevos a la bandeja" })
       return
     }
-
-    console.log(`✅ Bandeja created successfully: ${nuevaBandeja.id_bandeja}`)
 
     res.status(201).json({
       success: true,
@@ -180,10 +209,14 @@ export const crearBandeja = async (req: Request, res: Response): Promise<void> =
       data: nuevaBandeja,
     })
   } catch (error) {
-    console.error("❌ Error en crearBandeja:", error)
+    console.error("❌ Error inesperado en crearBandeja:", error)
     res.status(500).json({ error: "Error interno del servidor" })
   }
 }
+
+
+
+// Puedes dejar el resto del controlador igual (obtenerBandejas, obtenerBandejaPorId, etc.)
 
 // Obtener todas las bandejas
 export const obtenerBandejas = async (req: Request, res: Response): Promise<void> => {
