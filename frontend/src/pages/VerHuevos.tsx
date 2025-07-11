@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { huevosAPI } from "../services/api"
+import { huevosAPI, bandejasAPI } from "../services/api"
 import type { Huevo } from "../types"
 import ModalEditarHuevo from "../components/modals/ModalEditarHuevo"
 import ModalArmarBandeja from "../components/modals/ModalArmarBandeja"
@@ -22,24 +22,39 @@ const VerHuevos: React.FC = () => {
   const [selectedHuevoId, setSelectedHuevoId] = useState<number | null>(null)
   const [isModalBandejaOpen, setIsModalBandejaOpen] = useState(false)
 
-  const fetchHuevos = async () => {
-    try {
-      const response = await huevosAPI.getAll()
-      const huevosData = Array.isArray(response.data)
-        ? response.data
-        : Array.isArray(response.data?.data)
-          ? response.data.data
-          : []
+const fetchHuevos = async () => {
+  try {
+    const response = await huevosAPI.getAll()
+    const huevosData = Array.isArray(response.data)
+      ? response.data
+      : Array.isArray(response.data?.data)
+        ? response.data.data
+        : []
 
-      setHuevos(huevosData)
+    let huevosAsignados: number[] = []
+
+    try {
+      const bandejasRes = await bandejasAPI.getAll()
+      const bandejas = Array.isArray(bandejasRes.data?.data) ? bandejasRes.data.data : []
+
+      huevosAsignados = bandejas.flatMap((b: any) =>
+        Array.isArray(b.huevo_bandeja) ? b.huevo_bandeja.map((rel: any) => rel.id_huevo) : []
+      )
     } catch (err) {
-      console.error("Error al cargar los huevos", err)
-      setError("Error al cargar los huevos")
-      setHuevos([])
-    } finally {
-      setLoading(false)
+      console.warn("No se encontraron bandejas, se cargan todos los huevos")
     }
+
+    const huevosDisponibles = huevosData.filter((h: any) => !huevosAsignados.includes(h.id_huevo))
+    setHuevos(huevosDisponibles)
+  } catch (err) {
+    console.error("Error al cargar los huevos", err)
+    setError("Error al cargar los huevos")
+    setHuevos([])
+  } finally {
+    setLoading(false)
   }
+}
+
 
   useEffect(() => {
     fetchHuevos()

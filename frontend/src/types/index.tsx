@@ -1,6 +1,7 @@
 export interface Ave {
   id_ave: number
   id_jaula: number
+  id_anillo: string
   color_anillo: string
   edad: string
   estado_puesta: string

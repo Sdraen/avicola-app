@@ -169,7 +169,7 @@ const VerAves: React.FC = () => {
                 <td className="table-cell">
                   <span className="cantidad-badge">{ave.estado_puesta}</span>
                 </td>
-                <td className="table-cell">{ave.jaula?.numero_jaula || ave.jaula?.descripcion || ave.id_jaula}</td>
+                <td className="table-cell">{ave.jaula?.codigo_jaula || ave.jaula?.descripcion || ave.id_jaula}</td>
                 <td className="table-cell acciones-cell">
                   <button className="btn-editar" onClick={() => handleEdit(ave.id_ave)}>
                     ✏️ Editar

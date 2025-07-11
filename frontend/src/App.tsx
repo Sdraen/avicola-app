@@ -16,6 +16,9 @@ import Huevos from "./pages/Huevos"
 import VerHuevos from "./pages/VerHuevos"
 import RegistrarHuevos from "./pages/RegistrarHuevos"
 
+// Bandejas
+import VerBandejas from "./pages/VerBandejas"
+
 // Jaulas
 import Jaulas from "./pages/Jaulas"
 import VerJaulas from "./pages/VerJaulas"
@@ -97,6 +100,7 @@ function App() {
         <Route path="huevos" element={<Huevos />} />
         <Route path="ver-huevos" element={<VerHuevos />} />
         <Route path="registrar-huevos" element={<RegistrarHuevos />} />
+        <Route path="ver-bandejas" element={<VerBandejas />} />
 
         {/* Rutas de Jaulas */}
         <Route path="jaulas" element={<Jaulas />} />
