@@ -1,8 +1,15 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import type React from "react"
+import { useState, useEffect } from "react"
 import { bandejasAPI } from "../services/api"
-import { showDeleteConfirmation, showSuccessAlert, showErrorAlert, showLoadingAlert, closeLoadingAlert } from "../utils/sweetAlert"
+import {
+  showDeleteConfirmation,
+  showSuccessAlert,
+  showErrorAlert,
+  showLoadingAlert,
+  closeLoadingAlert,
+} from "../utils/sweetAlert"
 import type { Bandeja } from "../types"
 
 const VerBandejas: React.FC = () => {
@@ -37,14 +44,14 @@ const VerBandejas: React.FC = () => {
     const result = await showDeleteConfirmation(
       "¿Eliminar bandeja?",
       `¿Estás seguro de que deseas eliminar la bandeja #${id_bandeja}? Esta acción no se puede deshacer.`,
-      "Sí, eliminar"
+      "Sí, eliminar",
     )
 
     if (result.isConfirmed) {
       try {
         showLoadingAlert("Eliminando bandeja...", "Por favor espere")
         await bandejasAPI.delete(id_bandeja)
-        setBandejas(prev => prev.filter(b => b.id_bandeja !== id_bandeja))
+        setBandejas((prev) => prev.filter((b) => b.id_bandeja !== id_bandeja))
         closeLoadingAlert()
         await showSuccessAlert("¡Bandeja eliminada!", "La bandeja ha sido eliminada correctamente")
       } catch (err) {
@@ -79,17 +86,45 @@ const VerBandejas: React.FC = () => {
         <table className="tabla-aves">
           <thead>
             <tr>
-              <th><span className="th-content"><span className="th-icon">🆔</span>ID</span></th>
-              <th><span className="th-content"><span className="th-icon">🥚</span>Tipo</span></th>
-              <th><span className="th-content"><span className="th-icon">📏</span>Tamaño</span></th>
-              <th><span className="th-content"><span className="th-icon">🔢</span>Cantidad</span></th>
-              <th><span className="th-content"><span className="th-icon">📅</span>Fecha</span></th>
-              <th><span className="th-content"><span className="th-icon">🏷️</span>Estado</span></th>
-              <th><span className="th-content"><span className="th-icon">🛠️</span>Acciones</span></th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🆔</span>ID
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🥚</span>Tipo
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">📏</span>Tamaño
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🔢</span>Cantidad
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">📅</span>Fecha
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🏷️</span>Estado
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🛠️</span>Acciones
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {bandejas.map(b => (
+            {bandejas.map((b) => (
               <tr key={b.id_bandeja} className="table-row">
                 <td className="table-cell">{b.id_bandeja}</td>
                 <td className="table-cell">{b.tipo_huevo}</td>

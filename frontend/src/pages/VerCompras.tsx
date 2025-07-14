@@ -48,12 +48,12 @@ const VerCompras: React.FC = () => {
   const handleDelete = async (compra: Compra) => {
     const confirmed = await showDeleteConfirmation(
       "¿Eliminar compra?",
-      `¿Estás seguro de que deseas eliminar la compra #${compra.id_compras}? Esta acción no se puede deshacer.`,
+      `¿Estás seguro de que deseas eliminar la compra #${compra.id_compra}? Esta acción no se puede deshacer.`,
     )
     if (!confirmed) return
 
     try {
-      await comprasAPI.delete(compra.id_compras)
+      await comprasAPI.delete(compra.id_compra)
       await showSuccessAlert("¡Eliminada!", "La compra ha sido eliminada correctamente.")
       fetchCompras()
     } catch (err: any) {
@@ -91,17 +91,31 @@ const VerCompras: React.FC = () => {
         <table className="tabla-aves">
           <thead>
             <tr>
-              <th><span className="th-content"><span className="th-icon">🆔</span>ID</span></th>
-              <th><span className="th-content"><span className="th-icon">📅</span>Fecha</span></th>
-              <th><span className="th-content"><span className="th-icon">💰</span>Total</span></th>
-              <th><span className="th-content"><span className="th-icon">📦</span>Implementos</span></th>
-              <th><span className="th-content"><span className="th-icon">⚙️</span>Acciones</span></th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">📅</span>Fecha
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">💰</span>Total
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">📦</span>Implementos
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">⚙️</span>Acciones
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {compras.map((compra) => (
-              <tr key={compra.id_compras} className="table-row">
-                <td className="table-cell id-cell">{compra.id_compras}</td>
+              <tr key={compra.id_compra} className="table-row">
                 <td className="table-cell">{formatFechaLocal(compra.fecha)}</td>
                 <td className="table-cell font-semibold text-red-600">
                   {Number(compra.costo_total).toLocaleString("es-CL", {

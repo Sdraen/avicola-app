@@ -5,14 +5,20 @@ import { useState, useEffect } from "react"
 import { ventasAPI } from "../services/api"
 import type { Venta } from "../types"
 import ModalEditarVenta from "../components/modals/ModalEditarVenta"
-import Swal from "sweetalert2"
+import {
+  showDeleteConfirmation,
+  showSuccessAlert,
+  showErrorAlert,
+  showLoadingAlert,
+  closeLoadingAlert,
+} from "../utils/sweetAlert"
 
 const VerVentas: React.FC = () => {
   const [ventas, setVentas] = useState<Venta[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [ventaEdit, setVentaEdit] = useState<Venta | null>(null)
-  
+
   const isAdmin =
     typeof window !== "undefined" &&
     localStorage.getItem("user") &&
@@ -20,11 +26,15 @@ const VerVentas: React.FC = () => {
 
   const fetchVentas = async () => {
     try {
+      setLoading(true)
       const response = await ventasAPI.getAll()
-      setVentas(response.data)
+      const ventasData = Array.isArray(response.data) ? response.data : []
+      setVentas(ventasData)
+      setError("")
     } catch (err: any) {
       setError("Error al cargar las ventas")
       console.error("Error fetching ventas:", err)
+      setVentas([])
     } finally {
       setLoading(false)
     }
@@ -35,34 +45,51 @@ const VerVentas: React.FC = () => {
   }, [])
 
   const handleDelete = async (id: number) => {
-    const confirm = await Swal.fire({
-      title: "¿Eliminar venta?",
-      text: "Esta acción no se puede deshacer",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Sí, eliminar",
-    })
+    const result = await showDeleteConfirmation(
+      "¿Eliminar venta?",
+      "Esta acción devolverá las bandejas a estado disponible. ¿Está seguro?",
+      "Sí, eliminar",
+    )
 
-    if (confirm.isConfirmed) {
+    if (result) {
       try {
+        showLoadingAlert("Eliminando venta...", "Por favor espere")
         await ventasAPI.delete(id)
         await fetchVentas()
-        Swal.fire("Eliminado", "La venta ha sido eliminada", "success")
+        closeLoadingAlert()
+        await showSuccessAlert(
+          "¡Venta eliminada!",
+          "La venta ha sido eliminada y las bandejas están disponibles nuevamente",
+        )
       } catch (err) {
-        console.error("Error deleting venta:", err)
-        Swal.fire("Error", "No se pudo eliminar la venta", "error")
+        closeLoadingAlert()
+        await showErrorAlert("Error al eliminar", "No se pudo eliminar la venta. Inténtalo de nuevo.")
       }
     }
   }
 
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return "-"
+    const date = new Date(dateString)
+    return date.toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+  }
+
   const totalVentas = ventas.reduce((sum, venta) => sum + venta.costo_total, 0)
+  const totalBandejas = ventas.reduce((sum, venta) => sum + venta.cantidad_total, 0)
 
   if (loading) {
     return (
       <div className="ver-aves-container">
-        <div className="text-center">Cargando ventas...</div>
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center space-x-3">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+            <span className="text-gray-600">Cargando ventas...</span>
+          </div>
+        </div>
       </div>
     )
   }
@@ -70,7 +97,14 @@ const VerVentas: React.FC = () => {
   if (error) {
     return (
       <div className="ver-aves-container">
-        <div className="text-center text-red-600">{error}</div>
+        <div className="text-center">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md mx-auto">
+            <div className="flex items-center space-x-2 text-red-600">
+              <span className="text-xl">⚠️</span>
+              <span className="font-medium">{error}</span>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -83,7 +117,7 @@ const VerVentas: React.FC = () => {
           <div className="header-text">
             <h1 className="table-title">Listado de Ventas</h1>
             <p className="table-subtitle">
-              Total de ventas: {ventas.length} | Ingresos: ${totalVentas.toLocaleString()}
+              Total: {ventas.length} ventas | {totalBandejas} bandejas | ${totalVentas.toLocaleString("es-CL")}
             </p>
           </div>
         </div>
@@ -93,48 +127,75 @@ const VerVentas: React.FC = () => {
         <table className="tabla-aves">
           <thead>
             <tr>
-              <th><span className="th-content"><span className="th-icon">🆔</span>ID</span></th>
-              <th><span className="th-content"><span className="th-icon">👤</span>Cliente</span></th>
-              <th><span className="th-content"><span className="th-icon">📅</span>Fecha</span></th>
-              <th><span className="th-content"><span className="th-icon">📦</span>Cantidad</span></th>
-              <th><span className="th-content"><span className="th-icon">💰</span>Total</span></th>
-              <th><span className="th-content"><span className="th-icon">⚙️</span>Acciones</span></th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">👤</span>Cliente
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">📅</span>Fecha
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🧺</span>Bandejas
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">💰</span>Total
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">⚙️</span>Acciones
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {ventas.map((venta) => (
-              <tr key={venta.id_venta} className="table-row">
-                <td className="table-cell id-cell">{venta.id_venta}</td>
-                <td className="table-cell">{venta.cliente?.nombre || `Cliente ${venta.id_cliente}`}</td>
-                <td className="table-cell">{new Date(venta.fecha_venta).toLocaleDateString()}</td>
-                <td className="table-cell">
-                  <span className="cantidad-badge">{venta.cantidad_total}</span>
-                </td>
-                <td className="table-cell font-semibold text-green-600">
-                  ${venta.costo_total.toLocaleString()}
-                </td>
-                <td className="table-cell acciones-cell">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setVentaEdit(venta)}
-                      className="btn-editar"
-                      title="Editar venta"
-                    >
-                      ✏️ Editar
-                    </button>
-                    {isAdmin && (
-                          <button
-                            className="btn-eliminar"
-                            onClick={() => handleDelete(venta.id_venta)}
-                            title="Eliminar registro"
-                          >
-                            🗑️ Eliminar
-                          </button>
-                        )}
+            {ventas.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="text-center py-8 text-gray-500">
+                  <div className="flex flex-col items-center space-y-2">
+                    <span className="text-4xl">💰</span>
+                    <span>No hay ventas registradas</span>
                   </div>
                 </td>
               </tr>
-            ))}
+            ) : (
+              ventas.map((venta) => (
+                <tr key={venta.id_venta} className="table-row">
+                  <td className="table-cell">{venta.cliente?.nombre || `Cliente ${venta.id_cliente}`}</td>
+                  <td className="table-cell">
+                    <span className="text-sm font-medium">{formatDate(venta.fecha_venta)}</span>
+                  </td>
+                  <td className="table-cell">
+                    <span className="cantidad-badge">{venta.cantidad_total}</span>
+                  </td>
+                  <td className="table-cell font-semibold text-green-600">
+                    ${venta.costo_total.toLocaleString("es-CL")}
+                  </td>
+                  <td className="table-cell acciones-cell">
+                    <div className="flex items-center space-x-2">
+                      <button onClick={() => setVentaEdit(venta)} className="btn-editar" title="Editar venta">
+                        ✏️ Editar
+                      </button>
+                      {isAdmin && (
+                        <button
+                          className="btn-eliminar"
+                          onClick={() => handleDelete(venta.id_venta)}
+                          title="Eliminar venta"
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

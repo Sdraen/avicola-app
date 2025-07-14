@@ -110,12 +110,6 @@ const VerAves: React.FC = () => {
             <tr>
               <th>
                 <span className="th-content">
-                  <span className="th-icon">🆔</span>
-                  ID
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
                   <span className="th-icon">🏷️</span>
                   ID Anillo
                 </span>
@@ -161,7 +155,6 @@ const VerAves: React.FC = () => {
           <tbody>
             {aves.map((ave) => (
               <tr key={ave.id_ave} className="table-row">
-                <td className="table-cell id-cell">{ave.id_ave}</td>
                 <td className="table-cell">{ave.id_anillo}</td>
                 <td className="table-cell">{ave.color_anillo}</td>
                 <td className="table-cell especie-cell">{ave.raza}</td>

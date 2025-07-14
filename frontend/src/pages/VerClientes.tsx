@@ -192,7 +192,6 @@ const VerClientes: React.FC = () => {
           <table className="tabla-aves">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Nombre</th>
                 <th>Dirección</th>
                 <th>Teléfono</th>
@@ -203,7 +202,6 @@ const VerClientes: React.FC = () => {
             <tbody>
               {clientes.map((cliente) => (
                 <tr key={cliente.id_cliente} className="table-row">
-                  <td className="table-cell id-cell">{cliente.id_cliente}</td>
                   <td className="table-cell especie-cell">
                     <div className="flex items-center">
                       <span className="text-2xl mr-2">👤</span>
@@ -289,7 +287,6 @@ const VerClientes: React.FC = () => {
         </div>
       )}
 
-      {/* Modal de edición */}
       {isEditModalOpen && selectedClienteId && (
         <ModalEditarCliente
           isOpen={isEditModalOpen}
