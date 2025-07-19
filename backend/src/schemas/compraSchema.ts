@@ -1,5 +1,39 @@
+import { z } from "zod"
+
+// Schema para crear una compra
+export const createCompraSchema = z.object({
+  fecha: z.string().optional(),
+  costo_total: z.number().positive("El costo total debe ser mayor a 0"),
+  proveedor: z.string().optional(),
+  implementos: z
+    .array(
+      z.object({
+        nombre: z.string().min(1, "El nombre es requerido"),
+        cantidad: z.number().positive("La cantidad debe ser mayor a 0"),
+        precio_unitario: z.number().positive("El precio unitario debe ser mayor a 0"),
+        categoria: z.string().optional(),
+        descripcion: z.string().optional(),
+        estado: z.string().optional(),
+        ubicacion: z.string().optional(),
+      }),
+    )
+    .optional(),
+})
+
+// Schema para actualizar una compra
+export const updateCompraSchema = z.object({
+  fecha: z.string().optional(),
+  costo_total: z.number().positive("El costo total debe ser mayor a 0").optional(),
+  proveedor: z.string().optional(),
+})
+
+// Tipos derivados de los schemas
+export type CreateCompraInput = z.infer<typeof createCompraSchema>
+export type UpdateCompraInput = z.infer<typeof updateCompraSchema>
+
+// Validaciones legacy (mantenidas para compatibilidad)
 import { BaseValidator, type ValidationRule } from "./baseValidation"
-import { VALIDATION_LIMITS, VALIDATION_PATTERNS } from "./constants"
+import { VALIDATION_LIMITS } from "./constants"
 
 export const compraValidationRules: ValidationRule[] = [
   {
@@ -55,33 +89,17 @@ export const implementoValidationRules: ValidationRule[] = [
   {
     field: "cantidad",
     required: true,
-    type: "string",
-    pattern: VALIDATION_PATTERNS.DECIMAL,
-    custom: (value) => {
-      const num = Number.parseFloat(value)
-      if (num <= 0) {
-        return "cantidad debe ser mayor a 0"
-      }
-      return null
-    },
+    type: "number",
+    min: 1,
   },
   {
-    field: "costo_unitario",
+    field: "precio_unitario",
     required: false,
-    type: "string",
-    pattern: VALIDATION_PATTERNS.DECIMAL,
-    custom: (value) => {
-      if (value) {
-        const num = Number.parseFloat(value)
-        if (num < 0) {
-          return "costo_unitario no puede ser negativo"
-        }
-      }
-      return null
-    },
+    type: "number",
+    min: 0,
   },
   {
-    field: "id_compras",
+    field: "id_compra",
     required: false,
     type: "number",
     min: 1,

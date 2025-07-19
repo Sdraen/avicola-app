@@ -6,17 +6,39 @@ export const getAllImplementos = async (req: Request, res: Response): Promise<vo
     const { data, error } = await supabase
       .from("implementos")
       .select(`
-        *,
-        compra:compras(*)
+        id_implemento,
+        id_compra,
+        nombre,
+        cantidad,
+        precio_unitario,
+        categoria,
+        descripcion,
+        estado,
+        ubicacion,
+        fecha_registro,
+        compras (
+          id_compra,
+          fecha,
+          costo_total,
+          proveedor
+        )
       `)
       .order("nombre")
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
 
-    res.status(200).json(data)
+    // Transform the data to match expected structure
+    const transformedData =
+      data?.map((item) => ({
+        ...item,
+        compra: item.compras,
+      })) || []
+
+    res.status(200).json(transformedData)
   } catch (error) {
     console.error("Error fetching supplies:", error)
     res.status(500).json({ error: "Internal server error" })
@@ -29,13 +51,28 @@ export const getImplementoById = async (req: Request, res: Response): Promise<vo
     const { data, error } = await supabase
       .from("implementos")
       .select(`
-        *,
-        compra:compras(*)
+        id_implemento,
+        id_compra,
+        nombre,
+        cantidad,
+        precio_unitario,
+        categoria,
+        descripcion,
+        estado,
+        ubicacion,
+        fecha_registro,
+        compras (
+          id_compra,
+          fecha,
+          costo_total,
+          proveedor
+        )
       `)
-      .eq("id_implementos", id)
+      .eq("id_implemento", id)
       .single()
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -45,7 +82,13 @@ export const getImplementoById = async (req: Request, res: Response): Promise<vo
       return
     }
 
-    res.status(200).json(data)
+    // Transform the data to match expected structure
+    const transformedData = {
+      ...data,
+      compra: data.compras,
+    }
+
+    res.status(200).json(transformedData)
   } catch (error) {
     console.error("Error fetching supply:", error)
     res.status(500).json({ error: "Internal server error" })
@@ -54,27 +97,46 @@ export const getImplementoById = async (req: Request, res: Response): Promise<vo
 
 export const createImplemento = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id_compras, nombre, cantidad, costo_unitario } = req.body
+    const { id_compra, nombre, cantidad, precio_unitario, categoria, descripcion, estado, ubicacion } = req.body
 
-    if (!nombre || !cantidad) {
-      res.status(400).json({ error: "nombre and cantidad are required" })
+    if (!nombre || !cantidad || !precio_unitario) {
+      res.status(400).json({ error: "nombre, cantidad y precio_unitario son requeridos" })
       return
+    }
+
+    // Si se proporciona id_compra, verificar que la compra existe
+    if (id_compra) {
+      const { data: compraExists, error: compraError } = await supabase
+        .from("compras")
+        .select("id_compra, fecha")
+        .eq("id_compra", id_compra)
+        .single()
+
+      if (compraError || !compraExists) {
+        res.status(400).json({ error: "La compra especificada no existe" })
+        return
+      }
     }
 
     const { data, error } = await supabase
       .from("implementos")
       .insert([
         {
-          id_compras,
+          id_compra: id_compra || null,
           nombre,
-          cantidad,
-          costo_unitario,
+          cantidad: Number(cantidad),
+          precio_unitario: Number(precio_unitario),
+          categoria,
+          descripcion,
+          estado: estado || "Bueno",
+          ubicacion,
         },
       ])
       .select()
       .single()
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -91,14 +153,10 @@ export const updateImplemento = async (req: Request, res: Response): Promise<voi
     const { id } = req.params
     const updates = req.body
 
-    const { data, error } = await supabase
-      .from("implementos")
-      .update(updates)
-      .eq("id_implementos", id)
-      .select()
-      .single()
+    const { data, error } = await supabase.from("implementos").update(updates).eq("id_implemento", id).select().single()
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -119,9 +177,10 @@ export const deleteImplemento = async (req: Request, res: Response): Promise<voi
   try {
     const { id } = req.params
 
-    const { error } = await supabase.from("implementos").delete().eq("id_implementos", id)
+    const { error } = await supabase.from("implementos").delete().eq("id_implemento", id)
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -135,10 +194,11 @@ export const deleteImplemento = async (req: Request, res: Response): Promise<voi
 
 export const getImplementosByCompra = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id_compras } = req.params
-    const { data, error } = await supabase.from("implementos").select("*").eq("id_compras", id_compras).order("nombre")
+    const { id } = req.params
+    const { data, error } = await supabase.from("implementos").select("*").eq("id_compra", id).order("nombre")
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -156,6 +216,7 @@ export const searchImplementos = async (req: Request, res: Response): Promise<vo
     const { data, error } = await supabase.from("implementos").select("*").ilike("nombre", `%${query}%`).order("nombre")
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -169,23 +230,20 @@ export const searchImplementos = async (req: Request, res: Response): Promise<vo
 
 export const getImplementosStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Total supplies
     const { count: totalSupplies } = await supabase.from("implementos").select("*", { count: "exact", head: true })
 
-    // Total value
-    const { data: allSupplies } = await supabase.from("implementos").select("cantidad, costo_unitario")
+    const { data: allSupplies } = await supabase.from("implementos").select("cantidad, precio_unitario")
 
     let totalValue = 0
     allSupplies?.forEach((supply) => {
       const quantity = Number.parseFloat(supply.cantidad) || 0
-      const cost = Number.parseFloat(supply.costo_unitario) || 0
+      const cost = Number.parseFloat(supply.precio_unitario) || 0
       totalValue += quantity * cost
     })
 
-    // Supplies by name (for inventory overview)
     const { data: suppliesByName } = await supabase
       .from("implementos")
-      .select("nombre, cantidad, costo_unitario")
+      .select("nombre, cantidad, precio_unitario")
       .order("nombre")
 
     res.status(200).json({

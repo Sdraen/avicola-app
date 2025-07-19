@@ -306,43 +306,64 @@ export const obtenerBandejaPorId = async (req: Request, res: Response): Promise<
   }
 }
 
-// Eliminar bandeja
 export const eliminarBandeja = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
 
     if (!id) {
-      res.status(400).json({ error: "Falta el ID de la bandeja" })
-      return
+      res.status(400).json({ error: "Falta el ID de la bandeja" });
+      return;
+    }
+
+    // Verificar primero si la bandeja tiene venta asociada
+    const { data: bandejaConVenta, error: errorVenta } = await supabase
+      .from("bandeja")
+      .select("id_venta")
+      .eq("id_bandeja", id)
+      .single();
+
+    if (errorVenta) {
+      console.error("❌ Error al verificar venta asociada:", errorVenta);
+      res.status(500).json({ error: "Error al verificar venta asociada a la bandeja" });
+      return;
+    }
+
+    if (bandejaConVenta?.id_venta) {
+      res.status(400).json({
+        error: "No se puede eliminar la bandeja porque está asociada a una venta.",
+      });
+      return;
     }
 
     // Primero eliminar las relaciones huevo_bandeja
-    const { error: errorRelaciones } = await supabase.from("huevo_bandeja").delete().eq("id_bandeja", id)
+    const { error: errorRelaciones } = await supabase.from("huevo_bandeja").delete().eq("id_bandeja", id);
 
     if (errorRelaciones) {
-      console.error("❌ Error deleting egg relations:", errorRelaciones)
-      res.status(500).json({ error: "Error al eliminar relaciones de huevos" })
-      return
+      console.error("❌ Error deleting egg relations:", errorRelaciones);
+      res.status(500).json({ error: "Error al eliminar relaciones de huevos" });
+      return;
     }
 
-    // Luego eliminar la bandeja
-    const { error } = await supabase.from("bandeja").delete().eq("id_bandeja", id)
+    // Finalmente eliminar la bandeja
+    const { error } = await supabase.from("bandeja").delete().eq("id_bandeja", id);
 
     if (error) {
-      console.error("❌ Error deleting bandeja:", error)
-      res.status(500).json({ error: "Error al eliminar la bandeja" })
-      return
+      console.error("❌ Error deleting bandeja:", error);
+      res.status(500).json({ error: "Error al eliminar la bandeja" });
+      return;
     }
 
     res.status(200).json({
       success: true,
       message: "Bandeja eliminada correctamente",
-    })
+    });
+
   } catch (error) {
-    console.error("❌ Error en eliminarBandeja:", error)
-    res.status(500).json({ error: "Error interno del servidor" })
+    console.error("❌ Error en eliminarBandeja:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 }
+
 
 // Actualizar bandeja
 export const actualizarBandeja = async (req: Request, res: Response): Promise<void> => {

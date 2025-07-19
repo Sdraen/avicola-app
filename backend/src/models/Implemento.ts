@@ -1,7 +1,18 @@
 export interface Implementos {
-  id_implementos: number
-  id_compras: number
+  id_implemento: number
+  id_compra: number
   nombre: string
-  cantidad: string
-  costo_unitario: string
+  categoria?: string
+  descripcion?: string
+  cantidad: number
+  precio_unitario: number
+  estado?: string
+  fecha_compra?: string  // formato ISO: yyyy-mm-dd
+  proveedor?: string
+  ubicacion?: string
+  compra?: {
+    id_compra: number
+    fecha: string
+    costo_total: number
+  }
 }
