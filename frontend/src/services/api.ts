@@ -159,7 +159,7 @@ export const ventasAPI = {
   getStats: () => api.get("/ventas/stats/overview"),
 }
 
-// Servicios de compras
+// Servicios de compras - CORREGIDO para usar id_compra
 export const comprasAPI = {
   getAll: () => api.get("/compras"),
   getById: (id: number) => api.get(`/compras/${id}`),
@@ -170,17 +170,45 @@ export const comprasAPI = {
   getStats: () => api.get("/compras/stats/overview"),
 }
 
-// Servicios de implementos
+// Servicios de implementos - CORREGIDO para usar id_compra
 export const implementosAPI = {
   getAll: () => api.get("/implementos"),
   getById: (id: number) => api.get(`/implementos/${id}`),
   create: (data: any) => api.post("/implementos", data),
   update: (id: number, data: any) => api.put(`/implementos/${id}`, data),
   delete: (id: number) => api.delete(`/implementos/${id}`),
-  getByCompra: (id_compras: number) => api.get(`/implementos/compra/${id_compras}`),
+  getByCompra: (id_compra: number) => api.get(`/implementos/compra/${id_compra}`),
   search: (query: string) => api.get(`/implementos/search/${query}`),
   getStats: () => api.get("/implementos/stats/overview"),
 }
+
+// Servicios de historial clínico
+export const aveClinicaAPI = {
+  getHistorial: (id_ave: number) => api.get(`/ave-clinica/historial/${id_ave}`),
+  create: (data: {
+    id_ave: number
+    id_jaula: number
+    fecha_inicio: string
+    fecha_fin?: string
+    descripcion: string
+  }) => api.post("/ave-clinica", data),
+  update: (
+    id: number,
+    data: {
+      fecha_inicio?: string
+      fecha_fin?: string
+      descripcion?: string
+    },
+  ) => api.put(`/ave-clinica/${id}`, data),
+  registrarFallecimiento: (data: {
+    id_ave: number
+    fecha: string
+    motivo: string
+  }) => api.post("/ave-clinica/fallecimiento", data),
+  getAvesFallecidas: () => api.get("/ave-clinica/fallecidas"),
+  eliminarFallecimiento: (id_ave: number) => api.delete(`/ave-clinica/fallecimiento/${id_ave}`),
+}
+
 
 // Servicios de medicamentos
 export const medicamentosAPI = {

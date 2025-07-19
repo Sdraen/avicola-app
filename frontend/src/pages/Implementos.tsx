@@ -1,53 +1,68 @@
-import { Link } from "react-router-dom"
+"use client"
 
-export default function Implementos() {
+import { useNavigate } from "react-router-dom"
+import React from "react"
+
+const Implementos: React.FC = () => {
+  const navigate = useNavigate()
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Implementos</h1>
-        <p className="text-gray-600 mt-2">Gestión de herramientas y equipos avícolas</p>
+    <div className="modulo-container">
+      <div className="modulo-header">
+        <div className="modulo-icon">🛠️</div>
+        <h1 className="modulo-title">Gestión de Implementos</h1>
+        <p className="modulo-description">
+          Administra herramientas, equipos y recursos del sistema avícola, incluyendo compras asociadas.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Link
-          to="/ver-implementos"
-          className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-indigo-500"
-        >
-          <div className="flex items-center">
-            <div className="p-3 bg-indigo-100 rounded-full">
-              <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">Ver Implementos</h3>
-              <p className="text-gray-600">Lista de herramientas y equipos</p>
-            </div>
-          </div>
-        </Link>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6 my-6">
+        <button className="action-button primary" onClick={() => navigate("/ver-implementos")}>
+          <span className="button-icon">📋</span>
+          <span className="button-text">Ver Inventario de Implementos</span>
+        </button>
 
-        <Link
-          to="/registrar-implemento"
-          className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-green-500"
-        >
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-full">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">Registrar Implemento</h3>
-              <p className="text-gray-600">Agregar nuevo implemento</p>
-            </div>
+        <button className="action-button primary" onClick={() => navigate("/registrar-implemento")}>
+          <span className="button-icon">➕</span>
+          <span className="button-text">Registrar Nuevo Implemento</span>
+        </button>
+
+        <button className="action-button primary" onClick={() => navigate("/ver-compras")}>
+          <span className="button-icon">🧾</span>
+          <span className="button-text">Ver Compras</span>
+        </button>
+
+        <button className="action-button primary" onClick={() => navigate("/registrar-compra")}>
+          <span className="button-icon">🛒</span>
+          <span className="button-text">Registrar Nueva Compra</span>
+        </button>
+      </div>
+
+      <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
+        <h2 className="text-xl font-bold text-gray-800 mb-4">Información del Módulo</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="font-semibold text-gray-700 mb-2">Funciones disponibles:</h3>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• Registro de herramientas y equipos</li>
+              <li>• Asociación de implementos a compras realizadas</li>
+              <li>• Seguimiento de estado y ubicación</li>
+              <li>• Reportes de inventario y adquisición</li>
+            </ul>
           </div>
-        </Link>
+          <div>
+            <h3 className="font-semibold text-gray-700 mb-2">Categorías comunes:</h3>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• Herramientas</li>
+              <li>• Equipos</li>
+              <li>• Contenedores</li>
+              <li>• Otros insumos técnicos</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
+
+export default Implementos

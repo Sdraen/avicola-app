@@ -114,34 +114,67 @@ export interface Venta {
   bandeja?: Bandeja[]
 }
 
+// Compras - ACTUALIZADO para usar id_compra
 export interface Compra {
   id_compra: number
-  proveedor: string
-  fecha_compra: string
-  total_compra: number
-  tipo_compra: "alimento" | "medicamento" | "equipo" | "otros"
-  descripcion: string
-  observaciones?: string
-  registrado_por: number
-  fecha_registro: string
+  fecha: string
+  costo_total: number
+  proveedor?: string
   implementos?: Implemento[]
 }
 
+// Implementos - ACTUALIZADO para usar id_compra
 export interface Implemento {
   id_implemento: number
-  nombre: string
-  tipo_implemento: "herramienta" | "equipo" | "contenedor" | "otros"
-  descripcion?: string
-  estado: "nuevo" | "bueno" | "regular" | "malo" | "fuera_servicio"
-  fecha_adquisicion?: string
-  precio_compra?: number
-  ubicacion?: string
-  observaciones?: string
-  activo: boolean
-  fecha_registro: string
   id_compra?: number
-  cantidad?: string
+  nombre: string
+  cantidad: number
+  precio_unitario: number
+  categoria?: string
+  descripcion?: string
+  estado?: string
+  ubicacion?: string
+  fecha_registro: string
+  compra?: Compra
 }
+
+// Interfaces para el sistema clínico
+export interface AveClinica {
+  id_ave: number
+  id_jaula: number
+  fecha_inicio: string
+  fecha_fin?: string
+  descripcion: string
+  ave?: {
+    id_ave: number
+    id_anillo: string
+    raza: string
+  }
+  jaula?: {
+    id_jaula: number
+    descripcion: string
+    codigo_jaula: string
+  }
+}
+
+export interface AveFallecida {
+  id_ave: number
+  fecha: string
+  motivo: string
+  ave?: {
+    id_ave: number
+    id_anillo: string
+    raza: string
+    color_anillo: string
+  }
+}
+
+export interface HistorialClinico {
+  historial_clinico: AveClinica[]
+  ave_fallecida: AveFallecida | null
+  esta_fallecida: boolean
+}
+
 
 export interface Medicamento {
   id_medicamento: number

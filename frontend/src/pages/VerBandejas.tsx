@@ -41,23 +41,30 @@ const VerBandejas: React.FC = () => {
   }, [])
 
   const handleDelete = async (id_bandeja: number) => {
-    const result = await showDeleteConfirmation(
+    const isConfirmed = await showDeleteConfirmation(
       "¿Eliminar bandeja?",
       `¿Estás seguro de que deseas eliminar la bandeja #${id_bandeja}? Esta acción no se puede deshacer.`,
       "Sí, eliminar",
     )
 
-    if (result.isConfirmed) {
+    if (isConfirmed) {
       try {
         showLoadingAlert("Eliminando bandeja...", "Por favor espere")
         await bandejasAPI.delete(id_bandeja)
         setBandejas((prev) => prev.filter((b) => b.id_bandeja !== id_bandeja))
         closeLoadingAlert()
         await showSuccessAlert("¡Bandeja eliminada!", "La bandeja ha sido eliminada correctamente")
-      } catch (err) {
-        closeLoadingAlert()
-        await showErrorAlert("Error al eliminar", "No se pudo eliminar la bandeja. Inténtalo de nuevo.")
-        console.error("Error eliminando bandeja:", err)
+      } catch (err: any) {
+        closeLoadingAlert();
+        const errorMessage = err.response?.data?.error;
+
+        if (errorMessage?.includes("asociada a una venta")) {
+          await showErrorAlert("Error al eliminar", "No se puede eliminar la bandeja porque está asociada a una venta.")
+        } else {
+          await showErrorAlert("Error al eliminar", errorMessage || "No se pudo eliminar la bandeja. Inténtalo de nuevo.")
+        }
+
+        console.error("Error eliminando bandeja:", err);
       }
     }
   }
