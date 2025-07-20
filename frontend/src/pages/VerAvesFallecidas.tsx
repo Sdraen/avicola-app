@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { aveClinicaAPI } from "../services/api"
+import { aveClinicaAPI, avesAPI } from "../services/api"
 import type { AveFallecida } from "../types"
 import {
   showDeleteConfirmation,
@@ -42,7 +42,7 @@ const VerAvesFallecidas: React.FC = () => {
   const handleEliminarRegistro = async (id_ave: number, id_anillo: string) => {
     const result = await showDeleteConfirmation(
       "¿Eliminar registro de fallecimiento?",
-      `¿Estás seguro de que deseas eliminar el registro de fallecimiento del ave #${id_anillo}? Esta acción permitirá registrar nuevos tratamientos para esta ave.`,
+      `¿Estás seguro de que deseas eliminar el registro de fallecimiento del ave #${id_anillo}? Esta acción restaurará el ave en el sistema.`,
       "Sí, eliminar registro",
     )
 
@@ -51,10 +51,12 @@ const VerAvesFallecidas: React.FC = () => {
         showLoadingAlert("Eliminando registro...", "Por favor espere")
 
         await aveClinicaAPI.eliminarFallecimiento(id_ave)
+        await avesAPI.reactivar(id_ave) // Reactivar el ave
+
         setAvesFallecidas((prev) => prev.filter((ave) => ave.id_ave !== id_ave))
 
         closeLoadingAlert()
-        await showSuccessAlert("¡Registro eliminado!", "El registro de fallecimiento ha sido eliminado correctamente")
+        await showSuccessAlert("¡Registro eliminado!", "El ave ha sido reactivada y el registro de fallecimiento eliminado")
       } catch (err: any) {
         closeLoadingAlert()
         await showErrorAlert("Error al eliminar", "No se pudo eliminar el registro. Inténtalo de nuevo.")
@@ -64,7 +66,9 @@ const VerAvesFallecidas: React.FC = () => {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("es-ES", {
+    const [year, month, day] = dateString.split("-").map(Number)
+    const localDate = new Date(year, month - 1, day)
+    return localDate.toLocaleDateString("es-ES", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -112,12 +116,6 @@ const VerAvesFallecidas: React.FC = () => {
               <tr>
                 <th>
                   <span className="th-content">
-                    <span className="th-icon">🆔</span>
-                    ID Ave
-                  </span>
-                </th>
-                <th>
-                  <span className="th-content">
                     <span className="th-icon">🏷️</span>
                     ID Anillo
                   </span>
@@ -159,7 +157,6 @@ const VerAvesFallecidas: React.FC = () => {
             <tbody>
               {avesFallecidas.map((aveFallecida) => (
                 <tr key={aveFallecida.id_ave} className="table-row">
-                  <td className="table-cell id-cell">{aveFallecida.id_ave}</td>
                   <td className="table-cell">{aveFallecida.ave?.id_anillo || "N/A"}</td>
                   <td className="table-cell">{aveFallecida.ave?.color_anillo || "N/A"}</td>
                   <td className="table-cell especie-cell">{aveFallecida.ave?.raza || "N/A"}</td>

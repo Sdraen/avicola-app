@@ -90,6 +90,7 @@ export const avesAPI = {
   delete: (id: number) => api.delete(`/aves/${id}`),
   getByJaula: (id_jaula: number) => api.get(`/aves/jaula/${id_jaula}`),
   getStats: () => api.get("/aves/stats/overview"),
+  reactivar: (id: number) => api.patch(`/aves/${id}/reactivar`),
 }
 
 // Servicios de huevos
@@ -200,6 +201,7 @@ export const aveClinicaAPI = {
       descripcion?: string
     },
   ) => api.put(`/ave-clinica/${id}`, data),
+  delete: (id: number) => api.delete(`/ave-clinica/${id}`),
   registrarFallecimiento: (data: {
     id_ave: number
     fecha: string

@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
+import Swal from "sweetalert2"
 import { aveClinicaAPI } from "../../services/api"
 import type { HistorialClinico } from "../../types"
 
@@ -56,6 +57,61 @@ const ModalHistorialClinico: React.FC<ModalHistorialClinicoProps> = ({ isOpen, a
 
   const getEstadoTexto = (fechaFin?: string) => {
     return fechaFin ? "Completado" : "En tratamiento"
+  }
+
+  const handleEliminarRegistro = async () => {
+    const result = await Swal.fire({
+      title: "¿Eliminar tratamiento?",
+      text: "Este tratamiento clínico será eliminado permanentemente.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Eliminar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#d33",
+    })
+
+    if (result.isConfirmed) {
+      try {
+        await aveClinicaAPI.delete(aveId)
+        await fetchHistorial()
+        Swal.fire("Eliminado", "El tratamiento fue eliminado correctamente.", "success")
+      } catch (error: any) {
+        Swal.fire("Error", error.message || "No se pudo eliminar el tratamiento.", "error")
+      }
+    }
+  }
+
+  const handleEditarRegistro = async () => {
+    const tratamiento = historial?.historial_clinico[0]
+    if (!tratamiento) return
+
+    const { value: formValues } = await Swal.fire({
+      title: "Editar tratamiento clínico",
+      html: `
+        <label>Fecha inicio</label><input id="fecha_inicio" type="date" class="swal2-input" value="${tratamiento.fecha_inicio.slice(0, 10)}">
+        <label>Fecha fin</label><input id="fecha_fin" type="date" class="swal2-input" value="${tratamiento.fecha_fin?.slice(0, 10) || ""}">
+        <label>Descripción</label><textarea id="descripcion" class="swal2-textarea">${tratamiento.descripcion}</textarea>
+      `,
+      focusConfirm: false,
+      preConfirm: () => {
+        const fecha_inicio = (document.getElementById("fecha_inicio") as HTMLInputElement).value
+        const fecha_fin = (document.getElementById("fecha_fin") as HTMLInputElement).value
+        const descripcion = (document.getElementById("descripcion") as HTMLTextAreaElement).value
+        return { fecha_inicio, fecha_fin: fecha_fin || null, descripcion }
+      },
+      showCancelButton: true,
+      confirmButtonText: "Actualizar",
+    })
+
+    if (formValues) {
+      try {
+        await aveClinicaAPI.update(aveId, formValues)
+        await fetchHistorial()
+        Swal.fire("Actualizado", "Tratamiento clínico actualizado correctamente.", "success")
+      } catch (error: any) {
+        Swal.fire("Error", error.message || "No se pudo actualizar el tratamiento.", "error")
+      }
+    }
   }
 
   if (!isOpen) return null
@@ -175,10 +231,22 @@ const ModalHistorialClinico: React.FC<ModalHistorialClinicoProps> = ({ isOpen, a
                             </div>
                           </div>
 
-                          <div>
-                            <p className="text-sm text-gray-600 mb-1">Descripción del tratamiento:</p>
-                            <p className="text-gray-800 bg-gray-50 p-3 rounded border">{registro.descripcion}</p>
-                          </div>
+                          {index === 0 && (
+                            <div className="flex justify-end gap-2 mt-3">
+                              <button
+                                onClick={handleEditarRegistro}
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button
+                                onClick={handleEliminarRegistro}
+                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                              >
+                                🗑 Eliminar
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
