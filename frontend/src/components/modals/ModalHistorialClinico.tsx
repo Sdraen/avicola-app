@@ -21,9 +21,13 @@ const ModalHistorialClinico: React.FC<ModalHistorialClinicoProps> = ({ isOpen, a
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const fetchHistorial = async () => {
-    if (!aveId) return
+  useEffect(() => {
+    if (isOpen && aveId) {
+      fetchHistorial()
+    }
+  }, [isOpen, aveId])
 
+  const fetchHistorial = async () => {
     setLoading(true)
     setError("")
 
@@ -38,12 +42,6 @@ const ModalHistorialClinico: React.FC<ModalHistorialClinicoProps> = ({ isOpen, a
     }
   }
 
-  useEffect(() => {
-    if (isOpen && aveId) {
-      fetchHistorial()
-    }
-  }, [isOpen, aveId])
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("es-ES", {
       year: "numeric",
@@ -53,8 +51,7 @@ const ModalHistorialClinico: React.FC<ModalHistorialClinicoProps> = ({ isOpen, a
   }
 
   const getEstadoColor = (fechaFin?: string) => {
-    if (!fechaFin) return "bg-yellow-100 text-yellow-800"
-    return "bg-green-100 text-green-800"
+    return fechaFin ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
   }
 
   const getEstadoTexto = (fechaFin?: string) => {
@@ -64,126 +61,141 @@ const ModalHistorialClinico: React.FC<ModalHistorialClinicoProps> = ({ isOpen, a
   if (!isOpen) return null
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-container max-w-4xl">
-        <div className="modal-header">
-          <div className="flex items-center gap-3">
-            <div className="modal-icon bg-blue-100">
-              <span className="text-2xl">🏥</span>
-            </div>
-            <div>
-              <h2 className="modal-title">Historial Clínico</h2>
-              <p className="text-sm text-gray-600">
-                Ave #{aveInfo.id_anillo} - {aveInfo.raza} ({aveInfo.color_anillo})
-              </p>
-            </div>
-          </div>
-          <button onClick={onClose} className="modal-close-btn">
-            ✕
-          </button>
-        </div>
-
-        <div className="modal-body max-h-96 overflow-y-auto">
-          {loading && (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Cargando historial...</p>
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-              <p className="text-red-600">{error}</p>
-            </div>
-          )}
-
-          {historial && (
-            <div className="space-y-6">
-              {/* Estado del ave */}
-              {historial.esta_fallecida && historial.ave_fallecida && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-red-600 text-lg">💀</span>
-                    <h3 className="font-semibold text-red-800">Ave Fallecida</h3>
-                  </div>
-                  <p className="text-red-700">
-                    <strong>Fecha:</strong> {formatDate(historial.ave_fallecida.fecha)}
-                  </p>
-                  <p className="text-red-700">
-                    <strong>Motivo:</strong> {historial.ave_fallecida.motivo}
+    <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+        aria-label="Cerrar modal"
+      />
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
+          <div className="bg-blue-600 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white bg-opacity-20">
+                  <span className="text-xl text-white">🏥</span>
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Historial Clínico</h2>
+                  <p className="text-sm text-blue-100">
+                    Ave #{aveInfo.id_anillo} - {aveInfo.raza} ({aveInfo.color_anillo})
                   </p>
                 </div>
-              )}
+              </div>
+              <button
+                onClick={onClose}
+                className="rounded-full p-2 text-white hover:bg-white hover:bg-opacity-20 transition-colors"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
 
-              {/* Historial clínico */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <span>📋</span>
-                  Registros Clínicos ({historial.historial_clinico.length})
-                </h3>
+          <div className="p-6 max-h-[70vh] overflow-y-auto">
+            {loading && (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Cargando historial...</p>
+              </div>
+            )}
 
-                {historial.historial_clinico.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <span className="text-4xl mb-2 block">🏥</span>
-                    <p>No hay registros clínicos para esta ave</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {historial.historial_clinico.map((registro, index) => (
-                      <div
-                        key={index}
-                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">🩺</span>
-                            <span className="font-medium text-gray-800">Tratamiento #{index + 1}</span>
-                          </div>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(
-                              registro.fecha_fin,
-                            )}`}
-                          >
-                            {getEstadoTexto(registro.fecha_fin)}
-                          </span>
-                        </div>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-600">{error}</p>
+              </div>
+            )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                          <div>
-                            <p className="text-sm text-gray-600">Fecha de inicio:</p>
-                            <p className="font-medium">{formatDate(registro.fecha_inicio)}</p>
-                          </div>
-                          {registro.fecha_fin && (
-                            <div>
-                              <p className="text-sm text-gray-600">Fecha de fin:</p>
-                              <p className="font-medium">{formatDate(registro.fecha_fin)}</p>
-                            </div>
-                          )}
-                          <div>
-                            <p className="text-sm text-gray-600">Jaula:</p>
-                            <p className="font-medium">
-                              {registro.jaula?.descripcion || `Jaula #${registro.id_jaula}`}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="text-sm text-gray-600 mb-1">Descripción del tratamiento:</p>
-                          <p className="text-gray-800 bg-gray-50 p-3 rounded border">{registro.descripcion}</p>
-                        </div>
-                      </div>
-                    ))}
+            {historial && (
+              <div className="space-y-6">
+                {historial.esta_fallecida && historial.ave_fallecida && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-red-600 text-lg">💀</span>
+                      <h3 className="font-semibold text-red-800">Ave Fallecida</h3>
+                    </div>
+                    <p className="text-red-700">
+                      <strong>Fecha:</strong> {formatDate(historial.ave_fallecida.fecha)}
+                    </p>
+                    <p className="text-red-700">
+                      <strong>Motivo:</strong> {historial.ave_fallecida.motivo}
+                    </p>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-        </div>
 
-        <div className="modal-footer">
-          <button onClick={onClose} className="btn-secondary">
-            Cerrar
-          </button>
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <span>📋</span>
+                    Registros Clínicos ({historial.historial_clinico.length})
+                  </h3>
+
+                  {historial.historial_clinico.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <span className="text-4xl mb-2 block">📭</span>
+                      <p>No hay registros clínicos para esta ave</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {historial.historial_clinico.map((registro, index) => (
+                        <div
+                          key={index}
+                          className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">🩺</span>
+                              <span className="font-medium text-gray-800">Tratamiento #{index + 1}</span>
+                            </div>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(
+                                registro.fecha_fin
+                              )}`}
+                            >
+                              {getEstadoTexto(registro.fecha_fin)}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                            <div>
+                              <p className="text-sm text-gray-600">Fecha de inicio:</p>
+                              <p className="font-medium">{formatDate(registro.fecha_inicio)}</p>
+                            </div>
+                            {registro.fecha_fin && (
+                              <div>
+                                <p className="text-sm text-gray-600">Fecha de fin:</p>
+                                <p className="font-medium">{formatDate(registro.fecha_fin)}</p>
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm text-gray-600">Jaula:</p>
+                              <p className="font-medium">
+                                {registro.jaula?.descripcion || `Jaula #${registro.id_jaula}`}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Descripción del tratamiento:</p>
+                            <p className="text-gray-800 bg-gray-50 p-3 rounded border">{registro.descripcion}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-gray-50 px-6 py-4 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </div>
     </div>

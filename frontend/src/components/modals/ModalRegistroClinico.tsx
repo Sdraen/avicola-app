@@ -30,15 +30,6 @@ const ModalRegistroClinico: React.FC<ModalRegistroClinicoProps> = ({ isOpen, ave
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const fetchJaulas = async () => {
-    try {
-      const response = await jaulasAPI.getAll()
-      setJaulas(response.data)
-    } catch (err: any) {
-      console.error("Error fetching jaulas:", err)
-    }
-  }
-
   useEffect(() => {
     if (isOpen) {
       fetchJaulas()
@@ -51,6 +42,15 @@ const ModalRegistroClinico: React.FC<ModalRegistroClinicoProps> = ({ isOpen, ave
       setError("")
     }
   }, [isOpen, aveInfo])
+
+  const fetchJaulas = async () => {
+    try {
+      const response = await jaulasAPI.getAll()
+      setJaulas(response.data)
+    } catch (err: any) {
+      console.error("Error fetching jaulas:", err)
+    }
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -96,117 +96,138 @@ const ModalRegistroClinico: React.FC<ModalRegistroClinicoProps> = ({ isOpen, ave
   if (!isOpen) return null
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-container max-w-2xl">
-        <div className="modal-header">
-          <div className="flex items-center gap-3">
-            <div className="modal-icon bg-green-100">
-              <span className="text-2xl">🩺</span>
-            </div>
-            <div>
-              <h2 className="modal-title">Nuevo Registro Clínico</h2>
-              <p className="text-sm text-gray-600">
-                Ave #{aveInfo.id_anillo} - {aveInfo.raza} ({aveInfo.color_anillo})
-              </p>
+    <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+        aria-label="Cerrar modal"
+      />
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative w-full max-w-3xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
+          {/* Encabezado verde */}
+          <div className="bg-green-600 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white bg-opacity-20">
+                  <span className="text-xl text-white">🩺</span>
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Nuevo Registro Clínico</h2>
+                  <p className="text-sm text-green-100">
+                    Ave #{aveInfo.id_anillo} - {aveInfo.raza} ({aveInfo.color_anillo})
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="rounded-full p-2 text-white hover:bg-white hover:bg-opacity-20 transition-colors"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
           </div>
-          <button onClick={onClose} className="modal-close-btn">
-            ✕
-          </button>
+
+          <form onSubmit={handleSubmit}>
+            <div className="p-6 space-y-6">
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <p className="text-red-600">{error}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="id_jaula" className="block text-sm font-medium text-gray-700 mb-1">
+                    🏠 Jaula
+                  </label>
+                  <select
+                    id="id_jaula"
+                    name="id_jaula"
+                    value={formData.id_jaula}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Seleccionar jaula</option>
+                    {jaulas.map((jaula) => (
+                      <option key={jaula.id_jaula} value={jaula.id_jaula}>
+                        {jaula.descripcion || `Jaula #${jaula.id_jaula}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="fecha_inicio" className="block text-sm font-medium text-gray-700 mb-1">
+                    📅 Fecha de Inicio
+                  </label>
+                  <input
+                    type="date"
+                    id="fecha_inicio"
+                    name="fecha_inicio"
+                    value={formData.fecha_inicio}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="fecha_fin" className="block text-sm font-medium text-gray-700 mb-1">
+                    🏁 Fecha de Fin (opcional)
+                  </label>
+                  <input
+                    type="date"
+                    id="fecha_fin"
+                    name="fecha_fin"
+                    value={formData.fecha_fin}
+                    min={formData.fecha_inicio}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 mb-1">
+                  📝 Descripción del tratamiento
+                </label>
+                <textarea
+                  id="descripcion"
+                  name="descripcion"
+                  value={formData.descripcion}
+                  onChange={handleInputChange}
+                  rows={4}
+                  placeholder="Describe el tratamiento, medicamentos, observaciones..."
+                  required
+                  maxLength={500}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 resize-none"
+                />
+                <p className="text-right text-xs text-gray-500 mt-1">{formData.descripcion.length}/500</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                disabled={loading}
+              >
+                {loading ? "Registrando..." : "Registrar Tratamiento"}
+              </button>
+            </div>
+          </form>
         </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <p className="text-red-600">{error}</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-group">
-                <label htmlFor="id_jaula" className="form-label">
-                  <span className="label-icon">🏠</span>
-                  Jaula
-                </label>
-                <select
-                  id="id_jaula"
-                  name="id_jaula"
-                  value={formData.id_jaula}
-                  onChange={handleInputChange}
-                  className="form-input"
-                  required
-                >
-                  <option value="">Seleccionar jaula</option>
-                  {jaulas.map((jaula) => (
-                    <option key={jaula.id_jaula} value={jaula.id_jaula}>
-                      {jaula.descripcion || `Jaula #${jaula.id_jaula}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="fecha_inicio" className="form-label">
-                  <span className="label-icon">📅</span>
-                  Fecha de Inicio
-                </label>
-                <input
-                  type="date"
-                  id="fecha_inicio"
-                  name="fecha_inicio"
-                  value={formData.fecha_inicio}
-                  onChange={handleInputChange}
-                  className="form-input"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="fecha_fin" className="form-label">
-                  <span className="label-icon">🏁</span>
-                  Fecha de Fin (Opcional)
-                </label>
-                <input
-                  type="date"
-                  id="fecha_fin"
-                  name="fecha_fin"
-                  value={formData.fecha_fin}
-                  onChange={handleInputChange}
-                  className="form-input"
-                  min={formData.fecha_inicio}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="descripcion" className="form-label">
-                <span className="label-icon">📝</span>
-                Descripción del Tratamiento
-              </label>
-              <textarea
-                id="descripcion"
-                name="descripcion"
-                value={formData.descripcion}
-                onChange={handleInputChange}
-                className="form-input"
-                rows={4}
-                placeholder="Describe el tratamiento, enfermedad, medicamentos aplicados, observaciones, etc."
-                required
-              />
-              <p className="text-sm text-gray-500 mt-1">Máximo 500 caracteres ({formData.descripcion.length}/500)</p>
-            </div>
-          </div>
-
-          <div className="modal-footer">
-            <button type="button" onClick={onClose} className="btn-secondary" disabled={loading}>
-              Cancelar
-            </button>
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? "Registrando..." : "Registrar Tratamiento"}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   )

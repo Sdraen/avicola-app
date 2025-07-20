@@ -16,8 +16,20 @@ import {
   closeLoadingAlert,
 } from "../utils/sweetAlert"
 
+const calcularEdadSemanas = (edadInicial: string | number, fechaRegistro: string): string => {
+  const hoy = new Date()
+  const inicio = new Date(fechaRegistro)
+  const semanasPasadas = Math.floor((hoy.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 7))
+
+  const edadBase = typeof edadInicial === "string" ? parseInt(edadInicial) : edadInicial
+  const edadTotal = isNaN(edadBase) ? semanasPasadas : edadBase + semanasPasadas
+
+  return `${edadTotal} semanas`
+}
+
 const VerAves: React.FC = () => {
   const [aves, setAves] = useState<Ave[]>([])
+  const [filteredAves, setFilteredAves] = useState<Ave[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [selectedAveId, setSelectedAveId] = useState<number | null>(null)
@@ -28,10 +40,22 @@ const VerAves: React.FC = () => {
   const [isFallecimientoModalOpen, setIsFallecimientoModalOpen] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
 
+  const [search, setSearch] = useState("")
+  const [filterJaula, setFilterJaula] = useState("")
+  const [filterEstado, setFilterEstado] = useState("")
+  const [filterRaza, setFilterRaza] = useState("")
+
   const fetchAves = async () => {
     try {
       const response = await avesAPI.getAll()
-      setAves(response.data)
+
+      const avesConEdadCalculada = response.data.map((ave: Ave) => ({
+        ...ave,
+        edad: calcularEdadSemanas(ave.edad, ave.fecha_registro),
+      }))
+
+      setAves(avesConEdadCalculada)
+      setFilteredAves(avesConEdadCalculada)
     } catch (err: any) {
       setError("Error al cargar las aves")
       console.error("Error fetching aves:", err)
@@ -48,6 +72,27 @@ const VerAves: React.FC = () => {
       setUserRole(parsed.rol)
     }
   }, [])
+
+  useEffect(() => {
+    const filtered = aves.filter((ave) => {
+      const matchesSearch =
+        ave.id_anillo.toLowerCase().includes(search.toLowerCase()) ||
+        ave.color_anillo.toLowerCase().includes(search.toLowerCase()) ||
+        ave.raza.toLowerCase().includes(search.toLowerCase())
+
+      const matchesJaula =
+        !filterJaula || ave.jaula?.descripcion?.toLowerCase().includes(filterJaula.toLowerCase()) ||
+        ave.jaula?.codigo_jaula?.toLowerCase().includes(filterJaula.toLowerCase())
+
+      const matchesEstado = !filterEstado || ave.estado_puesta.toLowerCase() === filterEstado.toLowerCase()
+
+      const matchesRaza = !filterRaza || ave.raza.toLowerCase() === filterRaza.toLowerCase()
+
+      return matchesSearch && matchesJaula && matchesEstado && matchesRaza
+    })
+
+    setFilteredAves(filtered)
+  }, [search, filterJaula, filterEstado, filterRaza, aves])
 
   const handleEdit = (aveId: number) => {
     setSelectedAveId(aveId)
@@ -89,22 +134,20 @@ const VerAves: React.FC = () => {
     setSelectedAve(null)
   }
 
-  const handleDelete = async (id_ave: number) => {
+  const handleDelete = async (id_ave: number, id_anillo: string) => {
     const result = await showDeleteConfirmation(
       "¿Eliminar ave?",
-      `¿Estás seguro de que deseas eliminar el ave #${id_ave}? Esta acción no se puede deshacer.`,
-      "Sí, eliminar",
+      `¿Estás seguro de que deseas eliminar el ave con ID Anillo #${id_anillo}? Esta acción no se puede deshacer.`,
+      "Sí, eliminar"
     )
 
     if (result) {
       try {
         showLoadingAlert("Eliminando ave...", "Por favor espere")
-
         await avesAPI.delete(id_ave)
-        setAves((prev) => prev.filter((ave) => ave.id_ave !== id_ave))
-
+        await fetchAves()
         closeLoadingAlert()
-        await showSuccessAlert("¡Ave eliminada!", "El ave ha sido eliminada correctamente")
+        await showSuccessAlert("¡Ave eliminada!", `El ave con ID Anillo #${id_anillo} ha sido eliminada correctamente`)
       } catch (err: any) {
         closeLoadingAlert()
         await showErrorAlert("Error al eliminar", "No se pudo eliminar el ave. Inténtalo de nuevo.")
@@ -117,21 +160,12 @@ const VerAves: React.FC = () => {
     fetchAves()
   }
 
-  if (loading) {
-    return (
-      <div className="ver-aves-container">
-        <div className="text-center">Cargando aves...</div>
-      </div>
-    )
-  }
+  const uniqueEstados = Array.from(new Set(aves.map((a) => a.estado_puesta)))
+  const uniqueJaulas = Array.from(new Set(aves.map((a) => a.jaula?.descripcion || a.jaula?.codigo_jaula || "")))
+  const uniqueRazas = Array.from(new Set(aves.map((a) => a.raza)))
 
-  if (error) {
-    return (
-      <div className="ver-aves-container">
-        <div className="text-center text-red-600">{error}</div>
-      </div>
-    )
-  }
+  if (loading) return <div className="text-center py-4">Cargando aves...</div>
+  if (error) return <div className="text-center text-red-600 py-4">{error}</div>
 
   return (
     <div className="ver-aves-container">
@@ -140,118 +174,106 @@ const VerAves: React.FC = () => {
           <div className="header-icon">🐓</div>
           <div className="header-text">
             <h1 className="table-title">Listado de Aves</h1>
-            <p className="table-subtitle">Total de aves registradas: {aves.length}</p>
+            <p className="table-subtitle">Total de aves registradas: {filteredAves.length}</p>
           </div>
         </div>
       </div>
 
-      <div className="table-container">
-        <table className="tabla-aves">
-          <thead>
+      <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
+        <input
+          type="text"
+          placeholder="🔍 Buscar por anillo, raza o color..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full md:w-1/3 px-3 py-2 border rounded-md text-sm"
+        />
+        <select value={filterJaula} onChange={(e) => setFilterJaula(e.target.value)} className="px-3 py-2 border rounded-md text-sm">
+          <option value="">Todas las jaulas</option>
+          {uniqueJaulas.map((j, i) => (
+            <option key={i} value={j}>
+              {j || `Jaula sin nombre`}
+            </option>
+          ))}
+        </select>
+        <select value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)} className="px-3 py-2 border rounded-md text-sm">
+          <option value="">Todos los estados</option>
+          {uniqueEstados.map((e, i) => (
+            <option key={i} value={e}>
+              {e}
+            </option>
+          ))}
+        </select>
+        <select value={filterRaza} onChange={(e) => setFilterRaza(e.target.value)} className="px-3 py-2 border rounded-md text-sm">
+          <option value="">Todas las razas</option>
+          {uniqueRazas.map((r, i) => (
+            <option key={i} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="table-container overflow-x-auto">
+        <table className="tabla-aves text-sm w-full">
+          <thead className="bg-gray-100">
             <tr>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">🆔</span>
-                  ID
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">🏷️</span>
-                  ID Anillo
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">🎨</span>
-                  Color Anillo
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">🧬</span>
-                  Raza
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">📅</span>
-                  Edad
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">🥚</span>
-                  Estado Puesta
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">🏠</span>
-                  Jaula
-                </span>
-              </th>
-              <th>
-                <span className="th-content">
-                  <span className="th-icon">🛠️</span>
-                  Acciones
-                </span>
-              </th>
+              <th className="p-2 text-left">ID Anillo</th>
+              <th className="p-2 text-left">Color Anillo</th>
+              <th className="p-2 text-left">Raza</th>
+              <th className="p-2 text-left">Edad</th>
+              <th className="p-2 text-left">Estado Puesta</th>
+              <th className="p-2 text-left">Jaula</th>
+              <th className="p-2 text-left">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {aves.map((ave) => (
-              <tr key={ave.id_ave} className="table-row">
-                <td className="table-cell id-cell">{ave.id_ave}</td>
-                <td className="table-cell">{ave.id_anillo}</td>
-                <td className="table-cell">{ave.color_anillo}</td>
-                <td className="table-cell especie-cell">{ave.raza}</td>
-                <td className="table-cell">{ave.edad}</td>
-                <td className="table-cell">
+            {filteredAves.map((ave) => (
+              <tr key={ave.id_ave} className="border-b hover:bg-gray-50">
+                <td className="p-2">{ave.id_anillo}</td>
+                <td className="p-2">{ave.color_anillo}</td>
+                <td className="p-2">{ave.raza}</td>
+                <td className="p-2">{ave.edad}</td>
+                <td className="p-2">
                   <span className="cantidad-badge">{ave.estado_puesta}</span>
                 </td>
-                <td className="table-cell">{ave.jaula?.codigo_jaula || ave.jaula?.descripcion || ave.id_jaula}</td>
-                <td className="table-cell acciones-cell">
+                <td className="p-2">{ave.jaula?.codigo_jaula || ave.jaula?.descripcion || ave.id_jaula}</td>
+                <td className="p-2">
                   <div className="flex flex-wrap gap-1">
                     <button
-                      className="btn-editar text-xs px-2 py-1"
+                      className="bg-blue-500 hover:bg-blue-600 text-white text-xs p-1 rounded"
+                      title="Editar"
                       onClick={() => handleEdit(ave.id_ave)}
-                      title="Editar ave"
                     >
-                      ✏️ Editar
+                      ✏️
                     </button>
-
                     <button
-                      className="btn-info text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      className="bg-blue-400 hover:bg-blue-500 text-white text-xs p-1 rounded"
+                      title="Historial"
                       onClick={() => handleHistorialClinico(ave)}
-                      title="Ver historial clínico"
                     >
-                      🏥 Historial
+                      🏥
                     </button>
-
                     <button
-                      className="btn-success text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                      className="bg-green-500 hover:bg-green-600 text-white text-xs p-1 rounded"
+                      title="Tratamiento"
                       onClick={() => handleRegistroClinico(ave)}
-                      title="Nuevo registro clínico"
                     >
-                      🩺 Tratamiento
+                      🩺
                     </button>
-
                     <button
-                      className="btn-warning text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                      className="bg-red-500 hover:bg-red-600 text-white text-xs p-1 rounded"
+                      title="Fallecimiento"
                       onClick={() => handleRegistrarFallecimiento(ave)}
-                      title="Registrar fallecimiento"
                     >
-                      💀 Fallecimiento
+                      💀
                     </button>
-
                     {userRole === "admin" && (
                       <button
-                        className="btn-eliminar text-xs px-2 py-1 text-red-600"
-                        onClick={() => handleDelete(ave.id_ave)}
-                        title="Eliminar ave"
+                        className="bg-red-700 hover:bg-red-800 text-white text-xs p-1 rounded"
+                        title="Eliminar"
+                        onClick={() => handleDelete(ave.id_ave, ave.id_anillo)}
                       >
-                        🗑️ Eliminar
+                        🗑️
                       </button>
                     )}
                   </div>
@@ -262,15 +284,7 @@ const VerAves: React.FC = () => {
         </table>
       </div>
 
-      {/* Modal de edición */}
-      <ModalEditarAve
-        isOpen={isEditModalOpen}
-        aveId={selectedAveId!}
-        onClose={handleCloseEditModal}
-        onUpdate={fetchAves}
-      />
-
-      {/* Modal de historial clínico */}
+      <ModalEditarAve isOpen={isEditModalOpen} aveId={selectedAveId!} onClose={handleCloseEditModal} onUpdate={fetchAves} />
       {selectedAve && (
         <ModalHistorialClinico
           isOpen={isHistorialModalOpen}
@@ -283,8 +297,6 @@ const VerAves: React.FC = () => {
           onClose={handleCloseHistorialModal}
         />
       )}
-
-      {/* Modal de registro clínico */}
       {selectedAve && (
         <ModalRegistroClinico
           isOpen={isRegistroClinicoModalOpen}
@@ -299,8 +311,6 @@ const VerAves: React.FC = () => {
           onSuccess={handleModalSuccess}
         />
       )}
-
-      {/* Modal de fallecimiento */}
       {selectedAve && (
         <ModalRegistrarFallecimiento
           isOpen={isFallecimientoModalOpen}

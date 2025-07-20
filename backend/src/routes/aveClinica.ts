@@ -6,6 +6,7 @@ import {
   updateRegistroClinico,
   registrarFallecimiento,
   getAvesFallecidas,
+  eliminarRegistroClinico,
   eliminarFallecimiento,
 } from "../controllers/aveClinicaController"
 
@@ -15,6 +16,7 @@ const router = express.Router()
 router.get("/historial/:id", authenticateToken, requireRole(["admin", "operador"]), getHistorialClinico)
 router.post("/", authenticateToken, requireRole(["admin", "operador"]), createRegistroClinico)
 router.put("/:id", authenticateToken, requireRole(["admin", "operador"]), updateRegistroClinico)
+router.delete("/:id", authenticateToken, requireRole(["admin"]), eliminarRegistroClinico)
 
 // Rutas para fallecimientos
 router.get("/fallecidas", authenticateToken, requireRole(["admin", "operador"]), getAvesFallecidas)

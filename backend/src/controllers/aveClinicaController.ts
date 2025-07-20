@@ -12,19 +12,12 @@ export const getHistorialClinico = async (req: Request, res: Response): Promise<
   try {
     const paramValidation = aveIdParamSchema.safeParse(req.params)
     if (!paramValidation.success) {
-      res.status(400).json({
-        error: "Parámetros inválidos",
-        details: paramValidation.error.errors.map((err) => ({
-          field: err.path.join("."),
-          message: err.message,
-        })),
-      })
+      res.status(400).json({ error: "Parámetros inválidos", details: paramValidation.error.errors })
       return
     }
 
     const { id } = paramValidation.data
 
-    // Obtener registros clínicos
     const { data: historialClinico, error: clinicaError } = await supabase
       .from("ave_clinica")
       .select(`
@@ -36,12 +29,10 @@ export const getHistorialClinico = async (req: Request, res: Response): Promise<
       .order("fecha_inicio", { ascending: false })
 
     if (clinicaError) {
-      console.error("Error fetching historial clínico:", clinicaError)
       res.status(400).json({ error: clinicaError.message })
       return
     }
 
-    // Verificar si el ave está fallecida
     const { data: aveFallecida, error: fallecidaError } = await supabase
       .from("aves_fallecidas")
       .select("*")
@@ -49,7 +40,6 @@ export const getHistorialClinico = async (req: Request, res: Response): Promise<
       .single()
 
     if (fallecidaError && fallecidaError.code !== "PGRST116") {
-      console.error("Error checking ave fallecida:", fallecidaError)
       res.status(400).json({ error: fallecidaError.message })
       return
     }
@@ -60,40 +50,26 @@ export const getHistorialClinico = async (req: Request, res: Response): Promise<
       esta_fallecida: !!aveFallecida,
     })
   } catch (error) {
-    console.error("Error getting historial clínico:", error)
     res.status(500).json({ error: "Internal server error" })
   }
 }
 
-// Crear nuevo registro clínico
+// Crear registro clínico
 export const createRegistroClinico = async (req: Request, res: Response): Promise<void> => {
   try {
     const validation = createAveClinicaSchema.safeParse(req.body)
     if (!validation.success) {
-      res.status(400).json({
-        error: "Datos de entrada inválidos",
-        details: validation.error.errors.map((err) => ({
-          field: err.path.join("."),
-          message: err.message,
-        })),
-      })
+      res.status(400).json({ error: "Datos de entrada inválidos", details: validation.error.errors })
       return
     }
 
     const { id_ave, id_jaula, fecha_inicio, fecha_fin, descripcion } = validation.data
 
-    // Verificar que el ave no esté fallecida
-    const { data: aveFallecida, error: fallecidaError } = await supabase
+    const { data: aveFallecida } = await supabase
       .from("aves_fallecidas")
       .select("*")
       .eq("id_ave", id_ave)
       .single()
-
-    if (fallecidaError && fallecidaError.code !== "PGRST116") {
-      console.error("Error checking ave fallecida:", fallecidaError)
-      res.status(400).json({ error: fallecidaError.message })
-      return
-    }
 
     if (aveFallecida) {
       res.status(400).json({
@@ -103,33 +79,6 @@ export const createRegistroClinico = async (req: Request, res: Response): Promis
       return
     }
 
-    // Verificar que el ave existe
-    const { data: ave, error: aveError } = await supabase
-      .from("ave")
-      .select("id_ave, id_anillo, raza")
-      .eq("id_ave", id_ave)
-      .single()
-
-    if (aveError) {
-      console.error("Error fetching ave:", aveError)
-      res.status(400).json({ error: "Ave no encontrada" })
-      return
-    }
-
-    // Verificar que la jaula existe
-    const { data: jaula, error: jaulaError } = await supabase
-      .from("jaula")
-      .select("id_jaula, descripcion")
-      .eq("id_jaula", id_jaula)
-      .single()
-
-    if (jaulaError) {
-      console.error("Error fetching jaula:", jaulaError)
-      res.status(400).json({ error: "Jaula no encontrada" })
-      return
-    }
-
-    // Crear el registro clínico
     const { data, error } = await supabase
       .from("ave_clinica")
       .insert([
@@ -149,14 +98,12 @@ export const createRegistroClinico = async (req: Request, res: Response): Promis
       .single()
 
     if (error) {
-      console.error("Error creating registro clínico:", error)
       res.status(400).json({ error: error.message })
       return
     }
 
     res.status(201).json(data)
   } catch (error) {
-    console.error("Error creating registro clínico:", error)
     res.status(500).json({ error: "Internal server error" })
   }
 }
@@ -166,25 +113,13 @@ export const updateRegistroClinico = async (req: Request, res: Response): Promis
   try {
     const paramValidation = aveIdParamSchema.safeParse(req.params)
     if (!paramValidation.success) {
-      res.status(400).json({
-        error: "Parámetros inválidos",
-        details: paramValidation.error.errors.map((err) => ({
-          field: err.path.join("."),
-          message: err.message,
-        })),
-      })
+      res.status(400).json({ error: "Parámetros inválidos", details: paramValidation.error.errors })
       return
     }
 
     const validation = updateAveClinicaSchema.safeParse(req.body)
     if (!validation.success) {
-      res.status(400).json({
-        error: "Datos de entrada inválidos",
-        details: validation.error.errors.map((err) => ({
-          field: err.path.join("."),
-          message: err.message,
-        })),
-      })
+      res.status(400).json({ error: "Datos de entrada inválidos", details: validation.error.errors })
       return
     }
 
@@ -203,65 +138,56 @@ export const updateRegistroClinico = async (req: Request, res: Response): Promis
       .single()
 
     if (error) {
-      console.error("Error updating registro clínico:", error)
       res.status(400).json({ error: error.message })
-      return
-    }
-
-    if (!data) {
-      res.status(404).json({ error: "Registro clínico no encontrado" })
       return
     }
 
     res.status(200).json(data)
   } catch (error) {
-    console.error("Error updating registro clínico:", error)
     res.status(500).json({ error: "Internal server error" })
   }
 }
 
-// Registrar fallecimiento de ave
+// ✅ Eliminar registro clínico
+export const eliminarRegistroClinico = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const paramValidation = aveIdParamSchema.safeParse(req.params)
+    if (!paramValidation.success) {
+      res.status(400).json({ error: "Parámetros inválidos", details: paramValidation.error.errors })
+      return
+    }
+
+    const { id } = paramValidation.data
+
+    const { error } = await supabase.from("ave_clinica").delete().eq("id_ave", id)
+
+    if (error) {
+      res.status(400).json({ error: error.message })
+      return
+    }
+
+    res.status(200).json({ message: "Registro clínico eliminado exitosamente" })
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+// Registrar fallecimiento
 export const registrarFallecimiento = async (req: Request, res: Response): Promise<void> => {
   try {
     const validation = createAveFallecidaSchema.safeParse(req.body)
     if (!validation.success) {
-      res.status(400).json({
-        error: "Datos de entrada inválidos",
-        details: validation.error.errors.map((err) => ({
-          field: err.path.join("."),
-          message: err.message,
-        })),
-      })
+      res.status(400).json({ error: "Datos de entrada inválidos", details: validation.error.errors })
       return
     }
 
     const { id_ave, fecha, motivo } = validation.data
 
-    // Verificar que el ave existe
-    const { data: ave, error: aveError } = await supabase
-      .from("ave")
-      .select("id_ave, id_anillo, raza")
-      .eq("id_ave", id_ave)
-      .single()
-
-    if (aveError) {
-      console.error("Error fetching ave:", aveError)
-      res.status(400).json({ error: "Ave no encontrada" })
-      return
-    }
-
-    // Verificar que el ave no esté ya registrada como fallecida
-    const { data: yaFallecida, error: fallecidaError } = await supabase
+    const { data: yaFallecida } = await supabase
       .from("aves_fallecidas")
       .select("*")
       .eq("id_ave", id_ave)
       .single()
-
-    if (fallecidaError && fallecidaError.code !== "PGRST116") {
-      console.error("Error checking ave fallecida:", fallecidaError)
-      res.status(400).json({ error: fallecidaError.message })
-      return
-    }
 
     if (yaFallecida) {
       res.status(400).json({
@@ -271,84 +197,77 @@ export const registrarFallecimiento = async (req: Request, res: Response): Promi
       return
     }
 
-    // Registrar el fallecimiento
-    const { data, error } = await supabase
+    const { error: insertError } = await supabase
       .from("aves_fallecidas")
-      .insert([
-        {
-          id_ave,
-          fecha,
-          motivo,
-        },
-      ])
-      .select("*")
-      .single()
+      .insert([{ id_ave, fecha, motivo }])
 
-    if (error) {
-      console.error("Error registering fallecimiento:", error)
-      res.status(400).json({ error: error.message })
+    if (insertError) {
+      res.status(400).json({ error: insertError.message })
       return
     }
 
-    res.status(201).json(data)
+    const { error: updateError } = await supabase
+      .from("ave")
+      .update({ activo: false })
+      .eq("id_ave", id_ave)
+
+    if (updateError) {
+      res.status(400).json({ error: updateError.message })
+      return
+    }
+
+    res.status(201).json({ success: true })
   } catch (error) {
-    console.error("Error registering fallecimiento:", error)
     res.status(500).json({ error: "Internal server error" })
   }
 }
 
-// Obtener todas las aves fallecidas
+// Obtener aves fallecidas
 export const getAvesFallecidas = async (req: Request, res: Response): Promise<void> => {
   try {
     const { data, error } = await supabase
       .from("aves_fallecidas")
-      .select(`
-        *,
-        ave:ave(id_ave, id_anillo, raza, color_anillo)
-      `)
+      .select(`*, ave:ave(id_ave, id_anillo, raza, color_anillo)`)
       .order("fecha", { ascending: false })
 
     if (error) {
-      console.error("Error fetching aves fallecidas:", error)
       res.status(400).json({ error: error.message })
       return
     }
 
     res.status(200).json(data)
   } catch (error) {
-    console.error("Error getting aves fallecidas:", error)
     res.status(500).json({ error: "Internal server error" })
   }
 }
 
-// Eliminar registro de fallecimiento (en caso de error)
+// Eliminar registro de fallecimiento y reactivar ave
 export const eliminarFallecimiento = async (req: Request, res: Response): Promise<void> => {
   try {
     const paramValidation = aveIdParamSchema.safeParse(req.params)
     if (!paramValidation.success) {
-      res.status(400).json({
-        error: "Parámetros inválidos",
-        details: paramValidation.error.errors.map((err) => ({
-          field: err.path.join("."),
-          message: err.message,
-        })),
-      })
+      res.status(400).json({ error: "Parámetros inválidos", details: paramValidation.error.errors })
       return
     }
 
     const { id } = paramValidation.data
 
-    const { error } = await supabase.from("aves_fallecidas").delete().eq("id_ave", id)
+    const { error: deleteError } = await supabase.from("aves_fallecidas").delete().eq("id_ave", id)
 
-    if (error) {
-      console.error("Error deleting fallecimiento:", error)
-      res.status(400).json({ error: error.message })
+    if (deleteError) {
+      res.status(400).json({ error: deleteError.message })
       return
     }
 
-    res.status(200).json({ message: "Registro de fallecimiento eliminado exitosamente" })
+    const { error: reactivarError } = await supabase.from("ave").update({ activo: true }).eq("id_ave", id)
+
+    if (reactivarError) {
+      res.status(400).json({ error: reactivarError.message })
+      return
+    }
+
+    res.status(200).json({ message: "Registro de fallecimiento eliminado y ave reactivada" })
   } catch (error) {
-    console.error("Error deleting fallecimiento:", error)
     res.status(500).json({ error: "Internal server error" })
   }
 }

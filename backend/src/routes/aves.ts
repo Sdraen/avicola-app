@@ -8,6 +8,7 @@ import {
   deleteAve,
   getAvesByJaula,
   getAvesStats,
+  reactivarAve,
 } from "../controllers/avesController"
 
 const router = express.Router()
@@ -26,5 +27,9 @@ router.put("/:id", authenticateToken, requireRole(["admin", "operador"]), update
 
 // Solo Admin puede eliminar
 router.delete("/:id", authenticateToken, requireRole(["admin"]), deleteAve)
+
+// Solo Admin puede reactivar ave
+// Esto es para reactivar aves que fueron marcadas como fallecidas (soft delete)
+router.patch("/:id/reactivar", authenticateToken, requireRole(["admin"]), reactivarAve)
 
 export default router
