@@ -35,6 +35,7 @@ const Layout: React.FC = () => {
       submenu: [
         { title: "Ver Aves", path: "/ver-aves" },
         { title: "Registrar Ave", path: "/registrar-ave" },
+        { title: "Aves Fallecidas", path: "/ver-aves-fallecidas" },
       ],
     },
     {
@@ -44,6 +45,7 @@ const Layout: React.FC = () => {
       submenu: [
         { title: "Ver Huevos", path: "/ver-huevos" },
         { title: "Registrar Huevos", path: "/registrar-huevos" },
+        { title: "Bandejas", path: "/ver-bandejas" },
       ],
     },
     {
@@ -156,9 +158,7 @@ const Layout: React.FC = () => {
                   />
                 </div>
               </button>
-              <Link to="/dashboard">
-                <h1 className="text-xl font-bold text-gray-900 cursor-pointer">🐔 Avicola APP</h1>
-              </Link>
+              <h1 className="text-xl font-bold text-gray-900">🐔 Sistema Avícola IECI</h1>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
@@ -257,7 +257,7 @@ const Layout: React.FC = () => {
         {/* Footer del Sidebar */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-gray-50">
           <div className="text-xs text-gray-500 text-center">
-            <p>Avicola APP</p>
+            <p>Sistema Avícola IECI</p>
             <p>v1.0.0</p>
           </div>
         </div>

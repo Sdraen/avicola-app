@@ -103,13 +103,36 @@ const VerJaulas: React.FC = () => {
         <table className="tabla-aves">
           <thead>
             <tr>
-              <th><span className="th-content"><span className="th-icon">🆔</span>ID</span></th>
-              <th><span className="th-content"><span className="th-icon">🔢</span>Código</span></th>
-              <th><span className="th-content"><span className="th-icon">📝</span>Descripción</span></th>
-              <th><span className="th-content"><span className="th-icon">🏊</span>Estanque</span></th>
-              <th><span className="th-content"><span className="th-icon">🐓</span>Aves</span></th>
-              <th><span className="th-content"><span className="th-icon">📊</span>Ocupación</span></th>
-              <th><span className="th-content"><span className="th-icon">⚙️</span>Acciones</span></th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🔢</span>
+                  Código
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">📝</span>
+                  Descripción
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">🐓</span>
+                  Aves
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">📊</span>
+                  Ocupación
+                </span>
+              </th>
+              <th>
+                <span className="th-content">
+                  <span className="th-icon">⚙️</span>
+                  Acciones
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -119,12 +142,10 @@ const VerJaulas: React.FC = () => {
 
               return (
                 <tr key={jaula.id_jaula} className="table-row">
-                  <td className="table-cell id-cell">{jaula.id_jaula}</td>
                   <td className="table-cell">
                     <span className="codigo-badge">{jaula.codigo_jaula}</span>
                   </td>
                   <td className="table-cell especie-cell">{jaula.descripcion || `Jaula ${jaula.codigo_jaula}`}</td>
-                  <td className="table-cell">{jaula.id_estanque}</td>
                   <td className="table-cell">
                     <span className="cantidad-badge">{numAves}</span>
                   </td>

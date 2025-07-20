@@ -15,7 +15,18 @@ const router = express.Router()
 // Admin y Operador pueden leer
 router.get("/", authenticateToken, requireRole(["admin", "operador"]), getAllCompras)
 router.get("/stats/overview", authenticateToken, requireRole(["admin", "operador"]), getComprasStats)
-router.get("/fecha/:start/:end", authenticateToken, requireRole(["admin", "operador"]), getComprasByDateRange)
+router.get(
+  "/fecha/:start/:end",
+  authenticateToken,
+  requireRole(["admin", "operador"]),
+  async (req, res, next) => {
+    try {
+      await getComprasByDateRange(req, res);
+    } catch (err) {
+      next(err);
+    }
+  }
+)
 router.get("/:id", authenticateToken, requireRole(["admin", "operador"]), getCompraById)
 
 // Admin y Operador pueden crear

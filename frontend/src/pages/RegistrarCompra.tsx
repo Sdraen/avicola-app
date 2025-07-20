@@ -8,36 +8,41 @@ import { comprasAPI } from "../services/api"
 interface Implemento {
   nombre: string
   cantidad: string
-  costo_unitario: string
+  precio_unitario: string
+  categoria?: string
+  estado?: string
+  ubicacion?: string
+  descripcion?: string
 }
 
 const RegistrarCompra: React.FC = () => {
   const navigate = useNavigate()
 
-  // ✅ Fecha local corregida para evitar desfase
   const today = new Date()
   const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
   const fechaLocal = localDate.toISOString().split("T")[0]
 
   const [form, setForm] = useState({
     fecha: fechaLocal,
+    proveedor: "",
     costo_total: "",
   })
 
-  const [implementos, setImplementos] = useState<Implemento[]>([{ nombre: "", cantidad: "", costo_unitario: "" }])
+  const [implementos, setImplementos] = useState<Implemento[]>([
+    { nombre: "", cantidad: "", precio_unitario: "", categoria: "", estado: "Bueno", ubicacion: "", descripcion: "" },
+  ])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    const raw = value.replace(/\D/g, "")
-    setForm({ ...form, [name]: raw })
+    setForm({ ...form, [name]: value })
   }
 
   const handleImplementoChange = (index: number, field: string, value: string) => {
     const updated = [...implementos]
-    if (field === "costo_unitario" || field === "cantidad") {
+    if (field === "precio_unitario" || field === "cantidad") {
       value = value.replace(/\D/g, "")
     }
     updated[index] = { ...updated[index], [field]: value }
@@ -45,7 +50,10 @@ const RegistrarCompra: React.FC = () => {
   }
 
   const addImplemento = () => {
-    setImplementos([...implementos, { nombre: "", cantidad: "", costo_unitario: "" }])
+    setImplementos([
+      ...implementos,
+      { nombre: "", cantidad: "", precio_unitario: "", categoria: "", estado: "Bueno", ubicacion: "", descripcion: "" },
+    ])
   }
 
   const removeImplemento = (index: number) => {
@@ -57,8 +65,8 @@ const RegistrarCompra: React.FC = () => {
   const calculateTotal = () => {
     const total = implementos.reduce((sum, impl) => {
       const cantidad = Number(impl.cantidad) || 0
-      const costo = Number(impl.costo_unitario) || 0
-      return sum + cantidad * costo
+      const precio = Number(impl.precio_unitario) || 0
+      return sum + cantidad * precio
     }, 0)
     setForm({ ...form, costo_total: total.toString() })
   }
@@ -72,20 +80,24 @@ const RegistrarCompra: React.FC = () => {
     try {
       const compraData = {
         fecha: form.fecha,
-        costo_total: form.costo_total,
+        proveedor: form.proveedor,
+        costo_total: Number(form.costo_total),
         implementos: implementos.map((i) => ({
           nombre: i.nombre,
-          cantidad: i.cantidad,
-          costo_unitario: i.costo_unitario,
+          cantidad: Number(i.cantidad),
+          precio_unitario: Number(i.precio_unitario),
+          categoria: i.categoria,
+          estado: i.estado,
+          ubicacion: i.ubicacion,
+          descripcion: i.descripcion,
         })),
       }
 
       await comprasAPI.create(compraData)
       setSuccess("Compra registrada exitosamente")
 
-      // Reset form
-      setForm({ fecha: fechaLocal, costo_total: "" })
-      setImplementos([{ nombre: "", cantidad: "", costo_unitario: "" }])
+      setForm({ fecha: fechaLocal, proveedor: "", costo_total: "" })
+      setImplementos([{ nombre: "", cantidad: "", precio_unitario: "" }])
 
       setTimeout(() => {
         navigate("/ver-compras")
@@ -101,91 +113,92 @@ const RegistrarCompra: React.FC = () => {
     <div className="registrar-ave-container">
       <div className="form-header">
         <div className="form-icon">🛒</div>
-        <h2 className="form-title">Registrar Nueva Compra</h2>
-        <p className="form-subtitle">Complete los datos para registrar una compra en el sistema</p>
+        <h2 className="form-title">Registrar Compra</h2>
+        <p className="form-subtitle">Agrega una compra y sus implementos asociados</p>
       </div>
 
-      <form className="registrar-ave-form" onSubmit={handleSubmit}>
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
+      <form onSubmit={handleSubmit} className="registrar-ave-form space-y-6">
+        {error && <div className="alert-error">{error}</div>}
+        {success && <div className="alert-success">{success}</div>}
 
         <div className="form-group">
-          <label className="form-label">
-            <span className="label-icon">📅</span> Fecha:
-          </label>
-          <input type="date" name="fecha" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} className="form-input" required />
+          <label className="form-label">📅 Fecha de Compra</label>
+          <input type="date" name="fecha" value={form.fecha} onChange={handleChange} required className="form-input" />
         </div>
 
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-md font-medium text-gray-700">📦 Implementos Comprados</h3>
-            <button type="button" onClick={addImplemento} className="btn-editar">➕ Agregar</button>
+        <div className="form-group">
+          <label className="form-label">🏪 Proveedor</label>
+          <input
+            type="text"
+            name="proveedor"
+            value={form.proveedor}
+            onChange={handleChange}
+            className="form-input"
+            placeholder="Ej. AgroComercial Ltda."
+          />
+        </div>
+
+        <div className="flex justify-between items-center">
+          <h3 className="text-sm font-semibold text-gray-700">📦 Implementos Comprados</h3>
+          <button type="button" onClick={addImplemento} className="btn-editar">➕ Agregar</button>
+        </div>
+
+        {implementos.map((impl, index) => (
+          <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Nombre"
+              value={impl.nombre}
+              onChange={(e) => handleImplementoChange(index, "nombre", e.target.value)}
+              required
+            />
+            <input
+              type="number"
+              className="form-input"
+              placeholder="Cantidad"
+              min={1}
+              value={impl.cantidad}
+              onChange={(e) => handleImplementoChange(index, "cantidad", e.target.value)}
+              required
+            />
+            <input
+              type="number"
+              className="form-input"
+              placeholder="Precio Unitario"
+              min={0}
+              step={0.01}
+              value={impl.precio_unitario}
+              onChange={(e) => handleImplementoChange(index, "precio_unitario", e.target.value)}
+              required
+            />
+            {implementos.length > 1 && (
+              <button type="button" onClick={() => removeImplemento(index)} className="btn-eliminar">
+                ✖
+              </button>
+            )}
           </div>
+        ))}
 
-          {implementos.map((impl, index) => (
-            <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Nombre"
-                value={impl.nombre}
-                onChange={(e) => handleImplementoChange(index, "nombre", e.target.value)}
-                required
-              />
-              <input
-                type="number"
-                className="form-input"
-                placeholder="Cantidad"
-                min={1}
-                value={impl.cantidad}
-                onChange={(e) => handleImplementoChange(index, "cantidad", e.target.value)}
-                required
-              />
-              <div className="relative">
-                <span className="absolute left-3 top-3 text-gray-500">$</span>
-                <input
-                  type="text"
-                  className="form-input pl-7"
-                  placeholder="Costo Unitario"
-                  inputMode="numeric"
-                  value={Number(impl.costo_unitario || 0).toLocaleString("es-CL")}
-                  onChange={(e) => handleImplementoChange(index, "costo_unitario", e.target.value)}
-                  required
-                />
-              </div>
-              {implementos.length > 1 && (
-                <button type="button" onClick={() => removeImplemento(index)} className="btn-eliminar">
-                  ✖
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <button type="button" onClick={calculateTotal} className="btn-editar">
+        <div className="flex flex-col md:flex-row gap-4 items-end md:items-center">
+          <button type="button" onClick={calculateTotal} className="btn-editar w-full md:w-auto">
             🧮 Calcular Total
           </button>
-          <div className="form-group">
-            <label className="form-label">
-              <span className="label-icon">💰</span> Costo Total (CLP):
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-3 text-gray-500">$</span>
-              <input
-                type="text"
-                name="costo_total"
-                inputMode="numeric"
-                value={Number(form.costo_total || 0).toLocaleString("es-CL")}
-                onChange={handleChange}
-                className="form-input pl-7"
-                required
-              />
-            </div>
+          <div className="form-group flex-1">
+            <label className="form-label">💵 Costo Total (CLP)</label>
+            <input
+              type="text"
+              name="costo_total"
+              inputMode="numeric"
+              value={Number(form.costo_total || 0).toLocaleString("es-CL")}
+              onChange={handleChange}
+              required
+              className="form-input"
+            />
           </div>
         </div>
 
-        <button type="submit" className="submit-button" disabled={loading}>
+        <button type="submit" disabled={loading} className="submit-button">
           <span className="button-icon">💾</span>
           <span className="button-text">{loading ? "Registrando..." : "Registrar Compra"}</span>
         </button>

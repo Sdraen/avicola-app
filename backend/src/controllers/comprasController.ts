@@ -1,17 +1,31 @@
 import type { Request, Response } from "express"
 import { supabase } from "../config/supabase"
+import { createCompraSchema, updateCompraSchema } from "../schemas/compraSchema"
 
 export const getAllCompras = async (req: Request, res: Response): Promise<void> => {
   try {
     const { data, error } = await supabase
       .from("compras")
       .select(`
-        *,
-        implementos:implementos(*)
+        id_compra,
+        fecha,
+        costo_total,
+        proveedor,
+        implementos (
+          id_implemento,
+          nombre,
+          cantidad,
+          precio_unitario,
+          categoria,
+          descripcion,
+          estado,
+          ubicacion
+        )
       `)
       .order("fecha", { ascending: false })
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -29,13 +43,26 @@ export const getCompraById = async (req: Request, res: Response): Promise<void> 
     const { data, error } = await supabase
       .from("compras")
       .select(`
-        *,
-        implementos:implementos(*)
+        id_compra,
+        fecha,
+        costo_total,
+        proveedor,
+        implementos (
+          id_implemento,
+          nombre,
+          cantidad,
+          precio_unitario,
+          categoria,
+          descripcion,
+          estado,
+          ubicacion
+        )
       `)
-      .eq("id_compras", id)
+      .eq("id_compra", id)
       .single()
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -54,12 +81,20 @@ export const getCompraById = async (req: Request, res: Response): Promise<void> 
 
 export const createCompra = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fecha = new Date().toISOString().split("T")[0], costo_total, implementos } = req.body
-
-    if (!costo_total) {
-      res.status(400).json({ error: "costo_total is required" })
+    // Validar con schema
+    const validation = createCompraSchema.safeParse(req.body)
+    if (!validation.success) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: validation.error.errors.map((err: any) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
       return
     }
+
+    const { fecha = new Date().toISOString().split("T")[0], costo_total, proveedor, implementos } = validation.data
 
     // Start a transaction
     const { data, error } = await supabase
@@ -68,12 +103,14 @@ export const createCompra = async (req: Request, res: Response): Promise<void> =
         {
           fecha,
           costo_total,
+          proveedor,
         },
       ])
       .select()
       .single()
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -82,7 +119,7 @@ export const createCompra = async (req: Request, res: Response): Promise<void> =
     if (implementos && Array.isArray(implementos) && implementos.length > 0) {
       const implementosWithCompraId = implementos.map((item) => ({
         ...item,
-        id_compras: data.id_compras,
+        id_compra: data.id_compra,
       }))
 
       const { error: implementosError } = await supabase.from("implementos").insert(implementosWithCompraId)
@@ -98,13 +135,26 @@ export const createCompra = async (req: Request, res: Response): Promise<void> =
     const { data: completeData, error: fetchError } = await supabase
       .from("compras")
       .select(`
-        *,
-        implementos:implementos(*)
+        id_compra,
+        fecha,
+        costo_total,
+        proveedor,
+        implementos (
+          id_implemento,
+          nombre,
+          cantidad,
+          precio_unitario,
+          categoria,
+          descripcion,
+          estado,
+          ubicacion
+        )
       `)
-      .eq("id_compras", data.id_compras)
+      .eq("id_compra", data.id_compra)
       .single()
 
     if (fetchError) {
+      console.error("Supabase error:", fetchError)
       res.status(400).json({ error: fetchError.message })
       return
     }
@@ -119,63 +169,41 @@ export const createCompra = async (req: Request, res: Response): Promise<void> =
 export const updateCompra = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-    const { implementos, ...fields } = req.body
 
-    // 1. Actualizar la compra
-    const { error: updateError } = await supabase
-      .from("compras")
-      .update(fields)
-      .eq("id_compras", id)
-      .select()
-      .single()
-
-    if (updateError) {
-      res.status(400).json({ error: updateError.message })
+    // Validar con schema
+    const validation = updateCompraSchema.safeParse(req.body)
+    if (!validation.success) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: validation.error.errors.map((err: any) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
       return
     }
 
-    // 2. Eliminar implementos existentes (si vienen nuevos)
-    if (Array.isArray(implementos)) {
-      const { error: deleteError } = await supabase.from("implementos").delete().eq("id_compras", id)
+    const updates = validation.data
 
-      if (deleteError) {
-        res.status(400).json({ error: deleteError.message })
-        return
-      }
+    const { data, error } = await supabase.from("compras").update(updates).eq("id_compra", id).select().single()
 
-      // 3. Insertar implementos nuevos
-      const nuevos = implementos.map((i) => ({
-        ...i,
-        id_compras: parseInt(id), // asegurar int4
-      }))
-
-      const { error: insertError } = await supabase.from("implementos").insert(nuevos)
-
-      if (insertError) {
-        res.status(400).json({ error: insertError.message })
-        return
-      }
-    }
-
-    // 4. Devolver compra actualizada con implementos
-    const { data: finalData, error: fetchError } = await supabase
-      .from("compras")
-      .select(`*, implementos:implementos(*)`)
-      .eq("id_compras", id)
-      .single()
-
-    if (fetchError) {
-      res.status(400).json({ error: fetchError.message })
+    if (error) {
+      console.error("Supabase error:", error)
+      res.status(400).json({ error: error.message })
       return
     }
 
-    res.status(200).json(finalData)
+    if (!data) {
+      res.status(404).json({ error: "Purchase not found" })
+      return
+    }
+
+    res.status(200).json(data)
   } catch (error) {
     console.error("Error updating purchase:", error)
     res.status(500).json({ error: "Internal server error" })
   }
 }
-
 
 export const deleteCompra = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -185,22 +213,24 @@ export const deleteCompra = async (req: Request, res: Response): Promise<void> =
     const { count: implementosCount } = await supabase
       .from("implementos")
       .select("*", { count: "exact", head: true })
-      .eq("id_compras", id)
+      .eq("id_compra", id)
 
     if (implementosCount && implementosCount > 0) {
       // Delete associated implementos first
-      const { error: implementosError } = await supabase.from("implementos").delete().eq("id_compras", id)
+      const { error: implementosError } = await supabase.from("implementos").delete().eq("id_compra", id)
 
       if (implementosError) {
+        console.error("Supabase error:", implementosError)
         res.status(400).json({ error: implementosError.message })
         return
       }
     }
 
     // Now delete the purchase
-    const { error } = await supabase.from("compras").delete().eq("id_compras", id)
+    const { error } = await supabase.from("compras").delete().eq("id_compra", id)
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -218,14 +248,27 @@ export const getComprasByDateRange = async (req: Request, res: Response): Promis
     const { data, error } = await supabase
       .from("compras")
       .select(`
-        *,
-        implementos:implementos(*)
+        id_compra,
+        fecha,
+        costo_total,
+        proveedor,
+        implementos (
+          id_implemento,
+          nombre,
+          cantidad,
+          precio_unitario,
+          categoria,
+          descripcion,
+          estado,
+          ubicacion
+        )
       `)
       .gte("fecha", start)
       .lte("fecha", end)
       .order("fecha", { ascending: false })
 
     if (error) {
+      console.error("Supabase error:", error)
       res.status(400).json({ error: error.message })
       return
     }
@@ -261,8 +304,11 @@ export const getComprasStats = async (req: Request, res: Response): Promise<void
     const { data: recentPurchases } = await supabase
       .from("compras")
       .select(`
-        *,
-        implementos:implementos(nombre)
+        id_compra,
+        fecha,
+        costo_total,
+        proveedor,
+        implementos (nombre)
       `)
       .order("fecha", { ascending: false })
       .limit(5)

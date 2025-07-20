@@ -56,13 +56,31 @@ export const getVentaById = async (req: Request, res: Response): Promise<void> =
 
 export const createVenta = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id_cliente, costo_total, cantidad_total, bandejas } = req.body
+    const { id_cliente, costo_total, cantidad_total, bandeja_ids } = req.body
 
-    if (!id_cliente || !costo_total || !cantidad_total || !Array.isArray(bandejas) || bandejas.length === 0) {
+    if (!id_cliente || !costo_total || !cantidad_total || !Array.isArray(bandeja_ids) || bandeja_ids.length === 0) {
       res.status(400).json({ error: "Faltan datos o bandejas inválidas" })
       return
     }
 
+    // Verificar que las bandejas estén disponibles
+    const { data: bandejasDisponibles, error: checkError } = await supabase
+      .from("bandeja")
+      .select("id_bandeja, estado")
+      .in("id_bandeja", bandeja_ids)
+      .eq("estado", "disponible")
+
+    if (checkError) {
+      res.status(400).json({ error: checkError.message })
+      return
+    }
+
+    if (!bandejasDisponibles || bandejasDisponibles.length !== bandeja_ids.length) {
+      res.status(400).json({ error: "Algunas bandejas no están disponibles" })
+      return
+    }
+
+    // Crear la venta
     const { data: venta, error: ventaError } = await supabase
       .from("venta")
       .insert([
@@ -81,20 +99,28 @@ export const createVenta = async (req: Request, res: Response): Promise<void> =>
       return
     }
 
-    const bandejasConVenta = bandejas.map((b) => ({
-      ...b,
-      id_venta: venta.id_venta,
-    }))
+    // Actualizar el estado de las bandejas a "vendida" y asociarlas con la venta
+    const { error: updateError } = await supabase
+      .from("bandeja")
+      .update({
+        estado: "vendida",
+        id_venta: venta.id_venta,
+      })
+      .in("id_bandeja", bandeja_ids)
 
-    const { error: bandejaError } = await supabase.from("bandeja").insert(bandejasConVenta)
-
-    if (bandejaError) {
-      console.error("Error inserting bandejas:", bandejaError)
-      res.status(400).json({ error: "Venta creada, pero error al insertar bandejas" })
+    if (updateError) {
+      console.error("Error updating bandejas:", updateError)
+      // Si falla la actualización de bandejas, eliminar la venta creada
+      await supabase.from("venta").delete().eq("id_venta", venta.id_venta)
+      res.status(400).json({ error: "Error al actualizar bandejas" })
       return
     }
 
-    res.status(201).json({ success: true, data: venta, message: "Venta y bandejas registradas exitosamente" })
+    res.status(201).json({
+      success: true,
+      data: venta,
+      message: "Venta registrada exitosamente",
+    })
   } catch (error) {
     console.error("Error creating sale:", error)
     res.status(500).json({ error: "Internal server error" })
@@ -129,9 +155,20 @@ export const deleteVenta = async (req: Request, res: Response): Promise<void> =>
   try {
     const { id } = req.params
 
-    // Primero eliminar las bandejas asociadas
-    await supabase.from("bandeja").delete().eq("id_venta", id)
+    // Liberar las bandejas asociadas (cambiar estado a "disponible")
+    const { error: updateError } = await supabase
+      .from("bandeja")
+      .update({
+        estado: "disponible",
+        id_venta: null,
+      })
+      .eq("id_venta", id)
 
+    if (updateError) {
+      console.error("Error liberating bandejas:", updateError)
+    }
+
+    // Eliminar la venta
     const { error } = await supabase.from("venta").delete().eq("id_venta", id)
 
     if (error) {
@@ -215,6 +252,7 @@ export const getVentasStats = async (req: Request, res: Response): Promise<void>
     res.status(500).json({ error: "Internal server error" })
   }
 }
+
 export const getVentasByCliente = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id_cliente } = req.params
@@ -239,4 +277,3 @@ export const getVentasByCliente = async (req: Request, res: Response): Promise<v
     res.status(500).json({ error: "Internal server error" })
   }
 }
-

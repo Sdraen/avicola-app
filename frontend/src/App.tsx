@@ -10,11 +10,15 @@ import Dashboard from "./pages/Dashboard"
 import Aves from "./pages/Aves"
 import VerAves from "./pages/VerAves"
 import RegistrarAve from "./pages/RegistrarAve"
+import VerAvesFallecidas from "./pages/VerAvesFallecidas"
 
 // Huevos
 import Huevos from "./pages/Huevos"
 import VerHuevos from "./pages/VerHuevos"
 import RegistrarHuevos from "./pages/RegistrarHuevos"
+
+// Bandejas
+import VerBandejas from "./pages/VerBandejas"
 
 // Jaulas
 import Jaulas from "./pages/Jaulas"
@@ -92,11 +96,14 @@ function App() {
         <Route path="aves" element={<Aves />} />
         <Route path="ver-aves" element={<VerAves />} />
         <Route path="registrar-ave" element={<RegistrarAve />} />
+        <Route path="ver-aves-fallecidas" element={<VerAvesFallecidas />} />
 
         {/* Rutas de Huevos */}
         <Route path="huevos" element={<Huevos />} />
         <Route path="ver-huevos" element={<VerHuevos />} />
         <Route path="registrar-huevos" element={<RegistrarHuevos />} />
+        {/* Rutas de Bandejas */}
+        <Route path="ver-bandejas" element={<VerBandejas />} />
 
         {/* Rutas de Jaulas */}
         <Route path="jaulas" element={<Jaulas />} />

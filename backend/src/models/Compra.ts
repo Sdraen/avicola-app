@@ -1,5 +1,5 @@
 export interface Compras {
-  id_compras: number
+  id_compra: number
   fecha: string
   costo_total: string
 }

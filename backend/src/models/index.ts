@@ -39,7 +39,7 @@ export interface Cliente {
 }
 
 export interface Compras {
-  id_compras: number
+  id_compra: number
   fecha: string
   costo_total: string
 }
@@ -68,11 +68,22 @@ export interface HuevoBandeja {
 }
 
 export interface Implementos {
-  id_implementos: number
-  id_compras: number
+  id_implemento: number
+  id_compra: number
   nombre: string
-  cantidad: string
-  costo_unitario: string
+  categoria?: string
+  descripcion?: string
+  cantidad: number
+  precio_unitario: number
+  estado?: string
+  fecha_compra?: string
+  proveedor?: string
+  ubicacion?: string
+  compra?: {
+    id_compra: number
+    fecha: string
+    costo_total: number
+  }
 }
 
 export interface Incubacion {

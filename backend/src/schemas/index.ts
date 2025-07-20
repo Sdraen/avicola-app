@@ -15,6 +15,7 @@ export * from "./incubacionSchema"
 export * from "./razaSchema"
 export * from "./registroHuevoSchema"
 export * from "./authSchema"
+export * from "./aveClinicaSchema"
 
 // Validation function mapper
 export const getValidator = (entity: string) => {
@@ -32,6 +33,7 @@ export const getValidator = (entity: string) => {
     registro_huevo: require("./registroHuevoSchema").validateRegistroHuevo,
     usuario: require("./authSchema").validateUsuario,
     login: require("./authSchema").validateLogin,
+    aveClinica: require("./aveClinicaSchema").validateAveClinica,
 
     // Update validators
     ave_update: require("./aveSchema").validateAveUpdate,

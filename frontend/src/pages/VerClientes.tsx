@@ -15,6 +15,7 @@ const VerClientes: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedClienteId, setSelectedClienteId] = useState<number | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [expandedClientes, setExpandedClientes] = useState<number[]>([])
 
   const fetchClientes = async () => {
     try {
@@ -119,6 +120,12 @@ const VerClientes: React.FC = () => {
     handleCloseModal()
   }
 
+  const toggleDireccionExpand = (id: number) => {
+    setExpandedClientes(prev =>
+      prev.includes(id) ? prev.filter(clienteId => clienteId !== id) : [...prev, id]
+    )
+  }
+
   if (loading) {
     return (
       <div className="ver-aves-container">
@@ -185,75 +192,46 @@ const VerClientes: React.FC = () => {
           <table className="tabla-aves">
             <thead>
               <tr>
-                <th>
-                  <span className="th-content">
-                    <span className="th-icon">🆔</span>
-                    ID
-                  </span>
-                </th>
-                <th>
-                  <span className="th-content">
-                    <span className="th-icon">👤</span>
-                    Nombre
-                  </span>
-                </th>
-                <th>
-                  <span className="th-content">
-                    <span className="th-icon">📍</span>
-                    Dirección
-                  </span>
-                </th>
-                <th>
-                  <span className="th-content">
-                    <span className="th-icon">📞</span>
-                    Teléfono
-                  </span>
-                </th>
-                <th>
-                  <span className="th-content">
-                    <span className="th-icon">🏷️</span>
-                    Tipo
-                  </span>
-                </th>
-                <th>
-                  <span className="th-content">
-                    <span className="th-icon">⚙️</span>
-                    Acciones
-                  </span>
-                </th>
+                <th>Nombre</th>
+                <th>Dirección</th>
+                <th>Teléfono</th>
+                <th>Tipo</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {clientes.map((cliente) => (
                 <tr key={cliente.id_cliente} className="table-row">
-                  <td className="table-cell id-cell">{cliente.id_cliente}</td>
                   <td className="table-cell especie-cell">
                     <div className="flex items-center">
                       <span className="text-2xl mr-2">👤</span>
                       {cliente.nombre}
                     </div>
                   </td>
-                 <td className="table-cell">
-              {cliente.direccion ? (
-                <details className="group cursor-pointer max-w-md text-sm text-gray-800">
-                  <summary
-                    className="flex items-center overflow-hidden whitespace-nowrap text-ellipsis max-w-full"
-                    title={cliente.direccion}
-                  >
-                    <span className="text-sm mr-1">📍</span>
-                    {cliente.direccion.length > 40
-                      ? cliente.direccion.slice(0, 40) + "..."
-                      : cliente.direccion}
-                    {cliente.direccion.length > 40 && (
-                      <span className="ml-1 text-blue-500 group-hover:underline">ver más</span>
+                  <td className="table-cell">
+                    {cliente.direccion ? (
+                      <div className="max-w-md text-sm text-gray-800">
+                        <div className="flex items-center">
+                          <span className="text-sm mr-1">📍</span>
+                          {expandedClientes.includes(cliente.id_cliente)
+                            ? cliente.direccion
+                            : cliente.direccion.length > 40
+                              ? cliente.direccion.slice(0, 40) + "..."
+                              : cliente.direccion}
+                        </div>
+                        {cliente.direccion.length > 40 && (
+                          <button
+                            className="ml-5 text-blue-500 hover:underline text-xs"
+                            onClick={() => toggleDireccionExpand(cliente.id_cliente)}
+                          >
+                            {expandedClientes.includes(cliente.id_cliente) ? "ver menos" : "ver más"}
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">Sin dirección</span>
                     )}
-                  </summary>
-                  <div className="mt-1 ml-5 text-gray-700">{cliente.direccion}</div>
-                </details>
-              ) : (
-                <span className="text-gray-400">Sin dirección</span>
-              )}
-</td>
+                  </td>
                   <td className="table-cell">
                     {cliente.telefono ? (
                       <span className="flex items-center">
@@ -270,10 +248,10 @@ const VerClientes: React.FC = () => {
                         cliente.tipo_cliente === "mayorista"
                           ? "bg-purple-100 text-purple-800"
                           : cliente.tipo_cliente === "minorista"
-                            ? "bg-blue-100 text-blue-800"
-                            : cliente.tipo_cliente === "distribuidor"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
+                          ? "bg-blue-100 text-blue-800"
+                          : cliente.tipo_cliente === "distribuidor"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
                       }`}
                     >
                       {cliente.tipo_cliente === "mayorista" && "🏢"}
@@ -309,7 +287,6 @@ const VerClientes: React.FC = () => {
         </div>
       )}
 
-      {/* Modal de edición */}
       {isEditModalOpen && selectedClienteId && (
         <ModalEditarCliente
           isOpen={isEditModalOpen}

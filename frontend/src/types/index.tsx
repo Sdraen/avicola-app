@@ -1,6 +1,29 @@
+export interface Usuario {
+  id_usuario: number
+  nombre: string
+  email: string
+  rol: "admin" | "empleado"
+  activo: boolean
+  fecha_creacion: string
+}
+
+export interface Raza {
+  id_raza: number
+  nombre: string
+  descripcion?: string
+  origen?: string
+  caracteristicas?: string
+  peso_promedio?: number
+  produccion_huevos_anual?: number
+  activa: boolean
+  fecha_creacion: string
+  creado_por?: number
+}
+
 export interface Ave {
   id_ave: number
   id_jaula: number
+  id_anillo: string
   color_anillo: string
   edad: string
   estado_puesta: string
@@ -41,20 +64,44 @@ export interface Huevo {
   jaula?: Jaula
 }
 
-export interface Cliente {
-  id_cliente: number
-  nombre: string
-  direccion: string
-  telefono: number
-  tipo_cliente: string
+export interface HuevoDisponible {
+  id_huevo: number
+  id_jaula: number
+  fecha_recoleccion: string
+  cantidad_disponible: number
+  jaula?: {
+    descripcion: string
+  }
+  tipo: string
+  tamaño: string
 }
 
 export interface Bandeja {
   id_bandeja: number
-  id_venta: number
+  tipo_huevo: string
+  tamaño_huevo: string
   cantidad_huevos: number
-  tipo_bandeja: string
-  huevos?: Huevo[]
+  fecha_creacion: string
+  estado: "disponible" | "vendida" | "reservada"
+  id_venta?: number
+  huevo_bandeja?: HuevoBandeja[]
+}
+
+export interface HuevoBandeja {
+  id_bandeja: number
+  id_huevo: number
+}
+
+export interface Cliente {
+  id_cliente: number
+  nombre: string
+  apellido?: string
+  email?: string
+  telefono?: string
+  direccion?: string
+  tipo_cliente: "mayorista" | "minorista" | "distribuidor"
+  activo: boolean
+  fecha_registro: string
 }
 
 export interface Venta {
@@ -64,36 +111,102 @@ export interface Venta {
   costo_total: number
   cantidad_total: number
   cliente?: Cliente
-  bandejas?: Bandeja[]
+  bandeja?: Bandeja[]
 }
 
+// Compras - ACTUALIZADO para usar id_compra
 export interface Compra {
-  id_compras: number
+  id_compra: number
   fecha: string
-  costo_total: string
+  costo_total: number
+  proveedor?: string
   implementos?: Implemento[]
 }
 
+// Implementos - ACTUALIZADO para usar id_compra
 export interface Implemento {
-  id_implementos: number
-  id_compras: number
+  id_implemento: number
+  id_compra?: number
   nombre: string
-  cantidad: string
-  costo_unitario: string
+  cantidad: number
+  precio_unitario: number
+  categoria?: string
+  descripcion?: string
+  estado?: string
+  ubicacion?: string
+  fecha_registro: string
   compra?: Compra
 }
+
+// Interfaces para el sistema clínico
+export interface AveClinica {
+  id_ave: number
+  id_jaula: number
+  fecha_inicio: string
+  fecha_fin?: string
+  descripcion: string
+  ave?: {
+    id_ave: number
+    id_anillo: string
+    raza: string
+  }
+  jaula?: {
+    id_jaula: number
+    descripcion: string
+    codigo_jaula: string
+  }
+}
+
+export interface AveFallecida {
+  id_ave: number
+  fecha: string
+  motivo: string
+  ave?: {
+    id_ave: number
+    id_anillo: string
+    raza: string
+    color_anillo: string
+  }
+}
+
+export interface HistorialClinico {
+  historial_clinico: AveClinica[]
+  ave_fallecida: AveFallecida | null
+  esta_fallecida: boolean
+}
+
 
 export interface Medicamento {
   id_medicamento: number
   nombre: string
-  dosis: string
+  tipo_medicamento: "antibiotico" | "vitamina" | "vacuna" | "desparasitante" | "otros"
+  descripcion?: string
+  dosis_recomendada?: string
+  fecha_vencimiento?: string
+  stock_actual: number
+  precio_unitario?: number
+  proveedor?: string
+  observaciones?: string
+  activo: boolean
+  fecha_registro: string
+  dosis?: string
 }
 
 export interface Vacuna {
   id_vacuna: number
   nombre: string
-  dosis: string
-  fecha_adminstracion: string
+  tipo_vacuna: "viral" | "bacteriana" | "parasitaria" | "otros"
+  descripcion?: string
+  edad_aplicacion?: string
+  dosis?: string
+  fecha_vencimiento?: string
+  stock_actual: number
+  precio_unitario?: number
+  proveedor?: string
+  observaciones?: string
+  activa: boolean
+  fecha_registro: string
+  fecha_adminstracion?: string
 }
 
 export interface Incubacion {
@@ -114,15 +227,6 @@ export interface Incubadora {
   estado: string
 }
 
-export interface Raza {
-  id_raza: number
-  nombre: string
-  descripcion?: string
-  activa: boolean
-  fecha_creacion: string
-  creado_por: number
-}
-
 export interface RegistroHuevosDiario {
   id: number
   fecha_recoleccion: string
@@ -138,11 +242,6 @@ export interface RegistroHuevosDiario {
   observaciones?: string
   registrado_por: number
   fecha_registro: string
-}
-
-export interface HuevoBandeja {
-  id_bandeja: number
-  id_huevo: number
 }
 
 export interface User {
@@ -167,4 +266,63 @@ export interface DashboardStats {
   totalEggs: number
   totalSales: number
   totalRevenue: number
+}
+
+export interface VentaFormData {
+  id_cliente: number
+  fecha_venta: string
+  costo_total: number
+  cantidad_total: number
+  bandeja_ids: number[]
+}
+
+export interface VentaCreatePayload {
+  id_cliente: number
+  costo_total: number
+  cantidad_total: number
+  bandeja_ids: number[]
+}
+
+// Tipos para formularios
+export interface LoginForm {
+  email: string
+  password: string
+}
+
+export interface RegisterForm {
+  nombre: string
+  email: string
+  password: string
+  confirmPassword: string
+  rol?: "admin" | "empleado"
+}
+
+// Tipos para respuestas de API
+export interface ApiResponse<T> {
+  success: boolean
+  data: T
+  message?: string
+  error?: string
+}
+
+export interface PaginatedResponse<T> {
+  success: boolean
+  data: T[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+  message?: string
+}
+
+// Tipos para estadísticas
+export interface EstadisticasGenerales {
+  totalAves: number
+  totalHuevos: number
+  totalVentas: number
+  totalClientes: number
+  ventasDelMes: number
+  huevosDelMes: number
 }
