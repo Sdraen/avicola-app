@@ -163,12 +163,11 @@ export const getHuevoById = async (req: Request, res: Response): Promise<void> =
   }
 }
 
-// Crear nuevo huevo con validación completa
+// Crear un nuevo huevo
 export const createHuevo = async (req: Request, res: Response): Promise<void> => {
   try {
     console.log("🥚 createHuevo called with data:", JSON.stringify(req.body, null, 2))
 
-    // Validar datos de entrada usando el schema
     const validation = validateHuevo(req.body)
     if (!validation.isValid) {
       console.log("❌ Validation failed:", validation.errors)
@@ -181,8 +180,6 @@ export const createHuevo = async (req: Request, res: Response): Promise<void> =>
 
     const validatedData = validation.data as CreateHuevoInput
 
-    // Verificar que la jaula existe
-    console.log(`🔍 Checking if jaula ${validatedData.id_jaula} exists...`)
     const { data: jaulaExists, error: jaulaError } = await supabase
       .from("jaula")
       .select("id_jaula")
@@ -190,51 +187,29 @@ export const createHuevo = async (req: Request, res: Response): Promise<void> =>
       .single()
 
     if (jaulaError || !jaulaExists) {
-      console.log(`❌ Jaula ${validatedData.id_jaula} not found:`, jaulaError)
       res.status(400).json({ error: "La jaula especificada no existe" })
       return
     }
 
-    console.log(`✅ Jaula ${validatedData.id_jaula} exists`)
-
-    // Normalizar la fecha de recolección para evitar problemas de zona horaria
     const normalizedFechaRecoleccion = normalizeDateForStorage(validatedData.fecha_recoleccion)
 
-    // Verificar que no existe un registro para la misma jaula y fecha
-    const { data: existingRecord, error: duplicateError } = await supabase
-      .from("huevo")
-      .select("id_huevo")
-      .eq("id_jaula", validatedData.id_jaula)
-      .eq("fecha_recoleccion", normalizedFechaRecoleccion)
-      .single()
-
-    if (existingRecord) {
-      res.status(400).json({
-        error: "Ya existe un registro de huevos para esta jaula en la fecha especificada",
-      })
-      return
-    }
-
-    // Crear el registro de huevos con fecha normalizada
     const huevoData = {
       ...validatedData,
       fecha_recoleccion: normalizedFechaRecoleccion,
       registrado_por: 1, // TODO: get from auth context
-      fecha_registro: new Date().toISOString().split("T")[0], // Solo la fecha, sin hora
+      fecha_registro: new Date().toISOString().split("T")[0],
     }
-
-    console.log("🥚 Inserting huevo data:", JSON.stringify(huevoData, null, 2))
 
     const { data, error } = await supabase
       .from("huevo")
       .insert([huevoData])
       .select(`
-      *,
-      jaula:id_jaula (
-        id_jaula,
-        descripcion
-      )
-    `)
+        *,
+        jaula:id_jaula (
+          id_jaula,
+          descripcion
+        )
+      `)
       .single()
 
     if (error) {
@@ -243,7 +218,6 @@ export const createHuevo = async (req: Request, res: Response): Promise<void> =>
       return
     }
 
-    // Normalizar fechas para display
     const normalizedResponse = {
       ...data,
       fecha_recoleccion: normalizeDateForDisplay(data.fecha_recoleccion),
