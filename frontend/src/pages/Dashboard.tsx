@@ -129,7 +129,7 @@ const Dashboard: React.FC = () => {
     <div className="dashboard-wrapper">
       <div className="dashboard-header">
         <h1 className="dashboard-title">Bienvenido al Dashboard 🐔</h1>
-        <p className="dashboard-subtitle">Resumen del estado actual del sistema avícola IECI.</p>
+        <p className="dashboard-subtitle">Resumen del estado actual del sistema avícola Santa Luisa.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

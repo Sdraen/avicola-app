@@ -16,11 +16,16 @@ import {
 
 const VerHuevos: React.FC = () => {
   const [huevos, setHuevos] = useState<Huevo[]>([])
+  const [filteredHuevos, setFilteredHuevos] = useState<Huevo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedHuevoId, setSelectedHuevoId] = useState<number | null>(null)
   const [isModalBandejaOpen, setIsModalBandejaOpen] = useState(false)
+
+  const [search, setSearch] = useState("")
+  const [filterJaula, setFilterJaula] = useState("")
+  const [filterFecha, setFilterFecha] = useState("")
 
   const fetchHuevos = async () => {
     try {
@@ -28,8 +33,8 @@ const VerHuevos: React.FC = () => {
       const huevosData = Array.isArray(response.data)
         ? response.data
         : Array.isArray(response.data?.data)
-          ? response.data.data
-          : []
+        ? response.data.data
+        : []
 
       const huevosConStock = huevosData.filter((huevo: Huevo) => {
         const totalDisponible =
@@ -45,6 +50,7 @@ const VerHuevos: React.FC = () => {
       })
 
       setHuevos(huevosConStock)
+      setFilteredHuevos(huevosConStock)
     } catch (err) {
       setError("Error al cargar los huevos")
       setHuevos([])
@@ -56,6 +62,23 @@ const VerHuevos: React.FC = () => {
   useEffect(() => {
     fetchHuevos()
   }, [])
+
+  useEffect(() => {
+    const filtered = huevos.filter((huevo) => {
+      const matchesSearch =
+        huevo.jaula?.descripcion?.toLowerCase().includes(search.toLowerCase()) ||
+        huevo.observaciones?.toLowerCase().includes(search.toLowerCase())
+
+      const matchesJaula =
+        !filterJaula || huevo.jaula?.descripcion?.toLowerCase().includes(filterJaula.toLowerCase())
+
+      const matchesFecha =
+        !filterFecha || formatDate(huevo.fecha_recoleccion) === filterFecha
+
+      return matchesSearch && matchesJaula && matchesFecha
+    })
+    setFilteredHuevos(filtered)
+  }, [search, filterJaula, filterFecha, huevos])
 
   const handleEdit = (huevoId: number) => {
     setSelectedHuevoId(huevoId)
@@ -98,17 +121,16 @@ const VerHuevos: React.FC = () => {
       return dateString.split("T")[0]
     }
     const date = new Date(dateString + "T00:00:00")
-    return date.toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
+    return date.toISOString().split("T")[0]
   }
 
   const isAdmin =
     typeof window !== "undefined" &&
     localStorage.getItem("user") &&
     JSON.parse(localStorage.getItem("user")!).rol === "admin"
+
+  const uniqueJaulas = Array.from(new Set(huevos.map(h => h.jaula?.descripcion || "")))
+  const uniqueFechas = Array.from(new Set(huevos.map(h => formatDate(h.fecha_recoleccion))))
 
   if (loading) {
     return (
@@ -145,24 +167,47 @@ const VerHuevos: React.FC = () => {
           <div className="header-icon">🥚</div>
           <div className="header-text">
             <h1 className="table-title">Registros de Huevos</h1>
-            <p className="table-subtitle">Total: {huevos.length}</p>
+            <p className="table-subtitle">Total: {filteredHuevos.length}</p>
           </div>
         </div>
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setIsModalBandejaOpen(true)}
-            className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors shadow-sm"
+            className="px-4 py-2 text-sm font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700"
           >
-            <span role="img" aria-label="Bandeja">
-              🧺
-            </span>
-            <span>Armar Bandeja</span>
+            🧺 Armar Bandeja
           </button>
         </div>
       </div>
 
+      <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
+        <input
+          type="text"
+          placeholder="🔍 Buscar por jaula u observaciones..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full md:w-1/3 px-3 py-2 border rounded-md text-sm"
+        />
+        <select value={filterJaula} onChange={(e) => setFilterJaula(e.target.value)} className="px-3 py-2 border rounded-md text-sm">
+          <option value="">Todas las jaulas</option>
+          {uniqueJaulas.map((j, i) => (
+            <option key={i} value={j}>
+              {j || `Jaula sin nombre`}
+            </option>
+          ))}
+        </select>
+        <select value={filterFecha} onChange={(e) => setFilterFecha(e.target.value)} className="px-3 py-2 border rounded-md text-sm">
+          <option value="">Todas las fechas</option>
+          {uniqueFechas.map((f, i) => (
+            <option key={i} value={f}>
+              {f}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="space-y-6">
-        {huevos.length === 0 ? (
+        {filteredHuevos.length === 0 ? (
           <div className="text-center py-12">
             <div className="flex flex-col items-center space-y-4">
               <span className="text-6xl">🥚</span>
@@ -172,7 +217,7 @@ const VerHuevos: React.FC = () => {
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {huevos.map((huevo) => {
+            {filteredHuevos.map((huevo) => {
               const totalCafe =
                 (huevo.huevos_cafe_chico || 0) +
                 (huevo.huevos_cafe_mediano || 0) +
@@ -190,7 +235,6 @@ const VerHuevos: React.FC = () => {
                   key={huevo.id_huevo}
                   className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200"
                 >
-                  {/* Header del Card */}
                   <div className="p-4 border-b border-gray-100">
                     <div className="flex items-center justify-between">
                       <div>
@@ -220,10 +264,8 @@ const VerHuevos: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Contenido del Card */}
                   <div className="p-4">
                     <div className="grid grid-cols-3 gap-4 mb-4">
-                      {/* Total */}
                       <div className="text-center">
                         <div className="bg-blue-50 rounded-lg p-3">
                           <div className="text-2xl font-bold text-blue-600">{totalDisponibles}</div>
@@ -231,7 +273,6 @@ const VerHuevos: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Café */}
                       <div className="text-center">
                         <div className="bg-amber-50 rounded-lg p-3">
                           <div className="text-2xl font-bold text-amber-700">{totalCafe}</div>
@@ -239,7 +280,6 @@ const VerHuevos: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Blanco */}
                       <div className="text-center">
                         <div className="bg-gray-50 rounded-lg p-3">
                           <div className="text-2xl font-bold text-gray-700">{totalBlanco}</div>
@@ -248,9 +288,7 @@ const VerHuevos: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Desglose Detallado */}
                     <div className="space-y-3">
-                      {/* Huevos Café */}
                       {totalCafe > 0 && (
                         <div>
                           <h4 className="text-sm font-medium text-amber-700 mb-2">🟤 Huevos Café</h4>
@@ -283,7 +321,6 @@ const VerHuevos: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Huevos Blanco */}
                       {totalBlanco > 0 && (
                         <div>
                           <h4 className="text-sm font-medium text-gray-700 mb-2">⚪ Huevos Blanco</h4>
@@ -317,7 +354,6 @@ const VerHuevos: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Observaciones */}
                     {huevo.observaciones && (
                       <div className="mt-3 pt-3 border-t border-gray-100">
                         <p className="text-sm text-gray-600">

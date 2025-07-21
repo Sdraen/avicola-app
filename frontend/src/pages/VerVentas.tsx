@@ -70,12 +70,8 @@ const VerVentas: React.FC = () => {
 
   const formatDate = (dateString: string): string => {
     if (!dateString) return "-"
-    const date = new Date(dateString)
-    return date.toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
+    const [year, month, day] = dateString.split("T")[0].split("-")
+    return `${day}/${month}/${year}`
   }
 
   const totalVentas = ventas.reduce((sum, venta) => sum + venta.costo_total, 0)

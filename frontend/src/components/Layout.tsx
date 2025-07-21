@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Outlet, Link, useLocation } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
 
@@ -9,6 +9,8 @@ const Layout: React.FC = () => {
   const { user, logout } = useAuth()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement | null>(null)
 
   const isActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(path + "/")
@@ -21,6 +23,17 @@ const Layout: React.FC = () => {
   const closeSidebar = () => {
     setSidebarOpen(false)
   }
+
+  // Cierra menú usuario al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const menuItems = [
     {
@@ -46,6 +59,15 @@ const Layout: React.FC = () => {
         { title: "Ver Huevos", path: "/ver-huevos" },
         { title: "Registrar Huevos", path: "/registrar-huevos" },
         { title: "Bandejas", path: "/ver-bandejas" },
+      ],
+    },
+    {
+      title: "Inventario",
+      icon: "📦",
+      path: "/implementos",
+      submenu: [
+        { title: "Ver Implementos", path: "/ver-implementos" },
+        { title: "Registrar Implemento", path: "/registrar-implemento" },
       ],
     },
     {
@@ -104,18 +126,8 @@ const Layout: React.FC = () => {
         { title: "Registrar Incubación", path: "/registrar-incubacion" },
       ],
     },
-    {
-      title: "Inventario",
-      icon: "📦",
-      path: "/implementos",
-      submenu: [
-        { title: "Ver Implementos", path: "/ver-implementos" },
-        { title: "Registrar Implemento", path: "/registrar-implemento" },
-      ],
-    },
   ]
 
-  // Solo admin puede ver razas
   if (user?.rol === "admin") {
     menuItems.push({
       title: "Configuración",
@@ -126,31 +138,26 @@ const Layout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 relative z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              {/* Botón Hamburguesa Animado */}
               <button
                 onClick={toggleSidebar}
                 className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-150 mr-4"
                 aria-label={sidebarOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
               >
                 <div className="w-6 h-6 relative">
-                  {/* Línea superior */}
                   <span
                     className={`absolute left-0 top-1 w-6 h-0.5 bg-current transform transition-all duration-300 ease-in-out ${
                       sidebarOpen ? "rotate-45 translate-y-2" : "rotate-0 translate-y-0"
                     }`}
                   />
-                  {/* Línea media */}
                   <span
                     className={`absolute left-0 top-2.5 w-6 h-0.5 bg-current transform transition-all duration-300 ease-in-out ${
                       sidebarOpen ? "opacity-0 scale-0" : "opacity-100 scale-100"
                     }`}
                   />
-                  {/* Línea inferior */}
                   <span
                     className={`absolute left-0 top-4 w-6 h-0.5 bg-current transform transition-all duration-300 ease-in-out ${
                       sidebarOpen ? "-rotate-45 -translate-y-2" : "rotate-0 translate-y-0"
@@ -158,24 +165,46 @@ const Layout: React.FC = () => {
                   />
                 </div>
               </button>
-              <h1 className="text-xl font-bold text-gray-900">🐔 Sistema Avícola IECI</h1>
+              <h1 className="text-xl font-bold text-gray-900">🐔 Sistema Avícola Santa Luisa</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                {user?.email} ({user?.rol})
-              </span>
+
+            <div className="relative" ref={userMenuRef}>
               <button
-                onClick={logout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-150"
+                onClick={() => setUserMenuOpen((prev) => !prev)}
+                className="flex items-center space-x-2 text-sm text-gray-700 hover:text-gray-900 focus:outline-none"
               >
-                Cerrar Sesión
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                  {user?.email?.charAt(0).toUpperCase() || "U"}
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="font-medium">{user?.email}</span>
+                  <span className="text-xs text-gray-500 capitalize">{user?.rol}</span>
+                </div>
+                <svg
+                  className="w-4 h-4 ml-1 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border">
+                  <button
+                    onClick={logout}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </header>
 
-      {/* Overlay backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-200 ease-out"
@@ -183,16 +212,11 @@ const Layout: React.FC = () => {
         />
       )}
 
-      {/* Sidebar */}
       <nav
-        className={`
-          fixed inset-y-0 left-0 z-50
-          w-64 bg-white shadow-xl border-r border-gray-200
-          transform transition-transform duration-200 ease-out
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl border-r border-gray-200 transform transition-transform duration-200 ease-out ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
-        {/* Header del Sidebar */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-800">Navegación</h2>
           <button
@@ -205,7 +229,6 @@ const Layout: React.FC = () => {
           </button>
         </div>
 
-        {/* Menú de navegación */}
         <div className="p-4 overflow-y-auto h-full pb-20">
           <ul className="space-y-2">
             {menuItems.map((item) => (
@@ -254,16 +277,14 @@ const Layout: React.FC = () => {
           </ul>
         </div>
 
-        {/* Footer del Sidebar */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-gray-50">
           <div className="text-xs text-gray-500 text-center">
-            <p>Sistema Avícola IECI</p>
+            <p>Sistema Avícola</p>
             <p>v1.0.0</p>
           </div>
         </div>
       </nav>
 
-      {/* Main content */}
       <main className="w-full">
         <div className="p-6">
           <Outlet />

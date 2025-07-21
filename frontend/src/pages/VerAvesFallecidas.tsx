@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { aveClinicaAPI, avesAPI } from "../services/api"
+import { aveClinicaAPI } from "../services/api"
 import type { AveFallecida } from "../types"
 import {
   showDeleteConfirmation,
@@ -43,20 +43,22 @@ const VerAvesFallecidas: React.FC = () => {
     const result = await showDeleteConfirmation(
       "¿Eliminar registro de fallecimiento?",
       `¿Estás seguro de que deseas eliminar el registro de fallecimiento del ave #${id_anillo}? Esta acción restaurará el ave en el sistema.`,
-      "Sí, eliminar registro",
+      "Sí, eliminar registro"
     )
 
     if (result) {
       try {
         showLoadingAlert("Eliminando registro...", "Por favor espere")
 
-        await aveClinicaAPI.eliminarFallecimiento(id_ave)
-        await avesAPI.reactivar(id_ave) // Reactivar el ave
+        const response = await aveClinicaAPI.eliminarFallecimiento(id_ave)
 
-        setAvesFallecidas((prev) => prev.filter((ave) => ave.id_ave !== id_ave))
-
-        closeLoadingAlert()
-        await showSuccessAlert("¡Registro eliminado!", "El ave ha sido reactivada y el registro de fallecimiento eliminado")
+        if (response.data.success) {
+          setAvesFallecidas((prev) => prev.filter((ave) => ave.id_ave !== id_ave))
+          closeLoadingAlert()
+          await showSuccessAlert("¡Registro eliminado!", response.data.message)
+        } else {
+          throw new Error("No se pudo eliminar correctamente el registro")
+        }
       } catch (err: any) {
         closeLoadingAlert()
         await showErrorAlert("Error al eliminar", "No se pudo eliminar el registro. Inténtalo de nuevo.")

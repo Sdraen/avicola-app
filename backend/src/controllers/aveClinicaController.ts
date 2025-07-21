@@ -148,7 +148,7 @@ export const updateRegistroClinico = async (req: Request, res: Response): Promis
   }
 }
 
-// ✅ Eliminar registro clínico
+// Eliminar registro clínico
 export const eliminarRegistroClinico = async (req: Request, res: Response): Promise<void> => {
   try {
     const paramValidation = aveIdParamSchema.safeParse(req.params)
@@ -266,7 +266,10 @@ export const eliminarFallecimiento = async (req: Request, res: Response): Promis
       return
     }
 
-    res.status(200).json({ message: "Registro de fallecimiento eliminado y ave reactivada" })
+    res.status(200).json({
+      success: true,
+      message: "Registro de fallecimiento eliminado y ave reactivada",
+    })
   } catch (error) {
     res.status(500).json({ error: "Internal server error" })
   }
