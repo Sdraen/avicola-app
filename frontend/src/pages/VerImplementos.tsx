@@ -4,25 +4,8 @@ import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { implementosAPI } from "../services/api"
 import { showDeleteConfirmation, showSuccessAlert, showErrorAlert } from "../utils/sweetAlert"
-
-interface Implemento {
-  id_implemento: number
-  id_compra?: number
-  nombre: string
-  cantidad: number
-  precio_unitario: number
-  categoria?: string
-  descripcion?: string
-  estado?: string
-  ubicacion?: string
-  fecha_registro: string
-  compra?: {
-    id_compra: number
-    fecha: string
-    costo_total: string
-    proveedor?: string
-  }
-}
+import { Implemento } from "../types"
+import ModalEditarImplemento from "../components/modals/ModalEditarImplemento"
 
 export default function VerImplementos() {
   const [implementos, setImplementos] = useState<Implemento[]>([])
@@ -31,9 +14,17 @@ export default function VerImplementos() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterCompra, setFilterCompra] = useState("")
   const [filterCategoria, setFilterCategoria] = useState("")
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [modalVisible, setModalVisible] = useState(false)
+  const [implementoSeleccionado, setImplementoSeleccionado] = useState<Implemento | null>(null)
 
   useEffect(() => {
     fetchImplementos()
+    const user = localStorage.getItem("user")
+    if (user) {
+      const parsed = JSON.parse(user)
+      setUserRole(parsed.rol)
+    }
   }, [])
 
   const fetchImplementos = async () => {
@@ -64,7 +55,6 @@ export default function VerImplementos() {
     }
   }
 
-  // Obtener compras y categorías únicas para los filtros
   const comprasUnicas = [...new Set(implementos.map((impl) => impl.compra?.id_compra).filter(Boolean))]
   const categoriasUnicas = [...new Set(implementos.map((impl) => impl.categoria).filter(Boolean))]
 
@@ -103,6 +93,16 @@ export default function VerImplementos() {
     }
   }
 
+  const openModalEditar = (implemento: Implemento) => {
+    setImplementoSeleccionado(implemento)
+    setModalVisible(true)
+  }
+
+  const closeModalEditar = () => {
+    setModalVisible(false)
+    setImplementoSeleccionado(null)
+  }
+
   if (loading) {
     return (
       <div className="ver-aves-container">
@@ -113,6 +113,14 @@ export default function VerImplementos() {
 
   return (
     <div className="ver-aves-container">
+      {modalVisible && implementoSeleccionado && (
+        <ModalEditarImplemento
+          implemento={implementoSeleccionado}
+          onClose={closeModalEditar}
+          onUpdate={fetchImplementos}
+        />
+      )}
+
       <div className="table-header">
         <div className="header-content">
           <div className="header-icon">📦</div>
@@ -189,101 +197,108 @@ export default function VerImplementos() {
           return (
             <div
               key={implemento.id_implemento}
-              className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500"
+              className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500 flex flex-col justify-between h-full"
             >
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">{implemento.nombre}</h3>
-                {implemento.estado && (
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(implemento.estado)}`}>
-                    {implemento.estado}
-                  </span>
+              <div>
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">{implemento.nombre}</h3>
+                  {implemento.estado && (
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(implemento.estado)}`}>
+                      {implemento.estado}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  {implemento.categoria && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Categoría:</span>
+                      <span className="font-medium">{implemento.categoria}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Cantidad:</span>
+                    <span className="font-medium">{implemento.cantidad}</span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Precio unitario:</span>
+                    <span className="font-medium text-blue-600">
+                      {Number(implemento.precio_unitario || 0).toLocaleString("es-CL", {
+                        style: "currency",
+                        currency: "CLP",
+                        minimumFractionDigits: 0,
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Valor total:</span>
+                    <span className="font-medium text-green-600">
+                      {valorTotal.toLocaleString("es-CL", {
+                        style: "currency",
+                        currency: "CLP",
+                        minimumFractionDigits: 0,
+                      })}
+                    </span>
+                  </div>
+
+                  {implemento.id_compra ? (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Compra:</span>
+                      <Link to={`/ver-compras`} className="text-blue-600 hover:text-blue-800 font-medium">
+                        #{implemento.id_compra}
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Origen:</span>
+                      <span className="text-gray-500 italic">Registro independiente</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Fecha:</span>
+                    <span className="font-medium">
+                      {implemento.compra?.fecha
+                        ? formatFechaLocal(implemento.compra.fecha)
+                        : formatFechaLocal(implemento.fecha_registro)}
+                    </span>
+                  </div>
+
+                  {implemento.ubicacion && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Ubicación:</span>
+                      <span className="font-medium">{implemento.ubicacion}</span>
+                    </div>
+                  )}
+
+                  {implemento.compra?.proveedor && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Proveedor:</span>
+                      <span className="font-medium">{implemento.compra.proveedor}</span>
+                    </div>
+                  )}
+                </div>
+
+                {implemento.descripcion && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded">
+                    <p className="text-sm text-gray-700">{implemento.descripcion}</p>
+                  </div>
                 )}
               </div>
 
-              <div className="space-y-2 text-sm">
-                {implemento.categoria && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Categoría:</span>
-                    <span className="font-medium">{implemento.categoria}</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Cantidad:</span>
-                  <span className="font-medium">{implemento.cantidad}</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Precio unitario:</span>
-                  <span className="font-medium text-blue-600">
-                    {Number(implemento.precio_unitario || 0).toLocaleString("es-CL", {
-                      style: "currency",
-                      currency: "CLP",
-                      minimumFractionDigits: 0,
-                    })}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Valor total:</span>
-                  <span className="font-medium text-green-600">
-                    {valorTotal.toLocaleString("es-CL", {
-                      style: "currency",
-                      currency: "CLP",
-                      minimumFractionDigits: 0,
-                    })}
-                  </span>
-                </div>
-
-                {implemento.id_compra ? (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Compra:</span>
-                    <Link to={`/ver-compras`} className="text-blue-600 hover:text-blue-800 font-medium">
-                      #{implemento.id_compra}
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Origen:</span>
-                    <span className="text-gray-500 italic">Registro independiente</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Fecha:</span>
-                  <span className="font-medium">
-                    {implemento.compra?.fecha
-                      ? formatFechaLocal(implemento.compra.fecha)
-                      : formatFechaLocal(implemento.fecha_registro)}
-                  </span>
-                </div>
-
-                {implemento.ubicacion && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Ubicación:</span>
-                    <span className="font-medium">{implemento.ubicacion}</span>
-                  </div>
-                )}
-
-                {implemento.compra?.proveedor && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Proveedor:</span>
-                    <span className="font-medium">{implemento.compra.proveedor}</span>
-                  </div>
-                )}
-              </div>
-
-              {implemento.descripcion && (
-                <div className="mt-4 p-3 bg-gray-50 rounded">
-                  <p className="text-sm text-gray-700">{implemento.descripcion}</p>
+              {userRole === "admin" && (
+                <div className="mt-4 flex justify-end gap-2">
+                  <button className="btn-editar" onClick={() => openModalEditar(implemento)}>
+                    📝 Editar
+                  </button>
+                  <button className="btn-eliminar" onClick={() => handleDelete(implemento)}>
+                    🗑️ Eliminar
+                  </button>
                 </div>
               )}
-
-              <div className="mt-4 flex justify-end">
-                <button className="btn-eliminar" onClick={() => handleDelete(implemento)}>
-                  🗑️ Eliminar
-                </button>
-              </div>
             </div>
           )
         })}
