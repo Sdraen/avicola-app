@@ -9,11 +9,12 @@ import {
   getActiveIncubaciones,
   getIncubacionesByIncubadora,
   getIncubacionStats,
+  registrarNacimientoYCrearAve, // ✅ nueva función importada
 } from "../controllers/incubacionController"
 
 const router = express.Router()
 
-// Admin y Operador pueden leer
+// 📄 Obtener incubaciones
 router.get("/", authenticateToken, requireRole(["admin", "operador"]), getAllIncubaciones)
 router.get("/stats/overview", authenticateToken, requireRole(["admin", "operador"]), getIncubacionStats)
 router.get("/estado/activo", authenticateToken, requireRole(["admin", "operador"]), getActiveIncubaciones)
@@ -21,17 +22,25 @@ router.get(
   "/incubadora/:id_incubadora",
   authenticateToken,
   requireRole(["admin", "operador"]),
-  getIncubacionesByIncubadora,
+  getIncubacionesByIncubadora
 )
 router.get("/:id", authenticateToken, requireRole(["admin", "operador"]), getIncubacionById)
 
-// Admin y Operador pueden crear
+// ➕ Crear nueva incubación
 router.post("/", authenticateToken, requireRole(["admin", "operador"]), createIncubacion)
 
-// Admin y Operador pueden actualizar
+// ✅ Registrar nacimiento y crear ave automáticamente
+router.post(
+  "/nacimiento/crear-ave",
+  authenticateToken,
+  requireRole(["admin", "operador"]),
+  registrarNacimientoYCrearAve
+)
+
+// ✏️ Actualizar incubación
 router.put("/:id", authenticateToken, requireRole(["admin", "operador"]), updateIncubacion)
 
-// Solo Admin puede eliminar
+// ❌ Eliminar incubación (solo admin)
 router.delete("/:id", authenticateToken, requireRole(["admin"]), deleteIncubacion)
 
 export default router
