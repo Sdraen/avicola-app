@@ -13,6 +13,7 @@ import {
   showLoadingAlert,
   closeLoadingAlert,
 } from "../utils/sweetAlert"
+import { formatearFechaChilena } from "../utils/formatoFecha"
 
 const VerHuevos: React.FC = () => {
   const [huevos, setHuevos] = useState<Huevo[]>([])
@@ -73,7 +74,7 @@ const VerHuevos: React.FC = () => {
         !filterJaula || huevo.jaula?.descripcion?.toLowerCase().includes(filterJaula.toLowerCase())
 
       const matchesFecha =
-        !filterFecha || formatDate(huevo.fecha_recoleccion) === filterFecha
+        !filterFecha || formatearFechaChilena(huevo.fecha_recoleccion) === filterFecha
 
       return matchesSearch && matchesJaula && matchesFecha
     })
@@ -115,22 +116,13 @@ const VerHuevos: React.FC = () => {
     }
   }
 
-  const formatDate = (dateString: string): string => {
-    if (!dateString) return "-"
-    if (dateString.includes("T")) {
-      return dateString.split("T")[0]
-    }
-    const date = new Date(dateString + "T00:00:00")
-    return date.toISOString().split("T")[0]
-  }
-
   const isAdmin =
     typeof window !== "undefined" &&
     localStorage.getItem("user") &&
     JSON.parse(localStorage.getItem("user")!).rol === "admin"
 
   const uniqueJaulas = Array.from(new Set(huevos.map(h => h.jaula?.descripcion || "")))
-  const uniqueFechas = Array.from(new Set(huevos.map(h => formatDate(h.fecha_recoleccion))))
+  const uniqueFechas = Array.from(new Set(huevos.map(h => formatearFechaChilena(h.fecha_recoleccion))))
 
   if (loading) {
     return (
@@ -241,7 +233,7 @@ const VerHuevos: React.FC = () => {
                         <h3 className="text-lg font-semibold text-gray-900">
                           {huevo.jaula?.descripcion || `Jaula ${huevo.id_jaula}`}
                         </h3>
-                        <p className="text-sm text-gray-500">{formatDate(huevo.fecha_recoleccion)}</p>
+                        <p className="text-sm text-gray-500">{formatearFechaChilena(huevo.fecha_recoleccion)}</p>
                       </div>
                       <div className="flex items-center space-x-2">
                         <button

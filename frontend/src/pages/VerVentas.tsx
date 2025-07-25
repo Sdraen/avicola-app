@@ -12,6 +12,7 @@ import {
   showLoadingAlert,
   closeLoadingAlert,
 } from "../utils/sweetAlert"
+import { formatearFechaChilena } from "../utils/formatoFecha"
 
 const VerVentas: React.FC = () => {
   const [ventas, setVentas] = useState<Venta[]>([])
@@ -66,12 +67,6 @@ const VerVentas: React.FC = () => {
         await showErrorAlert("Error al eliminar", "No se pudo eliminar la venta. Inténtalo de nuevo.")
       }
     }
-  }
-
-  const formatDate = (dateString: string): string => {
-    if (!dateString) return "-"
-    const [year, month, day] = dateString.split("T")[0].split("-")
-    return `${day}/${month}/${year}`
   }
 
   const totalVentas = ventas.reduce((sum, venta) => sum + venta.costo_total, 0)
@@ -165,7 +160,7 @@ const VerVentas: React.FC = () => {
                 <tr key={venta.id_venta} className="table-row">
                   <td className="table-cell">{venta.cliente?.nombre || `Cliente ${venta.id_cliente}`}</td>
                   <td className="table-cell">
-                    <span className="text-sm font-medium">{formatDate(venta.fecha_venta)}</span>
+                    <span className="text-sm font-medium">{formatearFechaChilena(venta.fecha_venta)}</span>
                   </td>
                   <td className="table-cell">
                     <span className="cantidad-badge">{venta.cantidad_total}</span>
@@ -196,7 +191,6 @@ const VerVentas: React.FC = () => {
         </table>
       </div>
 
-      {/* Modal de edición */}
       {ventaEdit && (
         <ModalEditarVenta
           isOpen={true}

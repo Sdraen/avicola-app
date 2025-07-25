@@ -11,6 +11,7 @@ import {
   showLoadingAlert,
   closeLoadingAlert,
 } from "../utils/sweetAlert"
+import { formatearFechaChilena } from "../utils/formatoFecha"
 
 const VerAvesFallecidas: React.FC = () => {
   const [avesFallecidas, setAvesFallecidas] = useState<AveFallecida[]>([])
@@ -65,16 +66,6 @@ const VerAvesFallecidas: React.FC = () => {
         console.error("Delete error:", err)
       }
     }
-  }
-
-  const formatDate = (dateString: string) => {
-    const [year, month, day] = dateString.split("-").map(Number)
-    const localDate = new Date(year, month - 1, day)
-    return localDate.toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
   }
 
   if (loading) {
@@ -157,30 +148,33 @@ const VerAvesFallecidas: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {avesFallecidas.map((aveFallecida) => (
-                <tr key={aveFallecida.id_ave} className="table-row">
-                  <td className="table-cell">{aveFallecida.ave?.id_anillo || "N/A"}</td>
-                  <td className="table-cell">{aveFallecida.ave?.color_anillo || "N/A"}</td>
-                  <td className="table-cell especie-cell">{aveFallecida.ave?.raza || "N/A"}</td>
-                  <td className="table-cell">{formatDate(aveFallecida.fecha)}</td>
-                  <td className="table-cell">
-                    <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-sm">{aveFallecida.motivo}</span>
-                  </td>
-                  {userRole === "admin" && (
-                    <td className="table-cell acciones-cell">
-                      <button
-                        className="btn-eliminar text-xs px-2 py-1"
-                        onClick={() =>
-                          handleEliminarRegistro(aveFallecida.id_ave, aveFallecida.ave?.id_anillo || "N/A")
-                        }
-                        title="Eliminar registro de fallecimiento"
-                      >
-                        🗑️ Eliminar Registro
-                      </button>
+              {avesFallecidas.map((aveFallecida) => {
+                console.log("Fecha recibida:", aveFallecida.fecha)
+                return (
+                  <tr key={aveFallecida.id_ave} className="table-row">
+                    <td className="table-cell">{aveFallecida.ave?.id_anillo || "N/A"}</td>
+                    <td className="table-cell">{aveFallecida.ave?.color_anillo || "N/A"}</td>
+                    <td className="table-cell especie-cell">{aveFallecida.ave?.raza || "N/A"}</td>
+                    <td className="table-cell">{formatearFechaChilena(aveFallecida.fecha)}</td>
+                    <td className="table-cell">
+                      <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-sm">{aveFallecida.motivo}</span>
                     </td>
-                  )}
-                </tr>
-              ))}
+                    {userRole === "admin" && (
+                      <td className="table-cell acciones-cell">
+                        <button
+                          className="btn-eliminar text-xs px-2 py-1"
+                          onClick={() =>
+                            handleEliminarRegistro(aveFallecida.id_ave, aveFallecida.ave?.id_anillo || "N/A")
+                          }
+                          title="Eliminar registro de fallecimiento"
+                        >
+                          🗑️ Eliminar Registro
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
