@@ -11,9 +11,8 @@ import { showSuccessAlert, showErrorAlert, showLoadingAlert, closeLoadingAlert }
 const RegistrarVenta: React.FC = () => {
   const navigate = useNavigate()
 
-  const today = new Date()
-  const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
-  const fechaLocal = localDate.toISOString().split("T")[0]
+  // ✅ Eliminado el ajuste manual de zona horaria
+  const fechaLocal = new Date().toISOString().split("T")[0]
 
   const [form, setForm] = useState({
     fecha: fechaLocal,
@@ -30,7 +29,10 @@ const RegistrarVenta: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clientesRes, bandejasRes] = await Promise.all([clientesAPI.getAll(), bandejasAPI.getAll()])
+        const [clientesRes, bandejasRes] = await Promise.all([
+          clientesAPI.getAll(),
+          bandejasAPI.getAll(),
+        ])
 
         const clientesList = clientesRes.data?.data || clientesRes.data || []
         const bandejasList = bandejasRes.data?.data || bandejasRes.data || []
@@ -70,10 +72,8 @@ const RegistrarVenta: React.FC = () => {
         fecha_venta: form.fecha,
         costo_total: Number.parseInt(form.costo_total),
         cantidad_total: form.bandejasSeleccionadas.length,
-        bandeja_ids: form.bandejasSeleccionadas, // ✅ corregido
+        bandeja_ids: form.bandejasSeleccionadas,
       }
-
-      console.log("Payload enviado:", payload)
 
       await ventasAPI.create(payload)
 

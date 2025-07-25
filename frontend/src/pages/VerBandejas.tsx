@@ -11,6 +11,7 @@ import {
   closeLoadingAlert,
 } from "../utils/sweetAlert"
 import type { Bandeja } from "../types"
+import { formatearFechaChilena } from "../utils/formatoFecha"
 
 const VerBandejas: React.FC = () => {
   const [bandejas, setBandejas] = useState<Bandeja[]>([])
@@ -137,8 +138,18 @@ const VerBandejas: React.FC = () => {
                 <td className="table-cell">{b.tipo_huevo}</td>
                 <td className="table-cell">{b.tamaño_huevo}</td>
                 <td className="table-cell">{b.cantidad_huevos}</td>
-                <td className="table-cell">{new Date(b.fecha_creacion).toLocaleDateString()}</td>
-                <td className="table-cell">{b.estado}</td>
+                <td className="table-cell">{formatearFechaChilena(b.fecha_creacion)}</td>
+                <td
+                  className={`table-cell font-semibold ${
+                    b.estado === "vendida"
+                      ? "text-red-600"
+                      : b.estado === "disponible"
+                      ? "text-green-600"
+                      : ""
+                  }`}
+                >
+                  {b.estado}
+                </td>
                 <td className="table-cell acciones-cell">
                   {userRole === "admin" && (
                     <button className="btn-eliminar text-red-600" onClick={() => handleDelete(b.id_bandeja)}>
