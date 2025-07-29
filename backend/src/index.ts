@@ -56,6 +56,7 @@ app.use(
     origin: [
       "http://localhost:3000", // React dev server
       "http://localhost:5173", // Vite dev server
+      "http://localhost:1705", // Vite dev server with HTTPS
       "http://127.0.0.1:3000",
       "http://127.0.0.1:5173",
     ],

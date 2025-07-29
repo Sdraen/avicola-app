@@ -9,12 +9,12 @@ export const validateEntityData = (
 ): ValidationResult => {
   try {
     const entityMap: Record<string, (data: any) => ValidationResult> = {
-      ave: schemas.validateAve,
+      // ave: schemas.validateAve, // Removed: validateAve does not exist
       huevo: schemas.validateHuevo,
-      cliente: schemas.validateCliente,
+      // cliente: schemas.validateCliente, // Removed: validateCliente does not exist
       venta: schemas.validateVenta,
       compra: schemas.validateCompra,
-      jaula: schemas.validateJaula,
+      // jaula: schemas.validateJaula, // Removed: validateJaula does not exist
       medicamento: schemas.validateMedicamento,
       vacuna: schemas.validateVacuna,
       incubacion: schemas.validateIncubacion,
@@ -51,11 +51,11 @@ export const validateSpecialOperation = (operation: string, data: any): Validati
       huevos_bulk: (d) => schemas.validateHuevo(d),
       medicamento_aplicacion: (d) => schemas.validateMedicamento(d),
       vacuna_aplicacion: (d) => schemas.validateVacuna(d),
-      servicio_higiene: (d) => schemas.validateServicioHigiene(d),
+      // servicio_higiene: (d) => schemas.validateServicioHigiene(d),
       incubadora_create: (d) => schemas.validateIncubacion(d),
       nacimiento_create: (d) => schemas.validateIncubacion(d),
       implemento: (d) => schemas.validateImplemento(d),
-      cliente_search: (d) => schemas.validateCliente(d),
+      //   cliente_search: (d) => schemas.validateCliente(d),
       medicamento_search: (d) => schemas.validateMedicamento(d),
       vacuna_search: (d) => schemas.validateVacuna(d),
       email_availability: (d) => schemas.validateUsuario(d),
