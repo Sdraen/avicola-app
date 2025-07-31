@@ -1,117 +1,369 @@
-# Avícola APP - Dockerizado
+# 🐔 Sistema Avícola IECI - Despliegue con Docker
 
-Este proyecto contiene el entorno completo para desplegar el sistema Avícola APP usando Docker.
+## 📋 Descripción
+Sistema completo de gestión avícola desarrollado con React (Frontend) y Node.js/Express (Backend), desplegado con Docker para máxima portabilidad y facilidad de instalación.
 
-## 📁 Estructura del proyecto
+## 🚀 Despliegue Rápido
 
-```
-avicola-docker/
-├── backend/
-│   ├── Dockerfile
-│   └── .env              # Debes colocarlo tú (usa el .env del servidor)
-├── frontend/
-│   ├── Dockerfile
-│   └── nginx.conf
-└── docker-compose.yml
-```
+### Para Desarrollo Local (localhost)
+\`\`\`bash
+git clone [tu-repositorio]
+cd sistema-avicola
+git checkout production-docker-config
+chmod +x scripts/*.sh
+./scripts/deploy.sh
+\`\`\`
 
----
-
-## ⚙️ Requisitos
-
-- Tener [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado (Windows o Mac).
-- Git instalado (opcional, si vas a clonar desde repositorio).
+**Acceso:**
+- 🌐 Frontend: http://localhost:1705
+- 🔗 Backend: http://localhost:5000/health
 
 ---
 
-## 🪟 Cómo usar en Windows
+## 🌐 Despliegue en Servidor con IP Específica
 
-### 1. Clonar el proyecto o copiar la carpeta
+### Opción 1: IP Automática (Recomendada)
+El sistema detecta automáticamente la IP del servidor:
 
-Puedes clonar desde Git si tienes repo:
+\`\`\`bash
+# 1. Clonar repositorio
+git clone [tu-repositorio]
+cd sistema-avicola
+git checkout production-docker-config
 
-```bash
-git clone https://github.com/usuario/avicola-docker.git
-cd avicola-docker
-```
+# 2. Configurar IP automáticamente
+IP=$(hostname -I | awk '{print $1}')
+echo "🌐 IP detectada: $IP"
+sed -i "s/localhost/$IP/g" docker-compose.yml
 
-O simplemente copiar los archivos `.zip` y descomprimirlos.
+# 3. Desplegar
+chmod +x scripts/*.sh
+./scripts/deploy.sh
+\`\`\`
 
----
+### Opción 2: IP Manual
+Si conoces la IP específica del servidor:
 
-### 2. Agrega tu archivo `.env` en la carpeta `/backend`
+\`\`\`bash
+# 1. Clonar repositorio
+git clone [tu-repositorio]
+cd sistema-avicola
+git checkout production-docker-config
 
-Crea un archivo `.env` en `backend/` con el siguiente contenido (ejemplo):
+# 2. Configurar IP específica (reemplazar 192.168.1.100 por tu IP)
+export SERVER_IP=192.168.1.100
+sed -i "s/localhost/$SERVER_IP/g" docker-compose.yml
 
-```
-NODE_ENV=production
-PORT=5000
+# 3. Desplegar
+chmod +x scripts/*.sh
+./scripts/deploy.sh
+\`\`\`
 
-SUPABASE_URL=https://raedaqgefjftnmpaqfcr.supabase.co
-SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_KEY=...
-JWT_SECRET=sistema_avicola_ubb_produccion_2025_super_secreto_no_compartir_torres_especialidades
-ALLOWED_ORIGINS=http://146.83.198.35:1705,https://146.83.198.35:1706
-```
-
----
-
-### 3. Construir los contenedores
-
-Abre una terminal en la raíz del proyecto y ejecuta:
-
-```bash
-docker-compose build
-```
-
----
-
-### 4. Iniciar los servicios
-
-```bash
-docker-compose up -d
-```
-
-Esto levantará:
-
-- Backend en: `http://localhost:5000`
-- Frontend en: `http://localhost:80`
+### Opción 3: Un Solo Comando
+\`\`\`bash
+git clone [tu-repositorio] && cd sistema-avicola && git checkout production-docker-config && IP=$(hostname -I | awk '{print $1}') && sed -i "s/localhost/$IP/g" docker-compose.yml && chmod +x scripts/*.sh && ./scripts/deploy.sh
+\`\`\`
 
 ---
 
-## 🌐 ¿Y si estoy en la red de la Universidad?
+## 🎯 Acceso Según Configuración
 
-Perfecto. La configuración usa las IPs reales del servidor de la U, así que funcionará directamente.
+### Desarrollo Local:
+- 🌐 **Frontend**: http://localhost:1705
+- 🔗 **Backend**: http://localhost:5000
+- 💚 **Health Check**: http://localhost:5000/health
 
-Puedes acceder desde el navegador de la VM a:
+### Servidor con IP:
+- 🌐 **Frontend**: http://[IP_DEL_SERVIDOR]:1705
+- 🔗 **Backend**: http://[IP_DEL_SERVIDOR]:5000
+- 💚 **Health Check**: http://[IP_DEL_SERVIDOR]:5000/health
 
-```
-http://146.83.198.35:1705
-```
+**Ejemplo con IP 192.168.1.100:**
+- 🌐 Frontend: http://192.168.1.100:1705
+- 🔗 Backend: http://192.168.1.100:5000/health
 
 ---
 
-## 🛑 Para detener los servicios
+## 🔧 Configuración Manual Avanzada
 
-```bash
+### Para Cambiar IP Después del Despliegue:
+
+1. **Parar servicios:**
+\`\`\`bash
 docker-compose down
-```
+\`\`\`
+
+2. **Cambiar IP en configuración:**
+\`\`\`bash
+# Cambiar de localhost a IP específica
+sed -i 's/localhost/192.168.1.100/g' docker-compose.yml
+
+# O cambiar de una IP a otra
+sed -i 's/192.168.1.100/10.0.0.50/g' docker-compose.yml
+\`\`\`
+
+3. **Reconstruir y reiniciar:**
+\`\`\`bash
+docker-compose build --no-cache
+docker-compose up -d
+\`\`\`
+
+### Para Múltiples IPs (Acceso desde Varias Redes):
+
+Editar manualmente `docker-compose.yml` y cambiar:
+\`\`\`yaml
+- ALLOWED_ORIGINS=http://localhost:1705,http://127.0.0.1:1705
+\`\`\`
+
+Por:
+\`\`\`yaml
+- ALLOWED_ORIGINS=http://localhost:1705,http://192.168.1.100:1705,http://10.0.0.50:1705
+\`\`\`
 
 ---
 
-## 🧪 Verificación rápida
+## 🛠️ Comandos Útiles
 
-- Visita `http://localhost:80` desde tu navegador
-- Tu frontend React debe estar activo
-- El frontend se conectará automáticamente al backend remoto (según tu .env)
+### Verificación y Monitoreo:
+\`\`\`bash
+# Ver estado de contenedores
+docker-compose ps
+
+# Ver logs en tiempo real
+docker-compose logs -f
+
+# Ver logs específicos
+docker-compose logs frontend
+docker-compose logs backend
+
+# Verificar conectividad
+curl http://[IP]:1705
+curl http://[IP]:5000/health
+\`\`\`
+
+### Mantenimiento:
+\`\`\`bash
+# Reiniciar servicios
+docker-compose restart
+
+# Parar servicios
+docker-compose down
+
+# Limpiar y empezar de cero
+docker-compose down --volumes --remove-orphans
+docker system prune -f
+./scripts/deploy.sh
+\`\`\`
+
+### Debugging:
+\`\`\`bash
+# Acceder al contenedor del backend
+docker exec -it sistema-avicola-backend sh
+
+# Acceder al contenedor del frontend
+docker exec -it sistema-avicola-frontend sh
+
+# Ver uso de recursos
+docker stats
+\`\`\`
 
 ---
 
-## ✉️ Soporte
+## 🔍 Solución de Problemas
 
-Si estás en una VM de la universidad y algo falla, asegúrate de:
-- Estar conectado al WiFi de la U
-- Que Docker esté corriendo
-- Que el puerto 80 y 5000 estén libres
+### Problema: "Connection Refused"
+\`\`\`bash
+# Verificar que los contenedores estén corriendo
+docker-compose ps
 
-¡Suerte presentando tu proyecto! 🎓🐔
+# Reiniciar servicios
+docker-compose restart
+
+# Ver logs para identificar errores
+docker-compose logs -f
+\`\`\`
+
+### Problema: Frontend no carga
+\`\`\`bash
+# Verificar logs del frontend
+docker-compose logs frontend
+
+# Reconstruir frontend
+docker-compose build --no-cache frontend
+docker-compose up -d
+\`\`\`
+
+### Problema: Backend no responde
+\`\`\`bash
+# Verificar logs del backend
+docker-compose logs backend
+
+# Probar health check
+curl http://[IP]:5000/health
+
+# Reiniciar solo el backend
+docker-compose restart backend
+\`\`\`
+
+### Problema: Puertos ocupados
+\`\`\`bash
+# Ver qué está usando los puertos
+sudo lsof -i :1705
+sudo lsof -i :5000
+
+# Cambiar puertos en docker-compose.yml si es necesario
+# Ejemplo: cambiar "1705:80" por "8080:80"
+\`\`\`
+
+---
+
+## 📦 Requisitos del Sistema
+
+### Mínimos:
+- **OS**: Linux, macOS, Windows con WSL2
+- **RAM**: 2GB disponibles
+- **Disco**: 5GB libres
+- **Docker**: 20.10+
+- **Docker Compose**: 2.0+
+
+### Recomendados:
+- **RAM**: 4GB disponibles
+- **CPU**: 2 cores
+- **Disco**: 10GB libres
+
+---
+
+## 🏗️ Arquitectura
+
+\`\`\`
+┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Backend       │
+│   (React)       │    │   (Node.js)     │
+│   Port: 1705    │◄──►│   Port: 5000    │
+│   Nginx         │    │   Express       │
+└─────────────────┘    └─────────────────┘
+         │                       │
+         └───────────────────────┘
+                   │
+         ┌─────────────────┐
+         │   Supabase      │
+         │   (Database)    │
+         └─────────────────┘
+\`\`\`
+
+---
+
+## 🔒 Seguridad
+
+- ✅ Contenedores ejecutan con usuario no-root
+- ✅ Headers de seguridad configurados en Nginx
+- ✅ Rate limiting en el backend
+- ✅ CORS configurado apropiadamente
+- ✅ Variables de entorno para credenciales
+- ✅ Health checks automáticos
+
+---
+
+## 🎓 Para Evaluadores/Profesores
+
+### Despliegue en Un Comando:
+\`\`\`bash
+curl -sSL https://raw.githubusercontent.com/[tu-usuario]/[tu-repo]/production-docker-config/scripts/quick-deploy.sh | bash
+\`\`\`
+
+### O Paso a Paso:
+\`\`\`bash
+git clone [tu-repositorio]
+cd sistema-avicola
+git checkout production-docker-config
+IP=$(hostname -I | awk '{print $1}')
+sed -i "s/localhost/$IP/g" docker-compose.yml
+chmod +x scripts/*.sh
+./scripts/deploy.sh
+\`\`\`
+
+### Verificación:
+- ✅ Acceder a http://[IP_DEL_SERVIDOR]:1705
+- ✅ Verificar API en http://[IP_DEL_SERVIDOR]:5000/health
+- ✅ Revisar logs con `docker-compose logs -f`
+
+---
+
+## 📞 Soporte
+
+### Logs Importantes:
+\`\`\`bash
+# Logs completos
+docker-compose logs > logs_completos.txt
+
+# Solo errores
+docker-compose logs | grep -i error
+
+# Estado del sistema
+docker-compose ps > estado_contenedores.txt
+docker stats --no-stream > uso_recursos.txt
+\`\`\`
+
+### Información del Sistema:
+\`\`\`bash
+# Versiones
+docker --version
+docker-compose --version
+
+# Espacio disponible
+df -h
+
+# Memoria disponible
+free -h
+\`\`\`
+
+---
+
+## 🚀 Ejemplos de Uso
+
+### Desarrollo Local:
+\`\`\`bash
+git clone https://github.com/usuario/sistema-avicola.git
+cd sistema-avicola
+git checkout production-docker-config
+./scripts/deploy.sh
+# Acceder a: http://localhost:1705
+\`\`\`
+
+### Servidor de Producción:
+\`\`\`bash
+git clone https://github.com/usuario/sistema-avicola.git
+cd sistema-avicola
+git checkout production-docker-config
+IP=$(curl -s ifconfig.me)  # IP pública
+sed -i "s/localhost/$IP/g" docker-compose.yml
+./scripts/deploy.sh
+# Acceder a: http://[IP_PUBLICA]:1705
+\`\`\`
+
+### Red Local (LAN):
+\`\`\`bash
+git clone https://github.com/usuario/sistema-avicola.git
+cd sistema-avicola
+git checkout production-docker-config
+IP=$(hostname -I | awk '{print $1}')  # IP local
+sed -i "s/localhost/$IP/g" docker-compose.yml
+./scripts/deploy.sh
+# Acceder desde cualquier dispositivo en la red: http://[IP_LOCAL]:1705
+\`\`\`
+
+---
+
+## 📝 Notas Importantes
+
+- 🔥 **Firewall**: Asegúrate de que los puertos 1705 y 5000 estén abiertos
+- 🌐 **DNS**: Para acceso por dominio, configura un reverse proxy (Nginx/Apache)
+- 🔐 **SSL**: Para HTTPS, usa Let's Encrypt o certificados propios
+- 📊 **Monitoreo**: Los health checks están configurados automáticamente
+- 🔄 **Actualizaciones**: Usa `git pull` y `docker-compose build --no-cache`
+
+---
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
