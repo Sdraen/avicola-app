@@ -233,36 +233,6 @@ sudo lsof -i :5000
 
 ---
 
-## 🏗️ Arquitectura
-
-\`\`\`
-┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Backend       │
-│   (React)       │    │   (Node.js)     │
-│   Port: 1705    │◄──►│   Port: 5000    │
-│   Nginx         │    │   Express       │
-└─────────────────┘    └─────────────────┘
-         │                       │
-         └───────────────────────┘
-                   │
-         ┌─────────────────┐
-         │   Supabase      │
-         │   (Database)    │
-         └─────────────────┘
-\`\`\`
-
----
-
-## 🔒 Seguridad
-
-- ✅ Contenedores ejecutan con usuario no-root
-- ✅ Headers de seguridad configurados en Nginx
-- ✅ Rate limiting en el backend
-- ✅ CORS configurado apropiadamente
-- ✅ Variables de entorno para credenciales
-- ✅ Health checks automáticos
-
----
 
 ## 🎓 Para Evaluadores/Profesores
 
