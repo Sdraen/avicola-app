@@ -301,6 +301,7 @@ export const getProduccionPorJaula = async (req: Request, res: Response): Promis
 
     const resultado = Object.values(produccionPorJaula || {}).map((jaula: any) => ({
       ...jaula,
+      // Colocar el promedio de huevos por las gallinas que posee la jaula (terminar de definir)
       eficiencia: Math.round((jaula.produccion / Math.max(jaula.registros, 1)) * 10), // Simulación de eficiencia
     }))
 

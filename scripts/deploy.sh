@@ -24,6 +24,20 @@ cat << "EOF"
 EOF
 echo -e "${NC}"
 
+# --- INICIO AJUSTES PARA ENTORNOS SIN SYSTEMD ---
+
+# Levantar dockerd si no está corriendo
+if ! pgrep -x "dockerd" > /dev/null; then
+    log_warning "Docker daemon no está corriendo. Iniciando..."
+    nohup dockerd > /var/log/docker.log 2>&1 &
+    sleep 5
+fi
+
+# Desactivar BuildKit para evitar errores en entornos limitados
+export DOCKER_BUILDKIT=0
+
+# --- FIN AJUSTES ---
+
 # Verificar Docker
 if ! command -v docker &> /dev/null; then
     log_error "Docker no está instalado"
