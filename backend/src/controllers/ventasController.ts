@@ -130,21 +130,135 @@ export const createVenta = async (req: Request, res: Response): Promise<void> =>
 export const updateVenta = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-    const updates = req.body
+    const { id_cliente, costo_total, cantidad_total, bandeja_ids, fecha_venta } = req.body
 
-    const { data, error } = await supabase.from("venta").update(updates).eq("id_venta", id).select().single()
+    // Validate required fields
+    if (!id_cliente || !costo_total || !cantidad_total || !Array.isArray(bandeja_ids) || bandeja_ids.length === 0) {
+      res.status(400).json({ error: "Faltan datos requeridos o bandejas inválidas" })
+      return
+    }
+
+    // Validate date is not in the future
+    if (fecha_venta) {
+      const today = new Date().toISOString().split("T")[0]
+      if (fecha_venta > today) {
+        res.status(400).json({ error: "La fecha no puede ser futura" })
+        return
+      }
+    }
+
+    // Get current sale data
+    const { data: currentVenta, error: getCurrentError } = await supabase
+      .from("venta")
+      .select("*")
+      .eq("id_venta", id)
+      .single()
+
+    if (getCurrentError || !currentVenta) {
+      res.status(404).json({ error: "Venta no encontrada" })
+      return
+    }
+
+    // Get current bandejas associated with this sale
+    const { data: currentBandejas, error: getCurrentBandejasError } = await supabase
+      .from("bandeja")
+      .select("id_bandeja")
+      .eq("id_venta", id)
+
+    if (getCurrentBandejasError) {
+      res.status(400).json({ error: getCurrentBandejasError.message })
+      return
+    }
+
+    const currentBandejaIds = currentBandejas?.map((b) => b.id_bandeja) || []
+
+    // Check if new bandejas are available (excluding current ones)
+    const newBandejaIds = bandeja_ids.filter((id: number) => !currentBandejaIds.includes(id))
+
+    if (newBandejaIds.length > 0) {
+      const { data: availableBandejas, error: checkAvailabilityError } = await supabase
+        .from("bandeja")
+        .select("id_bandeja")
+        .in("id_bandeja", newBandejaIds)
+        .eq("estado", "disponible")
+
+      if (checkAvailabilityError) {
+        res.status(400).json({ error: checkAvailabilityError.message })
+        return
+      }
+
+      if (!availableBandejas || availableBandejas.length !== newBandejaIds.length) {
+        res.status(400).json({ error: "Algunas bandejas seleccionadas no están disponibles" })
+        return
+      }
+    }
+
+    // Free up bandejas that are no longer part of this sale
+    const bandejasToFree = currentBandejaIds.filter((id) => !bandeja_ids.includes(id))
+
+    if (bandejasToFree.length > 0) {
+      const { error: freeError } = await supabase
+        .from("bandeja")
+        .update({
+          estado: "disponible",
+          id_venta: null,
+        })
+        .in("id_bandeja", bandejasToFree)
+
+      if (freeError) {
+        res.status(400).json({ error: "Error al liberar bandejas: " + freeError.message })
+        return
+      }
+    }
+
+    // Assign new bandejas to this sale
+    if (bandeja_ids.length > 0) {
+      const { error: assignError } = await supabase
+        .from("bandeja")
+        .update({
+          estado: "vendida",
+          id_venta: Number.parseInt(id),
+        })
+        .in("id_bandeja", bandeja_ids)
+
+      if (assignError) {
+        res.status(400).json({ error: "Error al asignar bandejas: " + assignError.message })
+        return
+      }
+    }
+
+    // Update the sale record
+    const updateData: any = {
+      id_cliente: Number.parseInt(id_cliente),
+      costo_total: Number.parseFloat(costo_total),
+      cantidad_total: Number.parseInt(cantidad_total),
+    }
+
+    if (fecha_venta) {
+      updateData.fecha_venta = fecha_venta
+    }
+
+    const { data, error } = await supabase
+      .from("venta")
+      .update(updateData)
+      .eq("id_venta", id)
+      .select(`
+        *,
+        cliente:cliente(*),
+        bandejas:bandeja(*)
+      `)
+      .single()
 
     if (error) {
       res.status(400).json({ error: error.message })
       return
     }
 
-    if (!data) {
-      res.status(404).json({ error: "Venta no encontrada" })
-      return
-    }
-
-    res.status(200).json(data)
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Venta actualizada exitosamente",
+    })
   } catch (error) {
     console.error("Error updating sale:", error)
     res.status(500).json({ error: "Internal server error" })

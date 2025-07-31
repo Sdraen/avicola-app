@@ -7,12 +7,13 @@ import Select from "react-select"
 import { ventasAPI, bandejasAPI, clientesAPI } from "../services/api"
 import type { Bandeja, Cliente } from "../types"
 import { showSuccessAlert, showErrorAlert, showLoadingAlert, closeLoadingAlert } from "../utils/sweetAlert"
+import { obtenerFechaLocalHoy } from "../utils/formatoFecha"
 
 const RegistrarVenta: React.FC = () => {
   const navigate = useNavigate()
 
   // ✅ Eliminado el ajuste manual de zona horaria
-  const fechaLocal = new Date().toISOString().split("T")[0]
+  const fechaLocal = obtenerFechaLocalHoy()
 
   const [form, setForm] = useState({
     fecha: fechaLocal,
@@ -29,10 +30,7 @@ const RegistrarVenta: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clientesRes, bandejasRes] = await Promise.all([
-          clientesAPI.getAll(),
-          bandejasAPI.getAll(),
-        ])
+        const [clientesRes, bandejasRes] = await Promise.all([clientesAPI.getAll(), bandejasAPI.getAll()])
 
         const clientesList = clientesRes.data?.data || clientesRes.data || []
         const bandejasList = bandejasRes.data?.data || bandejasRes.data || []
@@ -81,7 +79,7 @@ const RegistrarVenta: React.FC = () => {
       await showSuccessAlert("¡Venta registrada!", "La venta se ha registrado exitosamente")
 
       setForm({
-        fecha: fechaLocal,
+        fecha: obtenerFechaLocalHoy(),
         id_cliente: "",
         bandejasSeleccionadas: [],
         costo_total: "",

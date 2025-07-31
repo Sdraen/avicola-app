@@ -30,6 +30,7 @@ import razasRoutes from "./routes/razas"
 import registroHuevosRoutes from "./routes/registroHuevos"
 import bandejaRoutes from "./routes/bandeja"
 import aveClinicaRoutes from "./routes/aveClinica"
+import reportesRoutes from "./routes/reportes"
 
 // Import middleware
 import { errorLogger, errorResponder, invalidPathHandler } from "./middleware/errorHandler"
@@ -101,6 +102,7 @@ app.use("/api/razas", razasRoutes)
 app.use("/api/registro-huevos", registroHuevosRoutes)
 app.use("/api/bandeja", bandejaRoutes)
 app.use("/api/ave-clinica", aveClinicaRoutes)
+app.use("/api/reportes", reportesRoutes)
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -124,6 +126,7 @@ app.get("/", (req, res) => {
       ventas: "/api/ventas",
       bandeja: "/api/bandeja",
       aveClinica: "/api/ave-clinica",
+      reportes: "/api/reportes",
     },
   })
 })

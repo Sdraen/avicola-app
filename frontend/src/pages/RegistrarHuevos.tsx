@@ -5,13 +5,14 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { huevosAPI, jaulasAPI } from "../services/api"
 import type { Jaula } from "../types"
+import { obtenerFechaLocalHoy } from "../utils/formatoFecha"
 
 const RegistrarHuevos: React.FC = () => {
   const navigate = useNavigate()
   const [jaulas, setJaulas] = useState<Jaula[]>([])
   const [form, setForm] = useState({
     id_jaula: "",
-    fecha_recoleccion: new Date().toISOString().split("T")[0], // Fecha local sin conversión
+    fecha_recoleccion: obtenerFechaLocalHoy(),
     cantidad_total: "",
     huevos_cafe_chico: "",
     huevos_cafe_mediano: "",
@@ -89,7 +90,7 @@ const RegistrarHuevos: React.FC = () => {
       // Limpiar formulario
       setForm({
         id_jaula: "",
-        fecha_recoleccion: new Date().toISOString().split("T")[0],
+        fecha_recoleccion: obtenerFechaLocalHoy(), // ✅ Usando función local
         cantidad_total: "",
         huevos_cafe_chico: "",
         huevos_cafe_mediano: "",
@@ -157,7 +158,7 @@ const RegistrarHuevos: React.FC = () => {
               onChange={handleChange}
               className="form-input"
               required
-              max={new Date().toISOString().split("T")[0]} // No permitir fechas futuras
+              max={obtenerFechaLocalHoy()} // ✅ No permitir fechas futuras usando función local
             />
             <small className="text-gray-500 text-xs mt-1 block">
               📅 Fecha seleccionada: {new Date(form.fecha_recoleccion + "T00:00:00").toLocaleDateString("es-ES")}
