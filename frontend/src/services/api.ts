@@ -264,4 +264,15 @@ export const registroHuevosAPI = {
   getStats: () => api.get("/registro-huevos/stats"),
 }
 
+// Nueva API para reportes
+export const reportesAPI = {
+  getVentasMensuales: (params?: any) => api.get("/reportes/ventas-mensuales", { params }),
+  getProduccionHuevos: (params?: any) => api.get("/reportes/produccion-huevos", { params }),
+  getProduccionPorJaula: (params?: any) => api.get("/reportes/produccion-por-jaula", { params }),
+  getEstadisticasAves: (params?: any) => api.get("/reportes/estadisticas-aves", { params }),
+  getUsoInsumos: (params?: any) => api.get("/reportes/uso-insumos", { params }),
+  getVentasPorCliente: (params?: any) => api.get("/reportes/ventas-por-cliente", { params }),
+  getEvolucionAves: (params?: any) => api.get("/reportes/evolucion-aves", { params }),
+}
+
 export default api

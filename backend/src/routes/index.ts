@@ -14,6 +14,7 @@ import vacunasRoutes from "./vacunas"
 import ventasRoutes from "./ventas"
 import bandejaRoutes from "./bandeja"
 import aveClinicaRoutes from "./aveClinica"
+import reportesRoutes from "./reportes"
 
 const router = express.Router()
 
@@ -35,6 +36,7 @@ router.use("/vacunas", vacunasRoutes)
 router.use("/ventas", ventasRoutes)
 router.use("/bandeja", bandejaRoutes)
 router.use("/ave-clinica", aveClinicaRoutes)
+router.use("/reportes", reportesRoutes)
 
 // Ruta de salud del API
 router.get("/health", (req, res) => {

@@ -5,6 +5,7 @@ import Select from "react-select"
 import { ventasAPI, clientesAPI, bandejasAPI } from "../../services/api"
 import type { Cliente, Bandeja, Venta } from "../../types"
 import { showSuccessAlert, showErrorAlert, showLoadingAlert, closeLoadingAlert } from "../../utils/sweetAlert"
+import { formatearFechaChilena } from "../../utils/formatoFecha"
 
 interface ModalEditarVentaProps {
   isOpen: boolean
@@ -18,11 +19,17 @@ const ModalEditarVenta: React.FC<ModalEditarVentaProps> = ({ isOpen, venta, onCl
     id_cliente: "",
     bandejasSeleccionadas: [] as number[],
     costo_total: "",
+    fecha_venta: "", // Add this new field
   })
 
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [bandejas, setBandejas] = useState<Bandeja[]>([])
   const [loading, setLoading] = useState(true)
+
+  const getTodayDate = () => {
+    const today = new Date()
+    return today.toISOString().split('T')[0]
+  }
 
   useEffect(() => {
     if (!isOpen || !venta) return
@@ -48,6 +55,7 @@ const ModalEditarVenta: React.FC<ModalEditarVentaProps> = ({ isOpen, venta, onCl
           id_cliente: venta.id_cliente.toString(),
           bandejasSeleccionadas: bandejasIds,
           costo_total: venta.costo_total.toString(),
+          fecha_venta: venta.fecha_venta ? new Date(venta.fecha_venta).toISOString().split('T')[0] : "", // Add this line
         })
       } catch (error) {
         console.error(error)
@@ -83,6 +91,7 @@ const ModalEditarVenta: React.FC<ModalEditarVentaProps> = ({ isOpen, venta, onCl
         bandeja_ids: form.bandejasSeleccionadas,
         costo_total: Number(form.costo_total),
         cantidad_total: form.bandejasSeleccionadas.length,
+        fecha_venta: form.fecha_venta, // Add this line
       })
 
       closeLoadingAlert()
@@ -151,6 +160,24 @@ const ModalEditarVenta: React.FC<ModalEditarVentaProps> = ({ isOpen, venta, onCl
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="form-label">📅 Fecha de Venta:</label>
+                  <input
+                    type="date"
+                    name="fecha_venta"
+                    value={form.fecha_venta}
+                    onChange={handleChange}
+                    max={getTodayDate()}
+                    className="form-input"
+                    required
+                  />
+                  {form.fecha_venta && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Fecha seleccionada: {formatearFechaChilena(form.fecha_venta + 'T00:00:00.000Z')}
+                    </p>
+                  )}
                 </div>
 
                 <div>
