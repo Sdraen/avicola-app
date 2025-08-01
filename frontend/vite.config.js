@@ -8,7 +8,7 @@ export default defineConfig({
     host: true, // Permite conexiones externas en desarrollo
     proxy: {
       "/api": {
-        target: "http://localhost:5000",
+        target: "http://146.83.194.168:5000",
         changeOrigin: true,
       },
     },
@@ -28,6 +28,6 @@ export default defineConfig({
   },
   define: {
     // Reemplazar variables de entorno en build time
-    __API_URL__: JSON.stringify(process.env.VITE_API_URL || "http://localhost:5000"),
+    __API_URL__: JSON.stringify(process.env.VITE_API_URL || "http://146.83.194.168:5000"),
   },
 })

@@ -13,7 +13,7 @@ RUN npm ci
 COPY . .
 
 # Build de la aplicación
-ARG VITE_API_URL=http://localhost:5000
+ARG VITE_API_URL=http://146.83.194.168:5000
 ENV VITE_API_URL=$VITE_API_URL
 
 RUN npm run build
@@ -45,6 +45,6 @@ EXPOSE 80
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost/health || exit 1
+  CMD curl -f http://146.83.194.168:80/health || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

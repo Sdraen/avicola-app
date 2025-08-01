@@ -1,7 +1,7 @@
 import axios from "axios"
 import { processApiError } from "../utils/errorHandler"
 
-const API_BASE_URL = "http://localhost:5000/api"
+const API_BASE_URL = "http://146.83.194.168:5000/api"
 
 // Configuración base de axios
 const api = axios.create({

@@ -24,20 +24,6 @@ cat << "EOF"
 EOF
 echo -e "${NC}"
 
-# --- INICIO AJUSTES PARA ENTORNOS SIN SYSTEMD ---
-
-# Levantar dockerd si no está corriendo
-if ! pgrep -x "dockerd" > /dev/null; then
-    log_warning "Docker daemon no está corriendo. Iniciando..."
-    nohup dockerd > /var/log/docker.log 2>&1 &
-    sleep 5
-fi
-
-# Desactivar BuildKit para evitar errores en entornos limitados
-export DOCKER_BUILDKIT=0
-
-# --- FIN AJUSTES ---
-
 # Verificar Docker
 if ! command -v docker &> /dev/null; then
     log_error "Docker no está instalado"
@@ -110,7 +96,7 @@ while [ $attempt -le $max_attempts ]; do
     echo -n "Intento $attempt/$max_attempts: "
     
     # Verificar backend
-    if curl -s -f http://localhost:5000/health >/dev/null 2>&1; then
+    if curl -s -f http://146.83.194.168:5000/health >/dev/null 2>&1; then
         backend_ok=true
         echo -n "Backend ✅ "
     else
@@ -119,7 +105,7 @@ while [ $attempt -le $max_attempts ]; do
     fi
     
     # Verificar frontend con múltiples endpoints
-    if curl -s -f http://localhost:1705/health >/dev/null 2>&1 || curl -s -f http://localhost:1705 >/dev/null 2>&1; then
+    if curl -s -f http://146.83.194.168:1705/health >/dev/null 2>&1 || curl -s -f http://146.83.194.168:1705 >/dev/null 2>&1; then
         frontend_ok=true
         echo -n "Frontend ✅"
     else
@@ -151,9 +137,9 @@ if [ "$backend_ok" = true ] && [ "$frontend_ok" = true ]; then
     log_success "🎉 ¡DESPLIEGUE EXITOSO!"
     echo ""
     echo "📱 URLs de Acceso:"
-    echo "   🌐 Frontend:     http://localhost:1705"
-    echo "   🔗 Backend API:  http://localhost:5000"
-    echo "   💚 Health Check: http://localhost:5000/health"
+    echo "   🌐 Frontend:     http://146.83.194.168:1705"
+    echo "   🔗 Backend API:  http://146.83.194.168:5000"
+    echo "   💚 Health Check: http://146.83.194.168:5000/health"
     echo ""
     echo "🔍 Verificación final:"
     echo "   📊 Estado:    docker-compose ps"
@@ -162,11 +148,11 @@ if [ "$backend_ok" = true ] && [ "$frontend_ok" = true ]; then
     
     # Prueba final
     log_info "Realizando prueba final..."
-    if curl -s http://localhost:5000/health | grep -q "ok"; then
+    if curl -s http://146.83.194.168:5000/health | grep -q "ok"; then
         log_success "Backend API respondiendo correctamente"
     fi
-    
-    if curl -s -I http://localhost:1705 | grep -q "200 OK"; then
+
+    if curl -s -I http://146.83.194.168:1705 | grep -q "200 OK"; then
         log_success "Frontend respondiendo correctamente"
     fi
     

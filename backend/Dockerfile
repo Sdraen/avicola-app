@@ -43,7 +43,7 @@ EXPOSE 5000
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:5000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+  CMD node -e "require('http').get('http://146.83.194.168:5000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # Comando para ejecutar la aplicación
 CMD ["node", "dist/index.js"]
