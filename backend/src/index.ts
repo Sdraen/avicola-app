@@ -60,6 +60,9 @@ app.use(
       "http://localhost:1705", // Vite dev server with HTTPS
       "http://127.0.0.1:3000",
       "http://127.0.0.1:5173",
+      "http://146.83.194.168:1705", // Production server
+      "http://146.83.194.168:3000", // Production server
+      "http://146.83.194.168:5173", // Production server
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
