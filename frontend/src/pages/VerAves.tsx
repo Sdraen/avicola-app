@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { avesAPI } from "../services/api"
 import type { Ave } from "../types"
 import ModalEditarAve from "../components/modals/ModalEditarAve"
@@ -40,10 +40,42 @@ const VerAves: React.FC = () => {
   const [isFallecimientoModalOpen, setIsFallecimientoModalOpen] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
 
+  // Filtros / búsqueda
   const [search, setSearch] = useState("")
   const [filterJaula, setFilterJaula] = useState("")
   const [filterEstado, setFilterEstado] = useState("")
   const [filterRaza, setFilterRaza] = useState("")
+
+  // ---------------------------
+  // Paginación
+  // ---------------------------
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [pageSize, setPageSize] = useState<number>(10)
+
+  const totalItems = filteredAves.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+
+  const startIdx = (currentPage - 1) * pageSize
+  const endIdx = Math.min(startIdx + pageSize, totalItems)
+
+  const pageItems = useMemo(() => filteredAves.slice(startIdx, endIdx), [filteredAves, startIdx, endIdx])
+
+  const goToPage = (p: number) => {
+    const safe = Math.min(Math.max(1, p), totalPages)
+    setCurrentPage(safe)
+  }
+
+  // Reset a página 1 cuando cambian filtros/búsqueda o la data
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, filterJaula, filterEstado, filterRaza, aves])
+
+  // Ajuste si disminuye el total de páginas
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [totalPages, currentPage])
 
   const fetchAves = async () => {
     try {
@@ -81,11 +113,11 @@ const VerAves: React.FC = () => {
         ave.raza.toLowerCase().includes(search.toLowerCase())
 
       const matchesJaula =
-        !filterJaula || ave.jaula?.descripcion?.toLowerCase().includes(filterJaula.toLowerCase()) ||
+        !filterJaula ||
+        ave.jaula?.descripcion?.toLowerCase().includes(filterJaula.toLowerCase()) ||
         ave.jaula?.codigo_jaula?.toLowerCase().includes(filterJaula.toLowerCase())
 
       const matchesEstado = !filterEstado || ave.estado_puesta.toLowerCase() === filterEstado.toLowerCase()
-
       const matchesRaza = !filterRaza || ave.raza.toLowerCase() === filterRaza.toLowerCase()
 
       return matchesSearch && matchesJaula && matchesEstado && matchesRaza
@@ -161,11 +193,25 @@ const VerAves: React.FC = () => {
   }
 
   const uniqueEstados = Array.from(new Set(aves.map((a) => a.estado_puesta)))
-  const uniqueJaulas = Array.from(new Set(aves.map((a) => a.jaula?.descripcion || a.jaula?.codigo_jaula || "")))
+  const uniqueJaulas = Array.from(
+    new Set(aves.map((a) => a.jaula?.descripcion || a.jaula?.codigo_jaula || ""))
+  )
   const uniqueRazas = Array.from(new Set(aves.map((a) => a.raza)))
 
   if (loading) return <div className="text-center py-4">Cargando aves...</div>
   if (error) return <div className="text-center text-red-600 py-4">{error}</div>
+
+  // Helper para botones de páginas (ventana de hasta 5 páginas alrededor de la actual)
+  const pageNumbers = useMemo(() => {
+    const windowSize = 5
+    const half = Math.floor(windowSize / 2)
+    let start = Math.max(1, currentPage - half)
+    let end = Math.min(totalPages, start + windowSize - 1)
+    if (end - start + 1 < windowSize) {
+      start = Math.max(1, end - windowSize + 1)
+    }
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }, [currentPage, totalPages])
 
   return (
     <div className="ver-aves-container">
@@ -174,11 +220,19 @@ const VerAves: React.FC = () => {
           <div className="header-icon">🐓</div>
           <div className="header-text">
             <h1 className="table-title">Listado de Aves</h1>
-            <p className="table-subtitle">Total de aves registradas: {filteredAves.length}</p>
+            <p className="table-subtitle">
+              Total filtrado: {totalItems}
+              {totalItems > 0 && (
+                <span className="ml-2 text-gray-500">
+                  (Mostrando {startIdx + 1}–{endIdx})
+                </span>
+              )}
+            </p>
           </div>
         </div>
       </div>
 
+      {/* Filtros y controles */}
       <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
         <input
           type="text"
@@ -187,7 +241,12 @@ const VerAves: React.FC = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full md:w-1/3 px-3 py-2 border rounded-md text-sm"
         />
-        <select value={filterJaula} onChange={(e) => setFilterJaula(e.target.value)} className="px-3 py-2 border rounded-md text-sm">
+
+        <select
+          value={filterJaula}
+          onChange={(e) => setFilterJaula(e.target.value)}
+          className="px-3 py-2 border rounded-md text-sm"
+        >
           <option value="">Todas las jaulas</option>
           {uniqueJaulas.map((j, i) => (
             <option key={i} value={j}>
@@ -195,7 +254,12 @@ const VerAves: React.FC = () => {
             </option>
           ))}
         </select>
-        <select value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)} className="px-3 py-2 border rounded-md text-sm">
+
+        <select
+          value={filterEstado}
+          onChange={(e) => setFilterEstado(e.target.value)}
+          className="px-3 py-2 border rounded-md text-sm"
+        >
           <option value="">Todos los estados</option>
           {uniqueEstados.map((e, i) => (
             <option key={i} value={e}>
@@ -203,7 +267,12 @@ const VerAves: React.FC = () => {
             </option>
           ))}
         </select>
-        <select value={filterRaza} onChange={(e) => setFilterRaza(e.target.value)} className="px-3 py-2 border rounded-md text-sm">
+
+        <select
+          value={filterRaza}
+          onChange={(e) => setFilterRaza(e.target.value)}
+          className="px-3 py-2 border rounded-md text-sm"
+        >
           <option value="">Todas las razas</option>
           {uniqueRazas.map((r, i) => (
             <option key={i} value={r}>
@@ -211,6 +280,22 @@ const VerAves: React.FC = () => {
             </option>
           ))}
         </select>
+
+        {/* Tamaño de página */}
+        <div className="ml-auto flex items-center gap-2">
+          <label className="text-sm text-gray-600">Por página:</label>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(parseInt(e.target.value))}
+            className="px-3 py-2 border rounded-md text-sm"
+          >
+            {[10, 20, 50, 100].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="table-container overflow-x-auto">
@@ -227,61 +312,150 @@ const VerAves: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredAves.map((ave) => (
-              <tr key={ave.id_ave} className="border-b hover:bg-gray-50">
-                <td className="p-2">{ave.id_anillo}</td>
-                <td className="p-2">{ave.color_anillo}</td>
-                <td className="p-2">{ave.raza}</td>
-                <td className="p-2">{ave.edad}</td>
-                <td className="p-2">
-                  <span className="cantidad-badge">{ave.estado_puesta}</span>
-                </td>
-                <td className="p-2">{ave.jaula?.codigo_jaula || ave.jaula?.descripcion || ave.id_jaula}</td>
-                <td className="p-2">
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      className="bg-blue-500 hover:bg-blue-600 text-white text-xs p-1 rounded"
-                      title="Editar"
-                      onClick={() => handleEdit(ave.id_ave)}
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      className="bg-blue-400 hover:bg-blue-500 text-white text-xs p-1 rounded"
-                      title="Historial"
-                      onClick={() => handleHistorialClinico(ave)}
-                    >
-                      🏥
-                    </button>
-                    <button
-                      className="bg-green-500 hover:bg-green-600 text-white text-xs p-1 rounded"
-                      title="Tratamiento"
-                      onClick={() => handleRegistroClinico(ave)}
-                    >
-                      🩺
-                    </button>
-                    <button
-                      className="bg-red-500 hover:bg-red-600 text-white text-xs p-1 rounded"
-                      title="Fallecimiento"
-                      onClick={() => handleRegistrarFallecimiento(ave)}
-                    >
-                      💀
-                    </button>
-                    {userRole === "admin" && (
-                      <button
-                        className="bg-red-700 hover:bg-red-800 text-white text-xs p-1 rounded"
-                        title="Eliminar"
-                        onClick={() => handleDelete(ave.id_ave, ave.id_anillo)}
-                      >
-                        🗑️
-                      </button>
-                    )}
-                  </div>
+            {pageItems.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="p-4 text-center text-gray-500">
+                  No se encontraron aves con los filtros aplicados.
                 </td>
               </tr>
-            ))}
+            ) : (
+              pageItems.map((ave) => (
+                <tr key={ave.id_ave} className="border-b hover:bg-gray-50">
+                  <td className="p-2">{ave.id_anillo}</td>
+                  <td className="p-2">{ave.color_anillo}</td>
+                  <td className="p-2">{ave.raza}</td>
+                  <td className="p-2">{ave.edad}</td>
+                  <td className="p-2">
+                    <span className="cantidad-badge">{ave.estado_puesta}</span>
+                  </td>
+                  <td className="p-2">{ave.jaula?.codigo_jaula || ave.jaula?.descripcion || ave.id_jaula}</td>
+                  <td className="p-2">
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        className="bg-blue-500 hover:bg-blue-600 text-white text-xs p-1 rounded"
+                        title="Editar"
+                        onClick={() => handleEdit(ave.id_ave)}
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        className="bg-blue-400 hover:bg-blue-500 text-white text-xs p-1 rounded"
+                        title="Historial"
+                        onClick={() => handleHistorialClinico(ave)}
+                      >
+                        🏥
+                      </button>
+                      <button
+                        className="bg-green-500 hover:bg-green-600 text-white text-xs p-1 rounded"
+                        title="Tratamiento"
+                        onClick={() => handleRegistroClinico(ave)}
+                      >
+                        🩺
+                      </button>
+                      <button
+                        className="bg-red-500 hover:bg-red-600 text-white text-xs p-1 rounded"
+                        title="Fallecimiento"
+                        onClick={() => handleRegistrarFallecimiento(ave)}
+                      >
+                        💀
+                      </button>
+                      {userRole === "admin" && (
+                        <button
+                          className="bg-red-700 hover:bg-red-800 text-white text-xs p-1 rounded"
+                          title="Eliminar"
+                          onClick={() => handleDelete(ave.id_ave, ave.id_anillo)}
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
+      </div>
+
+      {/* Controles de paginación */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-gray-600">
+          {totalItems > 0
+            ? `Mostrando ${startIdx + 1}–${endIdx} de ${totalItems} aves`
+            : "Sin resultados"}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            className="px-3 py-1 border rounded disabled:opacity-50"
+            onClick={() => goToPage(1)}
+            disabled={currentPage === 1}
+            aria-label="Primera página"
+            title="Primera"
+          >
+            «
+          </button>
+          <button
+            className="px-3 py-1 border rounded disabled:opacity-50"
+            onClick={() => goToPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            aria-label="Anterior"
+            title="Anterior"
+          >
+            ‹
+          </button>
+
+          {pageNumbers.map((p) => (
+            <button
+              key={p}
+              className={`px-3 py-1 border rounded ${
+                p === currentPage ? "bg-gray-800 text-white" : "bg-white"
+              }`}
+              onClick={() => goToPage(p)}
+              aria-current={p === currentPage ? "page" : undefined}
+              title={`Página ${p}`}
+            >
+              {p}
+            </button>
+          ))}
+
+          <button
+            className="px-3 py-1 border rounded disabled:opacity-50"
+            onClick={() => goToPage(currentPage + 1)}
+            disabled={currentPage === totalPages || totalItems === 0}
+            aria-label="Siguiente"
+            title="Siguiente"
+          >
+            ›
+          </button>
+          <button
+            className="px-3 py-1 border rounded disabled:opacity-50"
+            onClick={() => goToPage(totalPages)}
+            disabled={currentPage === totalPages || totalItems === 0}
+            aria-label="Última página"
+            title="Última"
+          >
+            »
+          </button>
+
+          {/* Ir a página */}
+          <div className="ml-2 flex items-center gap-1">
+            <label htmlFor="goto" className="text-sm text-gray-600">Ir a:</label>
+            <input
+              id="goto"
+              type="number"
+              min={1}
+              max={totalPages}
+              value={currentPage}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                if (!Number.isNaN(v)) goToPage(v)
+              }}
+              className="w-16 px-2 py-1 border rounded text-sm"
+            />
+            <span className="text-sm text-gray-600">/ {totalPages}</span>
+          </div>
+        </div>
       </div>
 
       <ModalEditarAve isOpen={isEditModalOpen} aveId={selectedAveId!} onClose={handleCloseEditModal} onUpdate={fetchAves} />
