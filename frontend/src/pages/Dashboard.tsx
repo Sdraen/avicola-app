@@ -113,7 +113,7 @@ const Dashboard: React.FC = () => {
       // Datos para reportes (ahora usando datos reales)
       await fetchReportData()
 
-      console.log("✅ Dashboard data loaded successfully")
+      console.log("✅ Dashboard cargada con éxito")
     } catch (err: any) {
       console.error("❌ Error fetching dashboard data:", err)
       setError("Error al cargar datos del dashboard")
@@ -622,7 +622,14 @@ const Dashboard: React.FC = () => {
                       <tr key={index}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{jaula.jaula}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{jaula.produccion} huevos</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{jaula.eficiencia}%</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 relative">
+                          {jaula.eficiencia}%
+                          <span className="ml-1 cursor-help text-gray-400 group relative">ⓘ
+                            <span className="absolute z-10 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 bottom-full left-1/2 transform -translate-x-1/2 mb-1 whitespace-pre">
+                              {`🥚 ¿Qué significa la eficiencia? La eficiencia muestra la relación entre la producción registrada y la cantidad esperada según las aves activas.`}
+                            </span>
+                          </span>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
