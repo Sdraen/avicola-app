@@ -248,13 +248,6 @@ export const incubacionAPI = {
   getStats: () => api.get("/incubacion/stats/overview"),
 }
 
-// Servicios de razas
-export const razasAPI = {
-  getAll: () => api.get("/razas"),
-  create: (data: any) => api.post("/razas", data),
-  update: (id: number, data: any) => api.put(`/razas/${id}`, data),
-  delete: (id: number) => api.delete(`/razas/${id}`),
-}
 
 // Servicios de registro de huevos diario
 export const registroHuevosAPI = {

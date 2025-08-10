@@ -60,8 +60,6 @@ import Implementos from "./pages/Implementos"
 import VerImplementos from "./pages/VerImplementos"
 import RegistrarImplemento from "./pages/RegistrarImplemento"
 
-// Razas
-import Razas from "./pages/Razas"
 
 import ProtectedRoute from "./components/ProtectedRoute"
 
@@ -145,8 +143,6 @@ function App() {
         <Route path="ver-implementos" element={<VerImplementos />} />
         <Route path="registrar-implemento" element={<RegistrarImplemento />} />
 
-        {/* Rutas de Razas */}
-        <Route path="razas" element={<Razas />} />
       </Route>
     </Routes>
   )

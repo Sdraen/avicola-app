@@ -141,13 +141,6 @@ const Layout: React.FC = () => {
     },
   ]
 
-  if (user?.rol === "admin") {
-    menuItems.push({
-      title: "Configuración",
-      icon: "⚙️",
-      path: "/razas",
-    })
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">

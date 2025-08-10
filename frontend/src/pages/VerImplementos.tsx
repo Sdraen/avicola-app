@@ -1,10 +1,9 @@
 "use client"
-
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { implementosAPI } from "../services/api"
 import { showDeleteConfirmation, showSuccessAlert, showErrorAlert } from "../utils/sweetAlert"
-import { Implemento } from "../types"
+import type { Implemento } from "../types"
 import ModalEditarImplemento from "../components/modals/ModalEditarImplemento"
 
 export default function VerImplementos() {
@@ -17,6 +16,10 @@ export default function VerImplementos() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [modalVisible, setModalVisible] = useState(false)
   const [implementoSeleccionado, setImplementoSeleccionado] = useState<Implemento | null>(null)
+
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 9 // 9 tarjetas por página (3x3 grid)
 
   useEffect(() => {
     fetchImplementos()
@@ -65,8 +68,37 @@ export default function VerImplementos() {
       (filterCompra === "sin_compra" && !implemento.id_compra) ||
       implemento.id_compra?.toString() === filterCompra
     const matchesCategoria = filterCategoria === "" || implemento.categoria === filterCategoria
+
     return matchesSearch && matchesCompra && matchesCategoria
   })
+
+  // Resetear a la primera página cuando cambien los filtros
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filterCompra, filterCategoria])
+
+  // Cálculos para paginación
+  const totalPages = Math.ceil(filteredImplementos.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentImplementos = filteredImplementos.slice(startIndex, endIndex)
+
+  // Funciones de navegación
+  const goToPage = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
 
   const totalImplementos = implementos.length
   const valorTotalInventario = implementos.reduce((sum, impl) => {
@@ -112,7 +144,7 @@ export default function VerImplementos() {
   }
 
   return (
-    <div className="ver-aves-container">
+    <div className="ver-aves-container flex flex-col min-h-screen">
       {modalVisible && implementoSeleccionado && (
         <ModalEditarImplemento
           implemento={implementoSeleccionado}
@@ -127,12 +159,14 @@ export default function VerImplementos() {
           <div className="header-text">
             <h1 className="table-title">Inventario de Implementos</h1>
             <p className="table-subtitle">
-              Total de implementos: {totalImplementos} | Valor total:{" "}
+              Total: {totalImplementos} | Valor total:{" "}
               {valorTotalInventario.toLocaleString("es-CL", {
                 style: "currency",
                 currency: "CLP",
                 minimumFractionDigits: 0,
-              })}
+              })}{" "}
+              | Mostrando {startIndex + 1}-{Math.min(endIndex, filteredImplementos.length)} de{" "}
+              {filteredImplementos.length}
             </p>
           </div>
         </div>
@@ -191,126 +225,193 @@ export default function VerImplementos() {
 
       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredImplementos.map((implemento) => {
-          const valorTotal = Number(implemento.cantidad) * Number(implemento.precio_unitario || 0)
-          return (
-            <div
-              key={implemento.id_implemento}
-              className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500 flex flex-col justify-between h-full"
-            >
-              <div>
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">{implemento.nombre}</h3>
-                  {implemento.estado && (
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(implemento.estado)}`}>
-                      {implemento.estado}
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  {implemento.categoria && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Categoría:</span>
-                      <span className="font-medium">{implemento.categoria}</span>
+      {/* Contenedor que crece para ocupar el espacio disponible */}
+      <div className="flex-1 flex flex-col">
+        <div className="flex-1">
+          {filteredImplementos.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              {searchTerm || filterCompra || filterCategoria
+                ? "No se encontraron implementos con los filtros aplicados"
+                : "No hay implementos en el inventario"}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {currentImplementos.map((implemento) => {
+                const valorTotal = Number(implemento.cantidad) * Number(implemento.precio_unitario || 0)
+                return (
+                  <div
+                    key={implemento.id_implemento}
+                    className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500 flex flex-col justify-between h-full"
+                  >
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900">{implemento.nombre}</h3>
+                        {implemento.estado && (
+                          <span
+                            className={`px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(implemento.estado)}`}
+                          >
+                            {implemento.estado}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        {implemento.categoria && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Categoría:</span>
+                            <span className="font-medium">{implemento.categoria}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Cantidad:</span>
+                          <span className="font-medium">{implemento.cantidad}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Precio unitario:</span>
+                          <span className="font-medium text-blue-600">
+                            {Number(implemento.precio_unitario || 0).toLocaleString("es-CL", {
+                              style: "currency",
+                              currency: "CLP",
+                              minimumFractionDigits: 0,
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Valor total:</span>
+                          <span className="font-medium text-green-600">
+                            {valorTotal.toLocaleString("es-CL", {
+                              style: "currency",
+                              currency: "CLP",
+                              minimumFractionDigits: 0,
+                            })}
+                          </span>
+                        </div>
+                        {implemento.id_compra ? (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Compra:</span>
+                            <Link to={`/ver-compras`} className="text-blue-600 hover:text-blue-800 font-medium">
+                              #{implemento.id_compra}
+                            </Link>
+                          </div>
+                        ) : (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Origen:</span>
+                            <span className="text-gray-500 italic">Registro independiente</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Fecha:</span>
+                          <span className="font-medium">
+                            {implemento.compra?.fecha
+                              ? formatFechaLocal(implemento.compra.fecha)
+                              : formatFechaLocal(implemento.fecha_registro)}
+                          </span>
+                        </div>
+                        {implemento.ubicacion && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Ubicación:</span>
+                            <span className="font-medium">{implemento.ubicacion}</span>
+                          </div>
+                        )}
+                        {implemento.compra?.proveedor && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Proveedor:</span>
+                            <span className="font-medium">{implemento.compra.proveedor}</span>
+                          </div>
+                        )}
+                      </div>
+                      {implemento.descripcion && (
+                        <div className="mt-4 p-3 bg-gray-50 rounded">
+                          <p className="text-sm text-gray-700">{implemento.descripcion}</p>
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Cantidad:</span>
-                    <span className="font-medium">{implemento.cantidad}</span>
+                    {userRole === "admin" && (
+                      <div className="mt-4 flex justify-end gap-2">
+                        <button className="btn-editar" onClick={() => openModalEditar(implemento)}>
+                          📝 Editar
+                        </button>
+                        <button className="btn-eliminar" onClick={() => handleDelete(implemento)}>
+                          🗑️ Eliminar
+                        </button>
+                      </div>
+                    )}
                   </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Precio unitario:</span>
-                    <span className="font-medium text-blue-600">
-                      {Number(implemento.precio_unitario || 0).toLocaleString("es-CL", {
-                        style: "currency",
-                        currency: "CLP",
-                        minimumFractionDigits: 0,
-                      })}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Valor total:</span>
-                    <span className="font-medium text-green-600">
-                      {valorTotal.toLocaleString("es-CL", {
-                        style: "currency",
-                        currency: "CLP",
-                        minimumFractionDigits: 0,
-                      })}
-                    </span>
-                  </div>
-
-                  {implemento.id_compra ? (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Compra:</span>
-                      <Link to={`/ver-compras`} className="text-blue-600 hover:text-blue-800 font-medium">
-                        #{implemento.id_compra}
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Origen:</span>
-                      <span className="text-gray-500 italic">Registro independiente</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Fecha:</span>
-                    <span className="font-medium">
-                      {implemento.compra?.fecha
-                        ? formatFechaLocal(implemento.compra.fecha)
-                        : formatFechaLocal(implemento.fecha_registro)}
-                    </span>
-                  </div>
-
-                  {implemento.ubicacion && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Ubicación:</span>
-                      <span className="font-medium">{implemento.ubicacion}</span>
-                    </div>
-                  )}
-
-                  {implemento.compra?.proveedor && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Proveedor:</span>
-                      <span className="font-medium">{implemento.compra.proveedor}</span>
-                    </div>
-                  )}
-                </div>
-
-                {implemento.descripcion && (
-                  <div className="mt-4 p-3 bg-gray-50 rounded">
-                    <p className="text-sm text-gray-700">{implemento.descripcion}</p>
-                  </div>
-                )}
+        {/* Paginación fija en la parte inferior */}
+        <div className="mt-auto border-t bg-white">
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+              <div className="text-sm text-gray-700">
+                Página <span className="font-medium">{currentPage}</span> de{" "}
+                <span className="font-medium">{totalPages}</span>
               </div>
 
-              {userRole === "admin" && (
-                <div className="mt-4 flex justify-end gap-2">
-                  <button className="btn-editar" onClick={() => openModalEditar(implemento)}>
-                    📝 Editar
-                  </button>
-                  <button className="btn-eliminar" onClick={() => handleDelete(implemento)}>
-                    🗑️ Eliminar
-                  </button>
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+              <div className="flex items-center space-x-2">
+                {/* Botón Anterior */}
+                <button
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-2 text-sm font-medium rounded-md ${
+                    currentPage === 1
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  ← Anterior
+                </button>
 
-      {filteredImplementos.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          {searchTerm || filterCompra || filterCategoria
-            ? "No se encontraron implementos con los filtros aplicados"
-            : "No hay implementos en el inventario"}
+                {/* Números de página */}
+                <div className="flex space-x-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNumber
+                    if (totalPages <= 5) {
+                      pageNumber = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNumber = i + 1
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNumber = totalPages - 4 + i
+                    } else {
+                      pageNumber = currentPage - 2 + i
+                    }
+
+                    return (
+                      <button
+                        key={pageNumber}
+                        onClick={() => goToPage(pageNumber)}
+                        className={`px-3 py-2 text-sm font-medium rounded-md ${
+                          currentPage === pageNumber
+                            ? "bg-blue-600 text-white"
+                            : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Botón Siguiente */}
+                <button
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-2 text-sm font-medium rounded-md ${
+                    currentPage === totalPages
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  Siguiente →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

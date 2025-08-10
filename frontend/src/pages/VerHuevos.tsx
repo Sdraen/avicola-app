@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect } from "react"
 import { huevosAPI } from "../services/api"
@@ -23,10 +22,13 @@ const VerHuevos: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedHuevoId, setSelectedHuevoId] = useState<number | null>(null)
   const [isModalBandejaOpen, setIsModalBandejaOpen] = useState(false)
-
   const [search, setSearch] = useState("")
   const [filterJaula, setFilterJaula] = useState("")
   const [filterFecha, setFilterFecha] = useState("")
+
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 9 // 9 tarjetas por página (3x3 grid)
 
   const fetchHuevos = async () => {
     try {
@@ -34,9 +36,8 @@ const VerHuevos: React.FC = () => {
       const huevosData = Array.isArray(response.data)
         ? response.data
         : Array.isArray(response.data?.data)
-        ? response.data.data
-        : []
-
+          ? response.data.data
+          : []
       const huevosConStock = huevosData.filter((huevo: Huevo) => {
         const totalDisponible =
           (huevo.huevos_cafe_chico || 0) +
@@ -49,7 +50,6 @@ const VerHuevos: React.FC = () => {
           (huevo.huevos_blanco_jumbo || 0)
         return totalDisponible > 0
       })
-
       setHuevos(huevosConStock)
       setFilteredHuevos(huevosConStock)
     } catch (err) {
@@ -69,17 +69,38 @@ const VerHuevos: React.FC = () => {
       const matchesSearch =
         huevo.jaula?.descripcion?.toLowerCase().includes(search.toLowerCase()) ||
         huevo.observaciones?.toLowerCase().includes(search.toLowerCase())
-
-      const matchesJaula =
-        !filterJaula || huevo.jaula?.descripcion?.toLowerCase().includes(filterJaula.toLowerCase())
-
-      const matchesFecha =
-        !filterFecha || formatearFechaChilena(huevo.fecha_recoleccion) === filterFecha
+      const matchesJaula = !filterJaula || huevo.jaula?.descripcion?.toLowerCase().includes(filterJaula.toLowerCase())
+      const matchesFecha = !filterFecha || formatearFechaChilena(huevo.fecha_recoleccion) === filterFecha
 
       return matchesSearch && matchesJaula && matchesFecha
     })
     setFilteredHuevos(filtered)
+    // Resetear a la primera página cuando cambian los filtros
+    setCurrentPage(1)
   }, [search, filterJaula, filterFecha, huevos])
+
+  // Cálculos para paginación
+  const totalPages = Math.ceil(filteredHuevos.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentHuevos = filteredHuevos.slice(startIndex, endIndex)
+
+  // Funciones de navegación
+  const goToPage = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
 
   const handleEdit = (huevoId: number) => {
     setSelectedHuevoId(huevoId)
@@ -101,7 +122,6 @@ const VerHuevos: React.FC = () => {
       `¿Estás seguro de que deseas eliminar el registro de huevos? Esta acción no se puede deshacer.`,
       "Sí, eliminar",
     )
-
     if (result) {
       try {
         showLoadingAlert("Eliminando registro...", "Por favor espere")
@@ -121,8 +141,8 @@ const VerHuevos: React.FC = () => {
     localStorage.getItem("user") &&
     JSON.parse(localStorage.getItem("user")!).rol === "admin"
 
-  const uniqueJaulas = Array.from(new Set(huevos.map(h => h.jaula?.descripcion || "")))
-  const uniqueFechas = Array.from(new Set(huevos.map(h => formatearFechaChilena(h.fecha_recoleccion))))
+  const uniqueJaulas = Array.from(new Set(huevos.map((h) => h.jaula?.descripcion || "")))
+  const uniqueFechas = Array.from(new Set(huevos.map((h) => formatearFechaChilena(h.fecha_recoleccion))))
 
   if (loading) {
     return (
@@ -153,13 +173,16 @@ const VerHuevos: React.FC = () => {
   }
 
   return (
-    <div className="ver-aves-container">
+    <div className="ver-aves-container flex flex-col min-h-screen">
       <div className="table-header">
         <div className="header-content">
           <div className="header-icon">🥚</div>
           <div className="header-text">
             <h1 className="table-title">Registros de Huevos</h1>
-            <p className="table-subtitle">Total: {filteredHuevos.length}</p>
+            <p className="table-subtitle">
+              Total: {filteredHuevos.length} | Mostrando {startIndex + 1}-{Math.min(endIndex, filteredHuevos.length)} de{" "}
+              {filteredHuevos.length}
+            </p>
           </div>
         </div>
         <div className="flex items-center space-x-3">
@@ -180,7 +203,11 @@ const VerHuevos: React.FC = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full md:w-1/3 px-3 py-2 border rounded-md text-sm"
         />
-        <select value={filterJaula} onChange={(e) => setFilterJaula(e.target.value)} className="px-3 py-2 border rounded-md text-sm">
+        <select
+          value={filterJaula}
+          onChange={(e) => setFilterJaula(e.target.value)}
+          className="px-3 py-2 border rounded-md text-sm"
+        >
           <option value="">Todas las jaulas</option>
           {uniqueJaulas.map((j, i) => (
             <option key={i} value={j}>
@@ -188,7 +215,11 @@ const VerHuevos: React.FC = () => {
             </option>
           ))}
         </select>
-        <select value={filterFecha} onChange={(e) => setFilterFecha(e.target.value)} className="px-3 py-2 border rounded-md text-sm">
+        <select
+          value={filterFecha}
+          onChange={(e) => setFilterFecha(e.target.value)}
+          className="px-3 py-2 border rounded-md text-sm"
+        >
           <option value="">Todas las fechas</option>
           {uniqueFechas.map((f, i) => (
             <option key={i} value={f}>
@@ -198,167 +229,234 @@ const VerHuevos: React.FC = () => {
         </select>
       </div>
 
-      <div className="space-y-6">
-        {filteredHuevos.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="flex flex-col items-center space-y-4">
-              <span className="text-6xl">🥚</span>
-              <h3 className="text-xl font-medium text-gray-900">No hay registros de huevos disponibles</h3>
-              <p className="text-gray-500">Los registros aparecerán aquí cuando tengan stock disponible</p>
+      {/* Contenedor que crece para ocupar el espacio disponible */}
+      <div className="flex-1 flex flex-col">
+        <div className="space-y-6 flex-1">
+          {filteredHuevos.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="flex flex-col items-center space-y-4">
+                <span className="text-6xl">🥚</span>
+                <h3 className="text-xl font-medium text-gray-900">No hay registros de huevos disponibles</h3>
+                <p className="text-gray-500">Los registros aparecerán aquí cuando tengan stock disponible</p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredHuevos.map((huevo) => {
-              const totalCafe =
-                (huevo.huevos_cafe_chico || 0) +
-                (huevo.huevos_cafe_mediano || 0) +
-                (huevo.huevos_cafe_grande || 0) +
-                (huevo.huevos_cafe_jumbo || 0)
-              const totalBlanco =
-                (huevo.huevos_blanco_chico || 0) +
-                (huevo.huevos_blanco_mediano || 0) +
-                (huevo.huevos_blanco_grande || 0) +
-                (huevo.huevos_blanco_jumbo || 0)
-              const totalDisponibles = totalCafe + totalBlanco
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {currentHuevos.map((huevo) => {
+                const totalCafe =
+                  (huevo.huevos_cafe_chico || 0) +
+                  (huevo.huevos_cafe_mediano || 0) +
+                  (huevo.huevos_cafe_grande || 0) +
+                  (huevo.huevos_cafe_jumbo || 0)
+                const totalBlanco =
+                  (huevo.huevos_blanco_chico || 0) +
+                  (huevo.huevos_blanco_mediano || 0) +
+                  (huevo.huevos_blanco_grande || 0) +
+                  (huevo.huevos_blanco_jumbo || 0)
+                const totalDisponibles = totalCafe + totalBlanco
 
-              return (
-                <div
-                  key={huevo.id_huevo}
-                  className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200"
-                >
-                  <div className="p-4 border-b border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {huevo.jaula?.descripcion || `Jaula ${huevo.id_jaula}`}
-                        </h3>
-                        <p className="text-sm text-gray-500">{formatearFechaChilena(huevo.fecha_recoleccion)}</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleEdit(huevo.id_huevo)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Editar registro"
-                        >
-                          ✏️
-                        </button>
-                        {isAdmin && (
+                return (
+                  <div
+                    key={huevo.id_huevo}
+                    className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200"
+                  >
+                    <div className="p-4 border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {huevo.jaula?.descripcion || `Jaula ${huevo.id_jaula}`}
+                          </h3>
+                          <p className="text-sm text-gray-500">{formatearFechaChilena(huevo.fecha_recoleccion)}</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => handleDelete(huevo.id_huevo)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Eliminar registro"
+                            onClick={() => handleEdit(huevo.id_huevo)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Editar registro"
                           >
-                            🗑️
+                            ✏️
                           </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleDelete(huevo.id_huevo)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar registro"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div className="text-center">
+                          <div className="bg-blue-50 rounded-lg p-3">
+                            <div className="text-2xl font-bold text-blue-600">{totalDisponibles}</div>
+                            <div className="text-xs text-blue-500 font-medium">Total</div>
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="bg-amber-50 rounded-lg p-3">
+                            <div className="text-2xl font-bold text-amber-700">{totalCafe}</div>
+                            <div className="text-xs text-amber-600 font-medium">🟤 Café</div>
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <div className="text-2xl font-bold text-gray-700">{totalBlanco}</div>
+                            <div className="text-xs text-gray-600 font-medium">⚪ Blanco</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        {totalCafe > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium text-amber-700 mb-2">🟤 Huevos Café</h4>
+                            <div className="grid grid-cols-4 gap-2">
+                              {huevo.huevos_cafe_chico > 0 && (
+                                <div className="bg-amber-50 rounded p-2 text-center">
+                                  <div className="text-sm font-bold text-amber-700">{huevo.huevos_cafe_chico}</div>
+                                  <div className="text-xs text-amber-600">Chico</div>
+                                </div>
+                              )}
+                              {huevo.huevos_cafe_mediano > 0 && (
+                                <div className="bg-amber-50 rounded p-2 text-center">
+                                  <div className="text-sm font-bold text-amber-700">{huevo.huevos_cafe_mediano}</div>
+                                  <div className="text-xs text-amber-600">Mediano</div>
+                                </div>
+                              )}
+                              {huevo.huevos_cafe_grande > 0 && (
+                                <div className="bg-amber-50 rounded p-2 text-center">
+                                  <div className="text-sm font-bold text-amber-700">{huevo.huevos_cafe_grande}</div>
+                                  <div className="text-xs text-amber-600">Grande</div>
+                                </div>
+                              )}
+                              {huevo.huevos_cafe_jumbo > 0 && (
+                                <div className="bg-amber-50 rounded p-2 text-center">
+                                  <div className="text-sm font-bold text-amber-700">{huevo.huevos_cafe_jumbo}</div>
+                                  <div className="text-xs text-amber-600">Jumbo</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {totalBlanco > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">⚪ Huevos Blanco</h4>
+                            <div className="grid grid-cols-4 gap-2">
+                              {huevo.huevos_blanco_chico > 0 && (
+                                <div className="bg-gray-50 rounded p-2 text-center">
+                                  <div className="text-sm font-bold text-gray-700">{huevo.huevos_blanco_chico}</div>
+                                  <div className="text-xs text-gray-600">Chico</div>
+                                </div>
+                              )}
+                              {huevo.huevos_blanco_mediano > 0 && (
+                                <div className="bg-gray-50 rounded p-2 text-center">
+                                  <div className="text-sm font-bold text-gray-700">{huevo.huevos_blanco_mediano}</div>
+                                  <div className="text-xs text-gray-600">Mediano</div>
+                                </div>
+                              )}
+                              {huevo.huevos_blanco_grande > 0 && (
+                                <div className="bg-gray-50 rounded p-2 text-center">
+                                  <div className="text-sm font-bold text-gray-700">{huevo.huevos_blanco_grande}</div>
+                                  <div className="text-xs text-gray-600">Grande</div>
+                                </div>
+                              )}
+                              {huevo.huevos_blanco_jumbo > 0 && (
+                                <div className="bg-gray-50 rounded p-2 text-center">
+                                  <div className="text-sm font-bold text-gray-700">{huevo.huevos_blanco_jumbo}</div>
+                                  <div className="text-xs text-gray-600">Jumbo</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4">
-                    <div className="grid grid-cols-3 gap-4 mb-4">
-                      <div className="text-center">
-                        <div className="bg-blue-50 rounded-lg p-3">
-                          <div className="text-2xl font-bold text-blue-600">{totalDisponibles}</div>
-                          <div className="text-xs text-blue-500 font-medium">Total</div>
-                        </div>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="bg-amber-50 rounded-lg p-3">
-                          <div className="text-2xl font-bold text-amber-700">{totalCafe}</div>
-                          <div className="text-xs text-amber-600 font-medium">🟤 Café</div>
-                        </div>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <div className="text-2xl font-bold text-gray-700">{totalBlanco}</div>
-                          <div className="text-xs text-gray-600 font-medium">⚪ Blanco</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {totalCafe > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium text-amber-700 mb-2">🟤 Huevos Café</h4>
-                          <div className="grid grid-cols-4 gap-2">
-                            {huevo.huevos_cafe_chico > 0 && (
-                              <div className="bg-amber-50 rounded p-2 text-center">
-                                <div className="text-sm font-bold text-amber-700">{huevo.huevos_cafe_chico}</div>
-                                <div className="text-xs text-amber-600">Chico</div>
-                              </div>
-                            )}
-                            {huevo.huevos_cafe_mediano > 0 && (
-                              <div className="bg-amber-50 rounded p-2 text-center">
-                                <div className="text-sm font-bold text-amber-700">{huevo.huevos_cafe_mediano}</div>
-                                <div className="text-xs text-amber-600">Mediano</div>
-                              </div>
-                            )}
-                            {huevo.huevos_cafe_grande > 0 && (
-                              <div className="bg-amber-50 rounded p-2 text-center">
-                                <div className="text-sm font-bold text-amber-700">{huevo.huevos_cafe_grande}</div>
-                                <div className="text-xs text-amber-600">Grande</div>
-                              </div>
-                            )}
-                            {huevo.huevos_cafe_jumbo > 0 && (
-                              <div className="bg-amber-50 rounded p-2 text-center">
-                                <div className="text-sm font-bold text-amber-700">{huevo.huevos_cafe_jumbo}</div>
-                                <div className="text-xs text-amber-600">Jumbo</div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {totalBlanco > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">⚪ Huevos Blanco</h4>
-                          <div className="grid grid-cols-4 gap-2">
-                            {huevo.huevos_blanco_chico > 0 && (
-                              <div className="bg-gray-50 rounded p-2 text-center">
-                                <div className="text-sm font-bold text-gray-700">{huevo.huevos_blanco_chico}</div>
-                                <div className="text-xs text-gray-600">Chico</div>
-                              </div>
-                            )}
-                            {huevo.huevos_blanco_mediano > 0 && (
-                              <div className="bg-gray-50 rounded p-2 text-center">
-                                <div className="text-sm font-bold text-gray-700">{huevo.huevos_blanco_mediano}</div>
-                                <div className="text-xs text-gray-600">Mediano</div>
-                              </div>
-                            )}
-                            {huevo.huevos_blanco_grande > 0 && (
-                              <div className="bg-gray-50 rounded p-2 text-center">
-                                <div className="text-sm font-bold text-gray-700">{huevo.huevos_blanco_grande}</div>
-                                <div className="text-xs text-gray-600">Grande</div>
-                              </div>
-                            )}
-                            {huevo.huevos_blanco_jumbo > 0 && (
-                              <div className="bg-gray-50 rounded p-2 text-center">
-                                <div className="text-sm font-bold text-gray-700">{huevo.huevos_blanco_jumbo}</div>
-                                <div className="text-xs text-gray-600">Jumbo</div>
-                              </div>
-                            )}
-                          </div>
+                      {huevo.observaciones && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Observaciones:</span> {huevo.observaciones}
+                          </p>
                         </div>
                       )}
                     </div>
-
-                    {huevo.observaciones && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-sm text-gray-600">
-                          <span className="font-medium">Observaciones:</span> {huevo.observaciones}
-                        </p>
-                      </div>
-                    )}
                   </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Paginación fija en la parte inferior */}
+        <div className="mt-auto border-t bg-white">
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+              <div className="text-sm text-gray-700">
+                Página <span className="font-medium">{currentPage}</span> de{" "}
+                <span className="font-medium">{totalPages}</span>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                {/* Botón Anterior */}
+                <button
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-2 text-sm font-medium rounded-md ${
+                    currentPage === 1
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  ← Anterior
+                </button>
+
+                {/* Números de página */}
+                <div className="flex space-x-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNumber
+                    if (totalPages <= 5) {
+                      pageNumber = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNumber = i + 1
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNumber = totalPages - 4 + i
+                    } else {
+                      pageNumber = currentPage - 2 + i
+                    }
+
+                    return (
+                      <button
+                        key={pageNumber}
+                        onClick={() => goToPage(pageNumber)}
+                        className={`px-3 py-2 text-sm font-medium rounded-md ${
+                          currentPage === pageNumber
+                            ? "bg-blue-600 text-white"
+                            : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    )
+                  })}
                 </div>
-              )
-            })}
-          </div>
-        )}
+
+                {/* Botón Siguiente */}
+                <button
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-2 text-sm font-medium rounded-md ${
+                    currentPage === totalPages
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  Siguiente →
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {isEditModalOpen && selectedHuevoId && (
@@ -369,7 +467,6 @@ const VerHuevos: React.FC = () => {
           onUpdate={handleUpdateSuccess}
         />
       )}
-
       {isModalBandejaOpen && (
         <ModalArmarBandeja
           isOpen={isModalBandejaOpen}

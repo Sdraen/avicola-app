@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect } from "react"
 import { clientesAPI } from "../services/api"
@@ -17,12 +16,18 @@ const VerClientes: React.FC = () => {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [expandedClientes, setExpandedClientes] = useState<number[]>([])
 
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
   const fetchClientes = async () => {
     try {
       setLoading(true)
       const response = await clientesAPI.getAll()
       setClientes(response.data)
       setError("")
+      // Resetear a la primera página cuando se cargan todos los clientes
+      setCurrentPage(1)
     } catch (err: any) {
       setError("Error al cargar los clientes")
       console.error("Error fetching clientes:", err)
@@ -40,11 +45,36 @@ const VerClientes: React.FC = () => {
     }
   }, [])
 
+  // Cálculos para paginación
+  const totalPages = Math.ceil(clientes.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentClientes = clientes.slice(startIndex, endIndex)
+
+  // Funciones de navegación
+  const goToPage = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
+
   const handleSearch = async () => {
     if (searchTerm.trim()) {
       try {
         const response = await clientesAPI.search(searchTerm)
         setClientes(response.data)
+        // Resetear a la primera página cuando se hace una búsqueda
+        setCurrentPage(1)
       } catch (err) {
         console.error("Error searching clientes:", err)
       }
@@ -83,12 +113,10 @@ const VerClientes: React.FC = () => {
       reverseButtons: true,
       focusCancel: true,
     })
-
     if (result.isConfirmed) {
       try {
         await clientesAPI.delete(id)
         setClientes((prev) => prev.filter((cliente) => cliente.id_cliente !== id))
-
         Swal.fire({
           title: "¡Eliminado!",
           text: "El cliente ha sido eliminado correctamente.",
@@ -121,9 +149,7 @@ const VerClientes: React.FC = () => {
   }
 
   const toggleDireccionExpand = (id: number) => {
-    setExpandedClientes(prev =>
-      prev.includes(id) ? prev.filter(clienteId => clienteId !== id) : [...prev, id]
-    )
+    setExpandedClientes((prev) => (prev.includes(id) ? prev.filter((clienteId) => clienteId !== id) : [...prev, id]))
   }
 
   if (loading) {
@@ -154,13 +180,16 @@ const VerClientes: React.FC = () => {
   }
 
   return (
-    <div className="ver-aves-container">
+    <div className="ver-aves-container flex flex-col min-h-screen">
       <div className="table-header">
         <div className="header-content">
           <div className="header-icon">👥</div>
           <div className="header-text">
             <h1 className="table-title">Listado de Clientes</h1>
-            <p className="table-subtitle">Total de clientes registrados: {clientes.length}</p>
+            <p className="table-subtitle">
+              Total de clientes: {clientes.length} | Mostrando {startIndex + 1}-{Math.min(endIndex, clientes.length)} de{" "}
+              {clientes.length}
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -188,102 +217,174 @@ const VerClientes: React.FC = () => {
           <p className="text-gray-600">Comienza agregando tu primer cliente al sistema.</p>
         </div>
       ) : (
-        <div className="table-container">
-          <table className="tabla-aves">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Dirección</th>
-                <th>Teléfono</th>
-                <th>Tipo</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clientes.map((cliente) => (
-                <tr key={cliente.id_cliente} className="table-row">
-                  <td className="table-cell especie-cell">
-                    <div className="flex items-center">
-                      <span className="text-2xl mr-2">👤</span>
-                      {cliente.nombre}
-                    </div>
-                  </td>
-                  <td className="table-cell">
-                    {cliente.direccion ? (
-                      <div className="max-w-md text-sm text-gray-800">
-                        <div className="flex items-center">
-                          <span className="text-sm mr-1">📍</span>
-                          {expandedClientes.includes(cliente.id_cliente)
-                            ? cliente.direccion
-                            : cliente.direccion.length > 40
-                              ? cliente.direccion.slice(0, 40) + "..."
-                              : cliente.direccion}
-                        </div>
-                        {cliente.direccion.length > 40 && (
-                          <button
-                            className="ml-5 text-blue-500 hover:underline text-xs"
-                            onClick={() => toggleDireccionExpand(cliente.id_cliente)}
-                          >
-                            {expandedClientes.includes(cliente.id_cliente) ? "ver menos" : "ver más"}
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">Sin dirección</span>
-                    )}
-                  </td>
-                  <td className="table-cell">
-                    {cliente.telefono ? (
-                      <span className="flex items-center">
-                        <span className="text-sm mr-1">📞</span>
-                        {cliente.telefono}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">Sin teléfono</span>
-                    )}
-                  </td>
-                  <td className="table-cell">
-                    <span
-                      className={`cantidad-badge ${
-                        cliente.tipo_cliente === "mayorista"
-                          ? "bg-purple-100 text-purple-800"
-                          : cliente.tipo_cliente === "minorista"
-                          ? "bg-blue-100 text-blue-800"
-                          : cliente.tipo_cliente === "distribuidor"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {cliente.tipo_cliente === "mayorista" && "🏢"}
-                      {cliente.tipo_cliente === "minorista" && "🛒"}
-                      {cliente.tipo_cliente === "distribuidor" && "🚚"}
-                      {!cliente.tipo_cliente && "👤"} {cliente.tipo_cliente || "General"}
-                    </span>
-                  </td>
-                  <td className="table-cell acciones-cell">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(cliente.id_cliente)}
-                        className="btn-editar"
-                        title="Editar cliente"
-                      >
-                        ✏️ Editar
-                      </button>
-                      {userRole === "admin" && (
-                        <button
-                          onClick={() => handleDelete(cliente.id_cliente, cliente.nombre)}
-                          className="btn-eliminar"
-                          title="Eliminar cliente"
-                        >
-                          🗑️ Eliminar
-                        </button>
-                      )}
-                    </div>
-                  </td>
+        <div className="flex-1 flex flex-col">
+          <div className="table-container flex-1">
+            <table className="tabla-aves">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Dirección</th>
+                  <th>Teléfono</th>
+                  <th>Tipo</th>
+                  {userRole === "admin" && <th>Acciones</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {currentClientes.map((cliente) => (
+                  <tr key={cliente.id_cliente} className="table-row">
+                    <td className="table-cell especie-cell">
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-2">👤</span>
+                        {cliente.nombre}
+                      </div>
+                    </td>
+                    <td className="table-cell">
+                      {cliente.direccion ? (
+                        <div className="max-w-md text-sm text-gray-800">
+                          <div className="flex items-center">
+                            <span className="text-sm mr-1">📍</span>
+                            {expandedClientes.includes(cliente.id_cliente)
+                              ? cliente.direccion
+                              : cliente.direccion.length > 40
+                                ? cliente.direccion.slice(0, 40) + "..."
+                                : cliente.direccion}
+                          </div>
+                          {cliente.direccion.length > 40 && (
+                            <button
+                              className="ml-5 text-blue-500 hover:underline text-xs"
+                              onClick={() => toggleDireccionExpand(cliente.id_cliente)}
+                            >
+                              {expandedClientes.includes(cliente.id_cliente) ? "ver menos" : "ver más"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">Sin dirección</span>
+                      )}
+                    </td>
+                    <td className="table-cell">
+                      {cliente.telefono ? (
+                        <span className="flex items-center">
+                          <span className="text-sm mr-1">📞</span>
+                          {cliente.telefono}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Sin teléfono</span>
+                      )}
+                    </td>
+                    <td className="table-cell">
+                      <span
+                        className={`cantidad-badge ${
+                          cliente.tipo_cliente === "mayorista"
+                            ? "bg-purple-100 text-purple-800"
+                            : cliente.tipo_cliente === "minorista"
+                              ? "bg-blue-100 text-blue-800"
+                              : cliente.tipo_cliente === "distribuidor"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {cliente.tipo_cliente === "mayorista" && "🏢"}
+                        {cliente.tipo_cliente === "minorista" && "🛒"}
+                        {cliente.tipo_cliente === "distribuidor" && "🚚"}
+                        {!cliente.tipo_cliente && "👤"} {cliente.tipo_cliente || "General"}
+                      </span>
+                    </td>
+                    {userRole === "admin" && (
+                      <td className="table-cell acciones-cell">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(cliente.id_cliente)}
+                            className="btn-editar"
+                            title="Editar cliente"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            onClick={() => handleDelete(cliente.id_cliente, cliente.nombre)}
+                            className="btn-eliminar"
+                            title="Eliminar cliente"
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Paginación fija en la parte inferior */}
+          <div className="mt-auto border-t bg-white">
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+                <div className="text-sm text-gray-700">
+                  Página <span className="font-medium">{currentPage}</span> de{" "}
+                  <span className="font-medium">{totalPages}</span>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  {/* Botón Anterior */}
+                  <button
+                    onClick={goToPreviousPage}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-2 text-sm font-medium rounded-md ${
+                      currentPage === 1
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    ← Anterior
+                  </button>
+
+                  {/* Números de página */}
+                  <div className="flex space-x-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNumber
+                      if (totalPages <= 5) {
+                        pageNumber = i + 1
+                      } else if (currentPage <= 3) {
+                        pageNumber = i + 1
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNumber = totalPages - 4 + i
+                      } else {
+                        pageNumber = currentPage - 2 + i
+                      }
+
+                      return (
+                        <button
+                          key={pageNumber}
+                          onClick={() => goToPage(pageNumber)}
+                          className={`px-3 py-2 text-sm font-medium rounded-md ${
+                            currentPage === pageNumber
+                              ? "bg-blue-600 text-white"
+                              : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          {pageNumber}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Botón Siguiente */}
+                  <button
+                    onClick={goToNextPage}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-2 text-sm font-medium rounded-md ${
+                      currentPage === totalPages
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
