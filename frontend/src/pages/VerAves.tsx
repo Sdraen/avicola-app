@@ -1,7 +1,6 @@
 "use client"
-
 import type React from "react"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { avesAPI } from "../services/api"
 import type { Ave } from "../types"
 import ModalEditarAve from "../components/modals/ModalEditarAve"
@@ -20,10 +19,8 @@ const calcularEdadSemanas = (edadInicial: string | number, fechaRegistro: string
   const hoy = new Date()
   const inicio = new Date(fechaRegistro)
   const semanasPasadas = Math.floor((hoy.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 7))
-
-  const edadBase = typeof edadInicial === "string" ? parseInt(edadInicial) : edadInicial
+  const edadBase = typeof edadInicial === "string" ? Number.parseInt(edadInicial) : edadInicial
   const edadTotal = isNaN(edadBase) ? semanasPasadas : edadBase + semanasPasadas
-
   return `${edadTotal} semanas`
 }
 
@@ -39,53 +36,22 @@ const VerAves: React.FC = () => {
   const [isRegistroClinicoModalOpen, setIsRegistroClinicoModalOpen] = useState(false)
   const [isFallecimientoModalOpen, setIsFallecimientoModalOpen] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
-
-  // Filtros / búsqueda
   const [search, setSearch] = useState("")
   const [filterJaula, setFilterJaula] = useState("")
   const [filterEstado, setFilterEstado] = useState("")
   const [filterRaza, setFilterRaza] = useState("")
 
-  // ---------------------------
-  // Paginación
-  // ---------------------------
-  const [currentPage, setCurrentPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(10)
-
-  const totalItems = filteredAves.length
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-
-  const startIdx = (currentPage - 1) * pageSize
-  const endIdx = Math.min(startIdx + pageSize, totalItems)
-
-  const pageItems = useMemo(() => filteredAves.slice(startIdx, endIdx), [filteredAves, startIdx, endIdx])
-
-  const goToPage = (p: number) => {
-    const safe = Math.min(Math.max(1, p), totalPages)
-    setCurrentPage(safe)
-  }
-
-  // Reset a página 1 cuando cambian filtros/búsqueda o la data
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [search, filterJaula, filterEstado, filterRaza, aves])
-
-  // Ajuste si disminuye el total de páginas
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages)
-    }
-  }, [totalPages, currentPage])
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   const fetchAves = async () => {
     try {
       const response = await avesAPI.getAll()
-
       const avesConEdadCalculada = response.data.map((ave: Ave) => ({
         ...ave,
         edad: calcularEdadSemanas(ave.edad, ave.fecha_registro),
       }))
-
       setAves(avesConEdadCalculada)
       setFilteredAves(avesConEdadCalculada)
     } catch (err: any) {
@@ -111,20 +77,42 @@ const VerAves: React.FC = () => {
         ave.id_anillo.toLowerCase().includes(search.toLowerCase()) ||
         ave.color_anillo.toLowerCase().includes(search.toLowerCase()) ||
         ave.raza.toLowerCase().includes(search.toLowerCase())
-
       const matchesJaula =
         !filterJaula ||
         ave.jaula?.descripcion?.toLowerCase().includes(filterJaula.toLowerCase()) ||
         ave.jaula?.codigo_jaula?.toLowerCase().includes(filterJaula.toLowerCase())
-
       const matchesEstado = !filterEstado || ave.estado_puesta.toLowerCase() === filterEstado.toLowerCase()
       const matchesRaza = !filterRaza || ave.raza.toLowerCase() === filterRaza.toLowerCase()
 
       return matchesSearch && matchesJaula && matchesEstado && matchesRaza
     })
-
     setFilteredAves(filtered)
+    // Resetear a la primera página cuando cambian los filtros
+    setCurrentPage(1)
   }, [search, filterJaula, filterEstado, filterRaza, aves])
+
+  // Cálculos para paginación
+  const totalPages = Math.ceil(filteredAves.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentAves = filteredAves.slice(startIndex, endIndex)
+
+  // Funciones de navegación
+  const goToPage = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
 
   const handleEdit = (aveId: number) => {
     setSelectedAveId(aveId)
@@ -170,9 +158,8 @@ const VerAves: React.FC = () => {
     const result = await showDeleteConfirmation(
       "¿Eliminar ave?",
       `¿Estás seguro de que deseas eliminar el ave con ID Anillo #${id_anillo}? Esta acción no se puede deshacer.`,
-      "Sí, eliminar"
+      "Sí, eliminar",
     )
-
     if (result) {
       try {
         showLoadingAlert("Eliminando ave...", "Por favor espere")
@@ -193,25 +180,11 @@ const VerAves: React.FC = () => {
   }
 
   const uniqueEstados = Array.from(new Set(aves.map((a) => a.estado_puesta)))
-  const uniqueJaulas = Array.from(
-    new Set(aves.map((a) => a.jaula?.descripcion || a.jaula?.codigo_jaula || ""))
-  )
+  const uniqueJaulas = Array.from(new Set(aves.map((a) => a.jaula?.descripcion || a.jaula?.codigo_jaula || "")))
   const uniqueRazas = Array.from(new Set(aves.map((a) => a.raza)))
 
   if (loading) return <div className="text-center py-4">Cargando aves...</div>
   if (error) return <div className="text-center text-red-600 py-4">{error}</div>
-
-  // Helper para botones de páginas (ventana de hasta 5 páginas alrededor de la actual)
-  const pageNumbers = useMemo(() => {
-    const windowSize = 5
-    const half = Math.floor(windowSize / 2)
-    let start = Math.max(1, currentPage - half)
-    let end = Math.min(totalPages, start + windowSize - 1)
-    if (end - start + 1 < windowSize) {
-      start = Math.max(1, end - windowSize + 1)
-    }
-    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
-  }, [currentPage, totalPages])
 
   return (
     <div className="ver-aves-container">
@@ -221,19 +194,15 @@ const VerAves: React.FC = () => {
           <div className="header-text">
             <h1 className="table-title">Listado de Aves</h1>
             <p className="table-subtitle">
-              Total filtrado: {totalItems}
-              {totalItems > 0 && (
-                <span className="ml-2 text-gray-500">
-                  (Mostrando {startIdx + 1}–{endIdx})
-                </span>
-              )}
+              Total de aves: {filteredAves.length} | Mostrando {startIndex + 1}-
+              {Math.min(endIndex, filteredAves.length)} de {filteredAves.length}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Filtros y controles */}
       <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
+        {/* Filtros existentes - sin cambios */}
         <input
           type="text"
           placeholder="🔍 Buscar por anillo, raza o color..."
@@ -241,7 +210,6 @@ const VerAves: React.FC = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full md:w-1/3 px-3 py-2 border rounded-md text-sm"
         />
-
         <select
           value={filterJaula}
           onChange={(e) => setFilterJaula(e.target.value)}
@@ -254,7 +222,6 @@ const VerAves: React.FC = () => {
             </option>
           ))}
         </select>
-
         <select
           value={filterEstado}
           onChange={(e) => setFilterEstado(e.target.value)}
@@ -267,7 +234,6 @@ const VerAves: React.FC = () => {
             </option>
           ))}
         </select>
-
         <select
           value={filterRaza}
           onChange={(e) => setFilterRaza(e.target.value)}
@@ -280,46 +246,25 @@ const VerAves: React.FC = () => {
             </option>
           ))}
         </select>
-
-        {/* Tamaño de página */}
-        <div className="ml-auto flex items-center gap-2">
-          <label className="text-sm text-gray-600">Por página:</label>
-          <select
-            value={pageSize}
-            onChange={(e) => setPageSize(parseInt(e.target.value))}
-            className="px-3 py-2 border rounded-md text-sm"
-          >
-            {[10, 20, 50, 100].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
-      <div className="table-container overflow-x-auto">
-        <table className="tabla-aves text-sm w-full">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-2 text-left">ID Anillo</th>
-              <th className="p-2 text-left">Color Anillo</th>
-              <th className="p-2 text-left">Raza</th>
-              <th className="p-2 text-left">Edad</th>
-              <th className="p-2 text-left">Estado Puesta</th>
-              <th className="p-2 text-left">Jaula</th>
-              <th className="p-2 text-left">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageItems.length === 0 ? (
+      {/* Contenedor de tabla que crece para ocupar el espacio disponible */}
+      <div className="">
+        <div className="table-container overflow-x-auto">
+          <table className="tabla-aves text-sm w-full">
+            <thead className="bg-gray-100">
               <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500">
-                  No se encontraron aves con los filtros aplicados.
-                </td>
+                <th className="p-2 text-left">ID Anillo</th>
+                <th className="p-2 text-left">Color Anillo</th>
+                <th className="p-2 text-left">Raza</th>
+                <th className="p-2 text-left">Edad</th>
+                <th className="p-2 text-left">Estado Puesta</th>
+                <th className="p-2 text-left">Jaula</th>
+                <th className="p-2 text-left">Acciones</th>
               </tr>
-            ) : (
-              pageItems.map((ave) => (
+            </thead>
+            <tbody>
+              {currentAves.map((ave) => (
                 <tr key={ave.id_ave} className="border-b hover:bg-gray-50">
                   <td className="p-2">{ave.id_anillo}</td>
                   <td className="p-2">{ave.color_anillo}</td>
@@ -371,94 +316,87 @@ const VerAves: React.FC = () => {
                     </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Controles de paginación */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-gray-600">
-          {totalItems > 0
-            ? `Mostrando ${startIdx + 1}–${endIdx} de ${totalItems} aves`
-            : "Sin resultados"}
+              ))}
+            </tbody>
+          </table>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            className="px-3 py-1 border rounded disabled:opacity-50"
-            onClick={() => goToPage(1)}
-            disabled={currentPage === 1}
-            aria-label="Primera página"
-            title="Primera"
-          >
-            «
-          </button>
-          <button
-            className="px-3 py-1 border rounded disabled:opacity-50"
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={currentPage === 1}
-            aria-label="Anterior"
-            title="Anterior"
-          >
-            ‹
-          </button>
+        {/* Paginación justo después de la tabla */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+            <div className="text-sm text-gray-700">
+              Página <span className="font-medium">{currentPage}</span> de{" "}
+              <span className="font-medium">{totalPages}</span>
+            </div>
 
-          {pageNumbers.map((p) => (
-            <button
-              key={p}
-              className={`px-3 py-1 border rounded ${
-                p === currentPage ? "bg-gray-800 text-white" : "bg-white"
-              }`}
-              onClick={() => goToPage(p)}
-              aria-current={p === currentPage ? "page" : undefined}
-              title={`Página ${p}`}
-            >
-              {p}
-            </button>
-          ))}
+            <div className="flex items-center space-x-2">
+              {/* Botón Anterior */}
+              <button
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  currentPage === 1
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                ← Anterior
+              </button>
 
-          <button
-            className="px-3 py-1 border rounded disabled:opacity-50"
-            onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage === totalPages || totalItems === 0}
-            aria-label="Siguiente"
-            title="Siguiente"
-          >
-            ›
-          </button>
-          <button
-            className="px-3 py-1 border rounded disabled:opacity-50"
-            onClick={() => goToPage(totalPages)}
-            disabled={currentPage === totalPages || totalItems === 0}
-            aria-label="Última página"
-            title="Última"
-          >
-            »
-          </button>
+              {/* Números de página */}
+              <div className="flex space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNumber
+                  if (totalPages <= 5) {
+                    pageNumber = i + 1
+                  } else if (currentPage <= 3) {
+                    pageNumber = i + 1
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNumber = totalPages - 4 + i
+                  } else {
+                    pageNumber = currentPage - 2 + i
+                  }
 
-          {/* Ir a página */}
-          <div className="ml-2 flex items-center gap-1">
-            <label htmlFor="goto" className="text-sm text-gray-600">Ir a:</label>
-            <input
-              id="goto"
-              type="number"
-              min={1}
-              max={totalPages}
-              value={currentPage}
-              onChange={(e) => {
-                const v = Number(e.target.value)
-                if (!Number.isNaN(v)) goToPage(v)
-              }}
-              className="w-16 px-2 py-1 border rounded text-sm"
-            />
-            <span className="text-sm text-gray-600">/ {totalPages}</span>
+                  return (
+                    <button
+                      key={pageNumber}
+                      onClick={() => goToPage(pageNumber)}
+                      className={`px-3 py-2 text-sm font-medium rounded-md ${
+                        currentPage === pageNumber
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {pageNumber}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Botón Siguiente */}
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  currentPage === totalPages
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                Siguiente →
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      <ModalEditarAve isOpen={isEditModalOpen} aveId={selectedAveId!} onClose={handleCloseEditModal} onUpdate={fetchAves} />
+      {/* Modales - sin cambios */}
+      <ModalEditarAve
+        isOpen={isEditModalOpen}
+        aveId={selectedAveId!}
+        onClose={handleCloseEditModal}
+        onUpdate={fetchAves}
+      />
       {selectedAve && (
         <ModalHistorialClinico
           isOpen={isHistorialModalOpen}

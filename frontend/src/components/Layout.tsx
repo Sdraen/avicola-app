@@ -10,6 +10,7 @@ const Layout: React.FC = () => {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set())
   const userMenuRef = useRef<HTMLDivElement | null>(null)
 
   const isActive = (path: string) => {
@@ -22,6 +23,18 @@ const Layout: React.FC = () => {
 
   const closeSidebar = () => {
     setSidebarOpen(false)
+  }
+
+  const toggleMenu = (menuPath: string) => {
+    setExpandedMenus((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(menuPath)) {
+        newSet.delete(menuPath)
+      } else {
+        newSet.add(menuPath)
+      }
+      return newSet
+    })
   }
 
   // Cierra menú usuario al hacer clic fuera
@@ -167,7 +180,6 @@ const Layout: React.FC = () => {
               </button>
               <h1 className="text-xl font-bold text-gray-900">🐔 Sistema Avícola Santa Luisa</h1>
             </div>
-
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setUserMenuOpen((prev) => !prev)}
@@ -180,16 +192,10 @@ const Layout: React.FC = () => {
                   <span className="font-medium">{user?.email}</span>
                   <span className="text-xs text-gray-500 capitalize">{user?.rol}</span>
                 </div>
-                <svg
-                  className="w-4 h-4 ml-1 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="w-4 h-4 ml-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-
               {userMenuOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border">
                   <button
@@ -233,44 +239,85 @@ const Layout: React.FC = () => {
           <ul className="space-y-2">
             {menuItems.map((item) => (
               <li key={item.path}>
-                <Link
-                  to={item.path}
-                  onClick={closeSidebar}
-                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-150 ${
-                    isActive(item.path)
-                      ? "bg-blue-100 text-blue-700 shadow-sm"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <span className="mr-3 text-lg">{item.icon}</span>
-                  <span className="flex-1">{item.title}</span>
-                  {item.submenu && (
-                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  )}
-                </Link>
-                {item.submenu && (
-                  <ul className="ml-8 mt-2 space-y-1">
-                    {item.submenu.map((subItem) => (
-                      <li key={subItem.path}>
-                        <Link
-                          to={subItem.path}
-                          onClick={closeSidebar}
-                          className={`block px-4 py-2 text-sm rounded-md transition-all duration-150 ${
-                            isActive(subItem.path)
-                              ? "bg-blue-50 text-blue-600 font-medium"
-                              : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                {item.submenu ? (
+                  // Menu item with submenu - collapsible
+                  <div>
+                    <div className="flex items-center">
+                      <Link
+                        to={item.path}
+                        onClick={closeSidebar}
+                        className={`flex-1 flex items-center px-4 py-3 text-sm font-medium rounded-l-lg transition-all duration-150 ${
+                          isActive(item.path)
+                            ? "bg-blue-100 text-blue-700 shadow-sm"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        }`}
+                      >
+                        <span className="mr-3 text-lg">{item.icon}</span>
+                        <span className="flex-1 text-left">{item.title}</span>
+                      </Link>
+                      <button
+                        onClick={() => toggleMenu(item.path)}
+                        className={`px-2 py-3 text-sm font-medium rounded-r-lg transition-all duration-150 ${
+                          isActive(item.path)
+                            ? "bg-blue-100 text-blue-700 shadow-sm"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        }`}
+                      >
+                        <svg
+                          className={`w-4 h-4 transition-transform duration-200 ${
+                            expandedMenus.has(item.path) ? "rotate-90" : "rotate-0"
                           }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
                         >
-                          <span className="flex items-center">
-                            <span className="w-2 h-2 bg-gray-300 rounded-full mr-3"></span>
-                            {subItem.title}
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Submenu with smooth animation */}
+                    <div
+                      className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                        expandedMenus.has(item.path) ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      <ul className="ml-8 mt-2 space-y-1">
+                        {item.submenu.map((subItem) => (
+                          <li key={subItem.path}>
+                            <Link
+                              to={subItem.path}
+                              onClick={closeSidebar}
+                              className={`block px-4 py-2 text-sm rounded-md transition-all duration-150 ${
+                                isActive(subItem.path)
+                                  ? "bg-blue-50 text-blue-600 font-medium"
+                                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                              }`}
+                            >
+                              <span className="flex items-center">
+                                <span className="w-2 h-2 bg-gray-300 rounded-full mr-3"></span>
+                                {subItem.title}
+                              </span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  // Regular menu item without submenu
+                  <Link
+                    to={item.path}
+                    onClick={closeSidebar}
+                    className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-150 ${
+                      isActive(item.path)
+                        ? "bg-blue-100 text-blue-700 shadow-sm"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
+                  >
+                    <span className="mr-3 text-lg">{item.icon}</span>
+                    <span className="flex-1">{item.title}</span>
+                  </Link>
                 )}
               </li>
             ))}
