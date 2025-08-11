@@ -25,11 +25,17 @@ export interface Ave {
   id_jaula: number
   id_anillo: string
   color_anillo: string
-  edad: string
+  fecha_nacimiento: string // Nuevo campo obligatorio
   estado_puesta: string
   fecha_registro: string
   raza: string
   jaula?: Jaula
+  // Campos calculados que vienen del backend
+  edad_calculada_dias?: number
+  edad_calculada_semanas?: number
+  edad_calculada_meses?: number
+  edad_calculada_anos?: number
+  edad_texto?: string
 }
 
 export interface Jaula {
@@ -175,7 +181,6 @@ export interface HistorialClinico {
   esta_fallecida: boolean
 }
 
-
 export interface Medicamento {
   id_medicamento: number
   nombre: string
@@ -253,7 +258,7 @@ export interface User {
 export interface AveFormData {
   id_jaula: number
   color_anillo: string
-  edad: string
+  fecha_nacimiento: string // Cambiado de edad a fecha_nacimiento
   estado_puesta: string
   raza: string
 }
@@ -266,6 +271,8 @@ export interface DashboardStats {
   totalEggs: number
   totalSales: number
   totalRevenue: number
+  edadPromedio?: number
+  avesConFechaNacimiento?: number
 }
 
 export interface VentaFormData {

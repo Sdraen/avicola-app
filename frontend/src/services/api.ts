@@ -1,7 +1,7 @@
 import axios from "axios"
 import { processApiError } from "../utils/errorHandler"
 
-const API_BASE_URL = "http://146.83.198.35:1705/api";
+const API_BASE_URL = "http://146.83.198.35:1705/api"
 
 // Configuración base de axios
 const api = axios.create({
@@ -31,25 +31,19 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
-
     // Si es error 401 y no hemos intentado refrescar ya
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
-
       console.log("🔄 Error 401 detectado, limpiando sesión")
-
       // Limpiar sesión inmediatamente
       localStorage.removeItem("token")
       localStorage.removeItem("user")
-
       // Redirigir al login solo si no estamos ya ahí
       if (!window.location.pathname.includes("/login")) {
         window.location.href = "/login"
       }
-
       return Promise.reject(processApiError(error))
     }
-
     // Si es error de red o timeout
     if (error.code === "ECONNABORTED" || error.message === "Network Error") {
       console.log("🌐 Error de conexión detectado")
@@ -59,7 +53,6 @@ api.interceptors.response.use(
         message: "Error de conexión. Verifica tu internet y que el servidor esté funcionando.",
       })
     }
-
     return Promise.reject(processApiError(error))
   },
 )
@@ -74,7 +67,7 @@ export const authAPI = {
   checkEmailAvailability: (email: string) => api.get(`/auth/email/check/${email}`),
 }
 
-// Servicios de aves
+// Servicios de aves - ACTUALIZADO
 export const avesAPI = {
   getAll: () => api.get("/aves"),
   getById: (id: number) => api.get(`/aves/${id}`),
@@ -82,7 +75,7 @@ export const avesAPI = {
     id_jaula: number
     id_anillo: string
     color_anillo: string
-    edad: string
+    fecha_nacimiento: string // Cambiado de edad a fecha_nacimiento
     estado_puesta: string
     raza: string
   }) => api.post("/aves", data),
@@ -211,7 +204,6 @@ export const aveClinicaAPI = {
   eliminarFallecimiento: (id_ave: number) => api.delete(`/ave-clinica/fallecimiento/${id_ave}`),
 }
 
-
 // Servicios de medicamentos
 export const medicamentosAPI = {
   getAll: () => api.get("/medicamentos"),
@@ -247,7 +239,6 @@ export const incubacionAPI = {
   getByIncubadora: (id_incubadora: number) => api.get(`/incubacion/incubadora/${id_incubadora}`),
   getStats: () => api.get("/incubacion/stats/overview"),
 }
-
 
 // Servicios de registro de huevos diario
 export const registroHuevosAPI = {

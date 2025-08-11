@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { implementosAPI } from "../services/api"
 import { showDeleteConfirmation, showSuccessAlert, showErrorAlert } from "../utils/sweetAlert"
+import { formatearFechaChilena } from "./../utils/formatoFecha"
 import type { Implemento } from "../types"
 import ModalEditarImplemento from "../components/modals/ModalEditarImplemento"
 
@@ -104,13 +105,6 @@ export default function VerImplementos() {
   const valorTotalInventario = implementos.reduce((sum, impl) => {
     return sum + Number(impl.cantidad) * Number(impl.precio_unitario || 0)
   }, 0)
-
-  const formatFechaLocal = (fechaISO?: string): string => {
-    if (!fechaISO) return "N/A"
-    const raw = new Date(fechaISO)
-    const local = new Date(raw.getTime() + raw.getTimezoneOffset() * 60000)
-    return local.toLocaleDateString("es-CL")
-  }
 
   const getEstadoColor = (estado?: string) => {
     switch (estado?.toLowerCase()) {
@@ -302,8 +296,10 @@ export default function VerImplementos() {
                           <span className="text-gray-600">Fecha:</span>
                           <span className="font-medium">
                             {implemento.compra?.fecha
-                              ? formatFechaLocal(implemento.compra.fecha)
-                              : formatFechaLocal(implemento.fecha_registro)}
+                              ? formatearFechaChilena(implemento.compra.fecha)
+                              : implemento.fecha_registro
+                                ? formatearFechaChilena(implemento.fecha_registro)
+                                : "N/A"}
                           </span>
                         </div>
                         {implemento.ubicacion && (
@@ -341,7 +337,6 @@ export default function VerImplementos() {
             </div>
           )}
         </div>
-
         {/* Paginación fija en la parte inferior */}
         <div className="mt-auto border-t bg-white">
           {totalPages > 1 && (
@@ -350,7 +345,6 @@ export default function VerImplementos() {
                 Página <span className="font-medium">{currentPage}</span> de{" "}
                 <span className="font-medium">{totalPages}</span>
               </div>
-
               <div className="flex items-center space-x-2">
                 {/* Botón Anterior */}
                 <button
@@ -364,7 +358,6 @@ export default function VerImplementos() {
                 >
                   ← Anterior
                 </button>
-
                 {/* Números de página */}
                 <div className="flex space-x-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -378,7 +371,6 @@ export default function VerImplementos() {
                     } else {
                       pageNumber = currentPage - 2 + i
                     }
-
                     return (
                       <button
                         key={pageNumber}
@@ -394,7 +386,6 @@ export default function VerImplementos() {
                     )
                   })}
                 </div>
-
                 {/* Botón Siguiente */}
                 <button
                   onClick={goToNextPage}

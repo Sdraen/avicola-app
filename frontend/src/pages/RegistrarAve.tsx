@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
@@ -10,16 +9,14 @@ import type { Jaula } from "../types"
 const RegistrarAve: React.FC = () => {
   const navigate = useNavigate()
   const { fieldErrors, generalError, setApiError, clearErrors, clearFieldError } = useFormErrors()
-
   const [form, setForm] = useState({
     id_jaula: "",
     id_anillo: "",
     color_anillo: "",
-    edad: "",
+    fecha_nacimiento: "", // Cambiado de edad a fecha_nacimiento
     estado_puesta: "",
     raza: "",
   })
-
   const [jaulas, setJaulas] = useState<Jaula[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingJaulas, setLoadingJaulas] = useState(true)
@@ -40,7 +37,7 @@ const RegistrarAve: React.FC = () => {
     } catch (error) {
       console.error("Error cargando jaulas:", error)
       setApiError(
-        new ApiError("Error", 500, [{ field: "general", message: "No se pudieron cargar las jaulas disponibles" }])
+        new ApiError("Error", 500, [{ field: "general", message: "No se pudieron cargar las jaulas disponibles" }]),
       )
     } finally {
       setLoadingJaulas(false)
@@ -50,7 +47,6 @@ const RegistrarAve: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setForm({ ...form, [name]: value })
-
     if (fieldErrors[name]) clearFieldError(name)
     if (success) setSuccess("")
     if (generalError) clearErrors()
@@ -67,22 +63,21 @@ const RegistrarAve: React.FC = () => {
         id_jaula: Number.parseInt(form.id_jaula),
         id_anillo: form.id_anillo.trim(),
         color_anillo: form.color_anillo.trim(),
-        edad: form.edad.trim(),
+        fecha_nacimiento: form.fecha_nacimiento, // Cambiado de edad a fecha_nacimiento
         estado_puesta: form.estado_puesta,
         raza: form.raza.trim(),
       }
 
       if (!aveData.id_jaula || isNaN(aveData.id_jaula)) {
         setApiError(
-          new ApiError("Validation failed", 400, [{ field: "id_jaula", message: "Debe seleccionar una jaula válida" }])
+          new ApiError("Validation failed", 400, [{ field: "id_jaula", message: "Debe seleccionar una jaula válida" }]),
         )
         return
       }
 
       await avesAPI.create(aveData)
       setSuccess("Ave registrada exitosamente")
-      setForm({ id_jaula: "", id_anillo: "", color_anillo: "", edad: "", estado_puesta: "", raza: "" })
-
+      setForm({ id_jaula: "", id_anillo: "", color_anillo: "", fecha_nacimiento: "", estado_puesta: "", raza: "" })
       setTimeout(() => {
         navigate("/ver-aves")
       }, 2000)
@@ -100,6 +95,18 @@ const RegistrarAve: React.FC = () => {
     return label
   }
 
+  // Función para obtener la fecha máxima (hoy)
+  const getMaxDate = () => {
+    return new Date().toISOString().split("T")[0]
+  }
+
+  // Función para obtener la fecha mínima (hace 10 años)
+  const getMinDate = () => {
+    const hace10Anos = new Date()
+    hace10Anos.setFullYear(hace10Anos.getFullYear() - 10)
+    return hace10Anos.toISOString().split("T")[0]
+  }
+
   return (
     <div className="registrar-ave-container">
       <div className="form-header">
@@ -112,13 +119,16 @@ const RegistrarAve: React.FC = () => {
         {generalError && (
           <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{generalError}</div>
         )}
+
         {success && (
           <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">{success}</div>
         )}
 
         {/* Jaula */}
         <div className="form-group">
-          <label className="form-label"><span className="label-icon">🏠</span>Jaula:</label>
+          <label className="form-label">
+            <span className="label-icon">🏠</span>Jaula:
+          </label>
           {loadingJaulas ? (
             <div className="form-input flex items-center justify-center py-3">
               <div className="flex items-center space-x-2">
@@ -136,16 +146,25 @@ const RegistrarAve: React.FC = () => {
             >
               <option value="">Seleccionar jaula</option>
               {jaulas.map((jaula) => (
-                <option key={jaula.id_jaula} value={jaula.id_jaula}>{formatJaulaOption(jaula)}</option>
+                <option key={jaula.id_jaula} value={jaula.id_jaula}>
+                  {formatJaulaOption(jaula)}
+                </option>
               ))}
             </select>
           )}
-          {fieldErrors.id_jaula && <div className="mt-1 text-sm text-red-600 flex items-center"><span className="mr-1">⚠️</span>{fieldErrors.id_jaula}</div>}
+          {fieldErrors.id_jaula && (
+            <div className="mt-1 text-sm text-red-600 flex items-center">
+              <span className="mr-1">⚠️</span>
+              {fieldErrors.id_jaula}
+            </div>
+          )}
         </div>
 
         {/* ID Anillo */}
         <div className="form-group">
-          <label className="form-label"><span className="label-icon">🏷️</span>ID Anillo:</label>
+          <label className="form-label">
+            <span className="label-icon">🏷️</span>ID Anillo:
+          </label>
           <input
             type="number"
             name="id_anillo"
@@ -156,12 +175,19 @@ const RegistrarAve: React.FC = () => {
             maxLength={10}
             required
           />
-          {fieldErrors.id_anillo && <div className="mt-1 text-sm text-red-600 flex items-center"><span className="mr-1">⚠️</span>{fieldErrors.id_anillo}</div>}
+          {fieldErrors.id_anillo && (
+            <div className="mt-1 text-sm text-red-600 flex items-center">
+              <span className="mr-1">⚠️</span>
+              {fieldErrors.id_anillo}
+            </div>
+          )}
         </div>
 
         {/* Color Anillo */}
         <div className="form-group">
-          <label className="form-label"><span className="label-icon">🎨</span>Color Anillo:</label>
+          <label className="form-label">
+            <span className="label-icon">🎨</span>Color Anillo:
+          </label>
           {!usarColorPersonalizado ? (
             <select
               name="color_anillo"
@@ -176,7 +202,9 @@ const RegistrarAve: React.FC = () => {
             >
               <option value="">Seleccionar color</option>
               {coloresPredefinidos.map((color) => (
-                <option key={color} value={color}>{color}</option>
+                <option key={color} value={color}>
+                  {color}
+                </option>
               ))}
               <option value="otro">Otro...</option>
             </select>
@@ -193,37 +221,55 @@ const RegistrarAve: React.FC = () => {
                 maxLength={20}
                 required
               />
-              <button type="button" className="text-blue-600 underline text-sm" onClick={() => {
-                setForm({ ...form, color_anillo: "" })
-                setUsarColorPersonalizado(false)
-              }}>
+              <button
+                type="button"
+                className="text-blue-600 underline text-sm"
+                onClick={() => {
+                  setForm({ ...form, color_anillo: "" })
+                  setUsarColorPersonalizado(false)
+                }}
+              >
                 Volver
               </button>
             </div>
           )}
-          {fieldErrors.color_anillo && <div className="mt-1 text-sm text-red-600 flex items-center"><span className="mr-1">⚠️</span>{fieldErrors.color_anillo}</div>}
+          {fieldErrors.color_anillo && (
+            <div className="mt-1 text-sm text-red-600 flex items-center">
+              <span className="mr-1">⚠️</span>
+              {fieldErrors.color_anillo}
+            </div>
+          )}
         </div>
 
-        {/* Edad */}
+        {/* Fecha de Nacimiento - NUEVO CAMPO */}
         <div className="form-group">
-          <label className="form-label"><span className="label-icon">📅</span>Edad:</label>
+          <label className="form-label">
+            <span className="label-icon">🎂</span>Fecha de Nacimiento:
+          </label>
           <input
-            type="text"
-            name="edad"
-            value={form.edad}
+            type="date"
+            name="fecha_nacimiento"
+            value={form.fecha_nacimiento}
             onChange={handleChange}
-            className={`form-input ${fieldErrors.edad ? "border-red-500 bg-red-50" : ""}`}
-            placeholder="Ej: 24 semanas, 6 meses, 1 año"
-            maxLength={50}
+            className={`form-input ${fieldErrors.fecha_nacimiento ? "border-red-500 bg-red-50" : ""}`}
+            min={getMinDate()}
+            max={getMaxDate()}
             required
           />
-          {fieldErrors.edad && <div className="mt-1 text-sm text-red-600 flex items-center"><span className="mr-1">⚠️</span>{fieldErrors.edad}</div>}
-          <div className="mt-1 text-xs text-gray-500">💡 Puede ser en semanas, meses o años</div>
+          {fieldErrors.fecha_nacimiento && (
+            <div className="mt-1 text-sm text-red-600 flex items-center">
+              <span className="mr-1">⚠️</span>
+              {fieldErrors.fecha_nacimiento}
+            </div>
+          )}
+          <div className="mt-1 text-xs text-gray-500">💡 La edad se calculará automáticamente desde esta fecha</div>
         </div>
 
         {/* Estado de Puesta */}
         <div className="form-group">
-          <label className="form-label"><span className="label-icon">🥚</span>Estado de Puesta:</label>
+          <label className="form-label">
+            <span className="label-icon">🥚</span>Estado de Puesta:
+          </label>
           <select
             name="estado_puesta"
             value={form.estado_puesta}
@@ -236,12 +282,19 @@ const RegistrarAve: React.FC = () => {
             <option value="inactiva">❌ Inactiva</option>
             <option value="en_desarrollo">🐣 En desarrollo</option>
           </select>
-          {fieldErrors.estado_puesta && <div className="mt-1 text-sm text-red-600 flex items-center"><span className="mr-1">⚠️</span>{fieldErrors.estado_puesta}</div>}
+          {fieldErrors.estado_puesta && (
+            <div className="mt-1 text-sm text-red-600 flex items-center">
+              <span className="mr-1">⚠️</span>
+              {fieldErrors.estado_puesta}
+            </div>
+          )}
         </div>
 
         {/* Raza */}
         <div className="form-group">
-          <label className="form-label"><span className="label-icon">🧬</span>Raza:</label>
+          <label className="form-label">
+            <span className="label-icon">🧬</span>Raza:
+          </label>
           <input
             type="text"
             name="raza"
@@ -253,12 +306,19 @@ const RegistrarAve: React.FC = () => {
             maxLength={50}
             required
           />
-          {fieldErrors.raza && <div className="mt-1 text-sm text-red-600 flex items-center"><span className="mr-1">⚠️</span>{fieldErrors.raza}</div>}
+          {fieldErrors.raza && (
+            <div className="mt-1 text-sm text-red-600 flex items-center">
+              <span className="mr-1">⚠️</span>
+              {fieldErrors.raza}
+            </div>
+          )}
         </div>
 
         <button type="submit" className="submit-button" disabled={loading || loadingJaulas || jaulas.length === 0}>
           <span className="button-icon">💾</span>
-          <span className="button-text">{loading ? "Registrando..." : loadingJaulas ? "Cargando..." : "Registrar Ave"}</span>
+          <span className="button-text">
+            {loading ? "Registrando..." : loadingJaulas ? "Cargando..." : "Registrar Ave"}
+          </span>
         </button>
       </form>
     </div>

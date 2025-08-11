@@ -15,15 +15,6 @@ import {
   closeLoadingAlert,
 } from "../utils/sweetAlert"
 
-const calcularEdadSemanas = (edadInicial: string | number, fechaRegistro: string): string => {
-  const hoy = new Date()
-  const inicio = new Date(fechaRegistro)
-  const semanasPasadas = Math.floor((hoy.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 7))
-  const edadBase = typeof edadInicial === "string" ? Number.parseInt(edadInicial) : edadInicial
-  const edadTotal = isNaN(edadBase) ? semanasPasadas : edadBase + semanasPasadas
-  return `${edadTotal} semanas`
-}
-
 const VerAves: React.FC = () => {
   const [aves, setAves] = useState<Ave[]>([])
   const [filteredAves, setFilteredAves] = useState<Ave[]>([])
@@ -48,12 +39,9 @@ const VerAves: React.FC = () => {
   const fetchAves = async () => {
     try {
       const response = await avesAPI.getAll()
-      const avesConEdadCalculada = response.data.map((ave: Ave) => ({
-        ...ave,
-        edad: calcularEdadSemanas(ave.edad, ave.fecha_registro),
-      }))
-      setAves(avesConEdadCalculada)
-      setFilteredAves(avesConEdadCalculada)
+      // Ya no necesitamos calcular edad aquí, viene del backend
+      setAves(response.data)
+      setFilteredAves(response.data)
     } catch (err: any) {
       setError("Error al cargar las aves")
       console.error("Error fetching aves:", err)
@@ -77,11 +65,14 @@ const VerAves: React.FC = () => {
         ave.id_anillo.toLowerCase().includes(search.toLowerCase()) ||
         ave.color_anillo.toLowerCase().includes(search.toLowerCase()) ||
         ave.raza.toLowerCase().includes(search.toLowerCase())
+
       const matchesJaula =
         !filterJaula ||
         ave.jaula?.descripcion?.toLowerCase().includes(filterJaula.toLowerCase()) ||
         ave.jaula?.codigo_jaula?.toLowerCase().includes(filterJaula.toLowerCase())
+
       const matchesEstado = !filterEstado || ave.estado_puesta.toLowerCase() === filterEstado.toLowerCase()
+
       const matchesRaza = !filterRaza || ave.raza.toLowerCase() === filterRaza.toLowerCase()
 
       return matchesSearch && matchesJaula && matchesEstado && matchesRaza
@@ -160,6 +151,7 @@ const VerAves: React.FC = () => {
       `¿Estás seguro de que deseas eliminar el ave con ID Anillo #${id_anillo}? Esta acción no se puede deshacer.`,
       "Sí, eliminar",
     )
+
     if (result) {
       try {
         showLoadingAlert("Eliminando ave...", "Por favor espere")
@@ -202,7 +194,6 @@ const VerAves: React.FC = () => {
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
-        {/* Filtros existentes - sin cambios */}
         <input
           type="text"
           placeholder="🔍 Buscar por anillo, raza o color..."
@@ -248,7 +239,6 @@ const VerAves: React.FC = () => {
         </select>
       </div>
 
-      {/* Contenedor de tabla que crece para ocupar el espacio disponible */}
       <div className="">
         <div className="table-container overflow-x-auto">
           <table className="tabla-aves text-sm w-full">
@@ -257,6 +247,7 @@ const VerAves: React.FC = () => {
                 <th className="p-2 text-left">ID Anillo</th>
                 <th className="p-2 text-left">Color Anillo</th>
                 <th className="p-2 text-left">Raza</th>
+                <th className="p-2 text-left">Fecha Nacimiento</th>
                 <th className="p-2 text-left">Edad</th>
                 <th className="p-2 text-left">Estado Puesta</th>
                 <th className="p-2 text-left">Jaula</th>
@@ -269,7 +260,14 @@ const VerAves: React.FC = () => {
                   <td className="p-2">{ave.id_anillo}</td>
                   <td className="p-2">{ave.color_anillo}</td>
                   <td className="p-2">{ave.raza}</td>
-                  <td className="p-2">{ave.edad}</td>
+                  <td className="p-2">
+                    {ave.fecha_nacimiento ? new Date(ave.fecha_nacimiento).toLocaleDateString() : "N/A"}
+                  </td>
+                  <td className="p-2">
+                    <span className="text-sm text-gray-600">
+                      {ave.edad_texto || `${ave.edad_calculada_semanas || 0} semanas`}
+                    </span>
+                  </td>
                   <td className="p-2">
                     <span className="cantidad-badge">{ave.estado_puesta}</span>
                   </td>
@@ -321,16 +319,14 @@ const VerAves: React.FC = () => {
           </table>
         </div>
 
-        {/* Paginación justo después de la tabla */}
+        {/* Paginación */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between mt-4 px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
             <div className="text-sm text-gray-700">
               Página <span className="font-medium">{currentPage}</span> de{" "}
               <span className="font-medium">{totalPages}</span>
             </div>
-
             <div className="flex items-center space-x-2">
-              {/* Botón Anterior */}
               <button
                 onClick={goToPreviousPage}
                 disabled={currentPage === 1}
@@ -343,7 +339,6 @@ const VerAves: React.FC = () => {
                 ← Anterior
               </button>
 
-              {/* Números de página */}
               <div className="flex space-x-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNumber
@@ -373,7 +368,6 @@ const VerAves: React.FC = () => {
                 })}
               </div>
 
-              {/* Botón Siguiente */}
               <button
                 onClick={goToNextPage}
                 disabled={currentPage === totalPages}
@@ -390,13 +384,14 @@ const VerAves: React.FC = () => {
         )}
       </div>
 
-      {/* Modales - sin cambios */}
+      {/* Modales */}
       <ModalEditarAve
         isOpen={isEditModalOpen}
         aveId={selectedAveId!}
         onClose={handleCloseEditModal}
         onUpdate={fetchAves}
       />
+
       {selectedAve && (
         <ModalHistorialClinico
           isOpen={isHistorialModalOpen}
@@ -409,6 +404,7 @@ const VerAves: React.FC = () => {
           onClose={handleCloseHistorialModal}
         />
       )}
+
       {selectedAve && (
         <ModalRegistroClinico
           isOpen={isRegistroClinicoModalOpen}
@@ -423,6 +419,7 @@ const VerAves: React.FC = () => {
           onSuccess={handleModalSuccess}
         />
       )}
+
       {selectedAve && (
         <ModalRegistrarFallecimiento
           isOpen={isFallecimientoModalOpen}

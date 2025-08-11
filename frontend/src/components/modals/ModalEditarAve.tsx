@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect } from "react"
 import { avesAPI, jaulasAPI } from "../../services/api"
@@ -16,7 +15,7 @@ interface ModalEditarAveProps {
 interface FormData {
   id_anillo: string
   color_anillo: string
-  edad: string
+  fecha_nacimiento: string // Cambiado de edad a fecha_nacimiento
   raza: string
   estado_puesta: "activa" | "inactiva" | "en_desarrollo"
   id_jaula: number | null
@@ -26,7 +25,7 @@ const ModalEditarAve: React.FC<ModalEditarAveProps> = ({ isOpen, aveId, onClose,
   const [formData, setFormData] = useState<FormData>({
     id_anillo: "",
     color_anillo: "",
-    edad: "",
+    fecha_nacimiento: "", // Cambiado de edad a fecha_nacimiento
     raza: "",
     estado_puesta: "activa",
     id_jaula: null,
@@ -51,7 +50,7 @@ const ModalEditarAve: React.FC<ModalEditarAveProps> = ({ isOpen, aveId, onClose,
       setFormData({
         id_anillo: aveData.id_anillo || "",
         color_anillo: aveData.color_anillo || "",
-        edad: aveData.edad || "",
+        fecha_nacimiento: aveData.fecha_nacimiento || "", // Cambiado de edad a fecha_nacimiento
         raza: aveData.raza || "",
         estado_puesta: aveData.estado_puesta || "activa",
         id_jaula: aveData.id_jaula || null,
@@ -71,7 +70,6 @@ const ModalEditarAve: React.FC<ModalEditarAveProps> = ({ isOpen, aveId, onClose,
       ...prev,
       [name]: name === "id_jaula" ? (value ? Number(value) : null) : value,
     }))
-
     // Limpiar error del campo cuando el usuario empiece a escribir
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }))
@@ -88,6 +86,16 @@ const ModalEditarAve: React.FC<ModalEditarAveProps> = ({ isOpen, aveId, onClose,
       newErrors.id_anillo = "El ID del anillo no puede tener más de 10 caracteres"
     }
 
+    if (!formData.fecha_nacimiento) {
+      newErrors.fecha_nacimiento = "La fecha de nacimiento es requerida"
+    } else {
+      const fechaNacimiento = new Date(formData.fecha_nacimiento)
+      const hoy = new Date()
+      if (fechaNacimiento > hoy) {
+        newErrors.fecha_nacimiento = "La fecha de nacimiento no puede ser futura"
+      }
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -95,17 +103,13 @@ const ModalEditarAve: React.FC<ModalEditarAveProps> = ({ isOpen, aveId, onClose,
   // Manejar envío del formulario
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!validateForm()) return
 
     try {
       showLoadingAlert("Actualizando ave...", "Por favor espere")
-
       await avesAPI.update(aveId, formData)
-
       closeLoadingAlert()
       await showSuccessAlert("¡Ave actualizada!", "Los datos se han guardado correctamente")
-
       onUpdate()
       onClose()
     } catch (error: any) {
@@ -119,17 +123,27 @@ const ModalEditarAve: React.FC<ModalEditarAveProps> = ({ isOpen, aveId, onClose,
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
     }
-
     if (isOpen) {
       document.addEventListener("keydown", handleEsc)
       document.body.style.overflow = "hidden"
     }
-
     return () => {
       document.removeEventListener("keydown", handleEsc)
       document.body.style.overflow = "unset"
     }
   }, [isOpen, onClose])
+
+  // Función para obtener la fecha máxima (hoy)
+  const getMaxDate = () => {
+    return new Date().toISOString().split("T")[0]
+  }
+
+  // Función para obtener la fecha mínima (hace 10 años)
+  const getMinDate = () => {
+    const hace10Anos = new Date()
+    hace10Anos.setFullYear(hace10Anos.getFullYear() - 10)
+    return hace10Anos.toISOString().split("T")[0]
+  }
 
   if (!isOpen) return null
 
@@ -250,29 +264,40 @@ const ModalEditarAve: React.FC<ModalEditarAveProps> = ({ isOpen, aveId, onClose,
                   />
                 </div>
 
-                {/* Edad y Raza en fila */}
+                {/* Fecha de Nacimiento y Raza en fila */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label
-                      htmlFor="edad"
+                      htmlFor="fecha_nacimiento"
                       className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2"
                     >
-                      <span className="text-lg" role="img" aria-label="Calendario">
-                        📅
+                      <span className="text-lg" role="img" aria-label="Cumpleaños">
+                        🎂
                       </span>
-                      <span>Edad</span>
+                      <span>Fecha Nacimiento *</span>
                     </label>
                     <input
-                      id="edad"
-                      type="text"
-                      name="edad"
-                      value={formData.edad}
+                      id="fecha_nacimiento"
+                      type="date"
+                      name="fecha_nacimiento"
+                      value={formData.fecha_nacimiento}
                       onChange={handleInputChange}
-                      placeholder="6 meses"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      min={getMinDate()}
+                      max={getMaxDate()}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                        errors.fecha_nacimiento ? "border-red-500 bg-red-50" : "border-gray-300"
+                      }`}
+                      required
                     />
+                    {errors.fecha_nacimiento && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center space-x-1">
+                        <span role="img" aria-label="Advertencia">
+                          ⚠️
+                        </span>
+                        <span>{errors.fecha_nacimiento}</span>
+                      </p>
+                    )}
                   </div>
-
                   <div>
                     <label
                       htmlFor="raza"
