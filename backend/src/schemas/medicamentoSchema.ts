@@ -1,73 +1,61 @@
-import { BaseValidator, type ValidationRule } from "./baseValidation"
-import { VALIDATION_LIMITS } from "./constants"
+import { z } from "zod"
 
-export const medicamentoValidationRules: ValidationRule[] = [
-  {
-    field: "nombre",
-    required: true,
-    type: "string",
-    minLength: VALIDATION_LIMITS.NOMBRE_MIN,
-    maxLength: VALIDATION_LIMITS.NOMBRE_MAX,
-  },
-  {
-    field: "dosis",
-    required: false,
-    type: "string",
-    maxLength: 100,
-  },
-]
+/**
+ * =========================
+ *  MEDICAMENTO SCHEMAS
+ *  (acorde al backend Opción A)
+ * =========================
+ */
 
-export const validateMedicamento = (data: any) => {
-  return BaseValidator.validate(data, medicamentoValidationRules)
-}
+// Base
+export const medicamentoBaseSchema = z.object({
+  nombre: z
+    .string({ required_error: "Nombre es obligatorio" })
+    .trim()
+    .min(1, "Nombre es obligatorio")
+  ,
+  dosis: z
+    .string({ required_error: "Dosis es obligatoria" })
+    .trim()
+    .min(1, "Dosis es obligatoria")
+  ,
+})
 
-export const validateMedicamentoUpdate = (data: any) => {
-  const updateRules = medicamentoValidationRules.map((rule) => ({
-    ...rule,
-    required: false,
-  }))
-  return BaseValidator.validate(data, updateRules)
-}
+// Crear
+export const createMedicamentoSchema = medicamentoBaseSchema
 
-// Validation for medication application
-export const aplicacionMedicamentoValidationRules: ValidationRule[] = [
-  {
-    field: "id_medicamento",
-    required: true,
-    type: "number",
-    min: 1,
-  },
-  {
-    field: "id_estanque",
-    required: true,
-    type: "number",
-    min: 1,
-  },
-  {
-    field: "fecha_administracion",
-    required: false,
-    type: "date",
-    custom: (value) => {
-      if (value && new Date(value) > new Date()) {
-        return "fecha_administracion no puede ser futura"
-      }
-      return null
-    },
-  },
-  {
-    field: "dosis_aplicada",
-    required: false,
-    type: "string",
-    maxLength: 50,
-  },
-  {
-    field: "motivo",
-    required: false,
-    type: "string",
-    maxLength: VALIDATION_LIMITS.DESCRIPCION_MAX,
-  },
-]
+// Actualizar (al menos 1 campo)
+export const updateMedicamentoSchema = medicamentoBaseSchema
+  .partial()
+  .refine((d) => Object.keys(d).length > 0, { message: "Debe enviar al menos un campo para actualizar" })
 
-export const validateAplicacionMedicamento = (data: any) => {
-  return BaseValidator.validate(data, aplicacionMedicamentoValidationRules)
-}
+// Params :id
+export const medicamentoIdSchema = z.object({
+  id: z.string().regex(/^\d+$/, "ID debe ser un número válido"),
+})
+
+/**
+ * =========================
+ *  Validadores (funciones)
+ * =========================
+ */
+export const validateMedicamento = (data: unknown) => createMedicamentoSchema.parse(data)
+export const validateMedicamentoUpdate = (data: unknown) => updateMedicamentoSchema.parse(data)
+export const validateMedicamentoId = (params: unknown) => medicamentoIdSchema.parse(params)
+
+/**
+ * =========================
+ *  (Opcional) Aplicación
+ *  - útil si activas endpoints /medicamentos/aplicar
+ * =========================
+ */
+export const aplicacionMedicamentoSchema = z.object({
+  id_medicamento: z.number().int().positive(),
+  id_estanque: z.number().int().positive(),
+  fecha_administracion: z
+    .string({ required_error: "Fecha de administración es obligatoria" })
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha debe estar en formato YYYY-MM-DD")
+    .refine((d) => new Date(d) <= new Date(), "La fecha no puede ser futura"),
+})
+
+export const validateAplicacionMedicamento = (data: unknown) => aplicacionMedicamentoSchema.parse(data)

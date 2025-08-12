@@ -1,78 +1,65 @@
-import { BaseValidator, type ValidationRule } from "./baseValidation"
-import { VALIDATION_LIMITS } from "./constants"
+import { z } from "zod"
 
-export const vacunaValidationRules: ValidationRule[] = [
-  {
-    field: "nombre",
-    required: true,
-    type: "string",
-    minLength: VALIDATION_LIMITS.NOMBRE_MIN,
-    maxLength: VALIDATION_LIMITS.NOMBRE_MAX,
-  },
-  {
-    field: "dosis",
-    required: false,
-    type: "string",
-    maxLength: 100,
-  },
-  {
-    field: "fecha_adminstracion",
-    required: false,
-    type: "date",
-    custom: (value) => {
-      if (value && new Date(value) > new Date()) {
-        return "fecha_adminstracion no puede ser futura"
-      }
-      return null
-    },
-  },
-]
+/**
+ * =========================
+ *  VACUNA SCHEMAS
+ *  (fecha_administracion OBLIGATORIA)
+ * =========================
+ */
 
-export const validateVacuna = (data: any) => {
-  return BaseValidator.validate(data, vacunaValidationRules)
-}
+// Base
+export const vacunaBaseSchema = z.object({
+  nombre: z
+    .string({ required_error: "Nombre es obligatorio" })
+    .trim()
+    .min(1, "Nombre es obligatorio")
+  ,
+  dosis: z
+    .string({ required_error: "Dosis es obligatoria" })
+    .trim()
+    .min(1, "Dosis es obligatoria")
+  ,
+  fecha_administracion: z
+    .string({ required_error: "Fecha de administración es obligatoria" })
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha debe estar en formato YYYY-MM-DD")
+    .refine((d) => new Date(d) <= new Date(), "La fecha no puede ser futura"),
+})
 
-export const validateVacunaUpdate = (data: any) => {
-  const updateRules = vacunaValidationRules.map((rule) => ({
-    ...rule,
-    required: false,
-  }))
-  return BaseValidator.validate(data, updateRules)
-}
+// Crear
+export const createVacunaSchema = vacunaBaseSchema
 
-// Validation for vaccine application
-export const aplicacionVacunaValidationRules: ValidationRule[] = [
-  {
-    field: "id_vacuna",
-    required: true,
-    type: "number",
-    min: 1,
-  },
-  {
-    field: "id_jaula",
-    required: true,
-    type: "number",
-    min: 1,
-  },
-  {
-    field: "fecha_aplicacion",
-    required: false,
-    type: "date",
-    custom: (value) => {
-      if (value && new Date(value) > new Date()) {
-        return "fecha_aplicacion no puede ser futura"
-      }
-      return null
-    },
-  },
-  {
-    field: "dosis_aplicada",
-    required: false,
-    type: "string",
-    maxLength: 50,
-  },
-]
+// Actualizar (al menos 1 campo)
+export const updateVacunaSchema = vacunaBaseSchema
+  .partial()
+  .refine((d) => Object.keys(d).length > 0, { message: "Debe enviar al menos un campo para actualizar" })
 
-export const validateAplicacionVacuna = (data: any) => {
-  return BaseValidator.validate(data, aplicacionVacunaValidationRules)
-}
+// Params :id
+export const vacunaIdSchema = z.object({
+  id: z.string().regex(/^\d+$/, "ID debe ser un número válido"),
+})
+
+/**
+ * =========================
+ *  Validadores (funciones)
+ * =========================
+ */
+export const validateVacuna = (data: unknown) => createVacunaSchema.parse(data)
+export const validateVacunaUpdate = (data: unknown) => updateVacunaSchema.parse(data)
+export const validateVacunaId = (params: unknown) => vacunaIdSchema.parse(params)
+
+/**
+ * =========================
+ *  (Opcional) Aplicación
+ *  - útil si activas endpoints /vacunas/aplicar
+ * =========================
+ */
+export const aplicacionVacunaSchema = z.object({
+  id_vacuna: z.number().int().positive(),
+  id_jaula: z.number().int().positive(),
+  fecha_administracion: z
+    .string({ required_error: "Fecha de administración es obligatoria" })
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha debe estar en formato YYYY-MM-DD")
+    .refine((d) => new Date(d) <= new Date(), "La fecha no puede ser futura"),
+})
+
+export const validateAplicacionVacuna = (data: unknown) => aplicacionVacunaSchema.parse(data)

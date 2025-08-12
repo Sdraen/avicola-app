@@ -1,80 +1,83 @@
+import { ZodError } from "zod"
 import type { ValidationResult } from "./validationHelpers"
 import * as schemas from "./index"
 
-// Main validation engine that routes to appropriate schema
+// Wrapper sin 'data' (solo isValid y errors)
+const wrapValidator =
+  <T>(fn: (data: any) => T) =>
+  (data: any): ValidationResult => {
+    try {
+      fn(data) // si parsea, es válido
+      return { isValid: true, errors: [] }
+    } catch (err: any) {
+      if (err instanceof ZodError) {
+        return { isValid: false, errors: err.errors.map((e) => e.message) }
+      }
+      return { isValid: false, errors: [err?.message || "Validation error"] }
+    }
+  }
+
+// ===== Validación por entidad
 export const validateEntityData = (
   entity: string,
   data: any,
   operation: "create" | "update" = "create",
 ): ValidationResult => {
-  try {
-    const entityMap: Record<string, (data: any) => ValidationResult> = {
-      // ave: schemas.validateAve, // Removed: validateAve does not exist
-      huevo: schemas.validateHuevo,
-      // cliente: schemas.validateCliente, // Removed: validateCliente does not exist
-      venta: schemas.validateVenta,
-      compra: schemas.validateCompra,
-      // jaula: schemas.validateJaula, // Removed: validateJaula does not exist
-      medicamento: schemas.validateMedicamento,
-      vacuna: schemas.validateVacuna,
-      incubacion: schemas.validateIncubacion,
-      raza: schemas.validateRaza,
-      registro_huevo: schemas.validateRegistroHuevo,
-      registro_huevos: schemas.validateRegistroHuevo,
-      usuario: schemas.validateUsuario,
-      login: schemas.validateLogin,
-    };
+  const key = entity.toLowerCase()
 
-    const key = entity.toLowerCase();
-    const validator = entityMap[key];
-    if (validator) {
-      return validator(data);
-    } else {
-      return {
-        isValid: false,
-        errors: [`Unknown entity type: ${entity}`],
-      };
-    }
-  } catch (error) {
-    return {
-      isValid: false,
-      errors: [`Validation error: ${error instanceof Error ? error.message : "Unknown error"}`],
-    };
+  const createMap: Record<string, (d: any) => ValidationResult> = {
+    huevo: wrapValidator(schemas.validateHuevo),
+    venta: wrapValidator(schemas.validateVenta),
+    compra: wrapValidator(schemas.validateCompra),
+    medicamento: wrapValidator(schemas.validateMedicamento),
+    vacuna: wrapValidator(schemas.validateVacuna),
+    incubacion: wrapValidator(schemas.validateIncubacion),
+    raza: wrapValidator(schemas.validateRaza),
+    registro_huevo: wrapValidator(schemas.validateRegistroHuevo),
+    registro_huevos: wrapValidator(schemas.validateRegistroHuevo),
+    usuario: wrapValidator(schemas.validateUsuario),
+    login: wrapValidator(schemas.validateLogin),
   }
+
+  const updateMap: Record<string, (d: any) => ValidationResult> = {
+    huevo: wrapValidator(schemas.validateHuevoUpdate),
+    venta: wrapValidator(schemas.validateVentaUpdate),
+    compra: wrapValidator(schemas.validateCompraUpdate),
+    medicamento: wrapValidator(schemas.validateMedicamentoUpdate),
+    vacuna: wrapValidator(schemas.validateVacunaUpdate),
+    incubacion: wrapValidator(schemas.validateIncubacionUpdate),
+    raza: wrapValidator(schemas.validateRazaUpdate),
+    usuario: wrapValidator(schemas.validateUsuarioUpdate),
+  }
+
+  const map = operation === "update" ? updateMap : createMap
+  const validator = map[key]
+  if (!validator) return { isValid: false, errors: [`Unknown entity type: ${entity}`] }
+  return validator(data)
 }
 
-
-// Validate specific operations
+// ===== Operaciones especiales
 export const validateSpecialOperation = (operation: string, data: any): ValidationResult => {
-  try {
-    const operationMap: Record<string, (data: any) => ValidationResult> = {
-      huevos_bulk: (d) => schemas.validateHuevo(d),
-      medicamento_aplicacion: (d) => schemas.validateMedicamento(d),
-      vacuna_aplicacion: (d) => schemas.validateVacuna(d),
-      // servicio_higiene: (d) => schemas.validateServicioHigiene(d),
-      incubadora_create: (d) => schemas.validateIncubacion(d),
-      nacimiento_create: (d) => schemas.validateIncubacion(d),
-      implemento: (d) => schemas.validateImplemento(d),
-      //   cliente_search: (d) => schemas.validateCliente(d),
-      medicamento_search: (d) => schemas.validateMedicamento(d),
-      vacuna_search: (d) => schemas.validateVacuna(d),
-      email_availability: (d) => schemas.validateUsuario(d),
-    };
+  const key = operation.toLowerCase()
 
-    const key = operation.toLowerCase();
-    const validator = operationMap[key];
-    if (validator) {
-      return validator(data);
-    } else {
-      return {
-        isValid: false,
-        errors: [`Unknown operation: ${operation}`],
-      };
-    }
-  } catch (error) {
-    return {
-      isValid: false,
-      errors: [`Validation error: ${error instanceof Error ? error.message : "Unknown error"}`],
-    };
+  const operationMap: Record<string, (d: any) => ValidationResult> = {
+    huevos_bulk: wrapValidator(schemas.validateHuevo),
+
+    aplicacion_medicamento: wrapValidator(schemas.validateAplicacionMedicamento),
+    medicamento_aplicacion: wrapValidator(schemas.validateAplicacionMedicamento),
+
+    aplicacion_vacuna: wrapValidator(schemas.validateAplicacionVacuna),
+    vacuna_aplicacion: wrapValidator(schemas.validateAplicacionVacuna),
+
+    implemento: wrapValidator(schemas.validateImplemento),
+
+    medicamento_search: wrapValidator(schemas.validateMedicamento),
+    vacuna_search: wrapValidator(schemas.validateVacuna),
+
+    email_availability: wrapValidator(schemas.validateUsuario),
   }
+
+  const validator = operationMap[key]
+  if (!validator) return { isValid: false, errors: [`Unknown operation: ${operation}`] }
+  return validator(data)
 }
