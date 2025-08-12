@@ -1,4 +1,5 @@
 "use client"
+
 import type React from "react"
 import { useState, useEffect } from "react"
 import { avesAPI } from "../services/api"
@@ -36,6 +37,22 @@ const VerAves: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
+  // Función para obtener la clase CSS según el estado de puesta
+  const getEstadoPuestaClass = (estado: string) => {
+    switch (estado.toLowerCase()) {
+      case "inactiva":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"
+      case "activa":
+        return "bg-green-100 text-green-800 border-green-200"
+      case "reproductiva":
+        return "bg-blue-100 text-blue-800 border-blue-200"
+      case "enferma":
+        return "bg-red-100 text-red-800 border-red-200"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200"
+    }
+  }
+
   const fetchAves = async () => {
     try {
       const response = await avesAPI.getAll()
@@ -72,11 +89,11 @@ const VerAves: React.FC = () => {
         ave.jaula?.codigo_jaula?.toLowerCase().includes(filterJaula.toLowerCase())
 
       const matchesEstado = !filterEstado || ave.estado_puesta.toLowerCase() === filterEstado.toLowerCase()
-
       const matchesRaza = !filterRaza || ave.raza.toLowerCase() === filterRaza.toLowerCase()
 
       return matchesSearch && matchesJaula && matchesEstado && matchesRaza
     })
+
     setFilteredAves(filtered)
     // Resetear a la primera página cuando cambian los filtros
     setCurrentPage(1)
@@ -201,6 +218,7 @@ const VerAves: React.FC = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full md:w-1/3 px-3 py-2 border rounded-md text-sm"
         />
+
         <select
           value={filterJaula}
           onChange={(e) => setFilterJaula(e.target.value)}
@@ -213,6 +231,7 @@ const VerAves: React.FC = () => {
             </option>
           ))}
         </select>
+
         <select
           value={filterEstado}
           onChange={(e) => setFilterEstado(e.target.value)}
@@ -225,6 +244,7 @@ const VerAves: React.FC = () => {
             </option>
           ))}
         </select>
+
         <select
           value={filterRaza}
           onChange={(e) => setFilterRaza(e.target.value)}
@@ -269,7 +289,11 @@ const VerAves: React.FC = () => {
                     </span>
                   </td>
                   <td className="p-2">
-                    <span className="cantidad-badge">{ave.estado_puesta}</span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium border ${getEstadoPuestaClass(ave.estado_puesta)}`}
+                    >
+                      {ave.estado_puesta}
+                    </span>
                   </td>
                   <td className="p-2">{ave.jaula?.codigo_jaula || ave.jaula?.descripcion || ave.id_jaula}</td>
                   <td className="p-2">
@@ -338,7 +362,6 @@ const VerAves: React.FC = () => {
               >
                 ← Anterior
               </button>
-
               <div className="flex space-x-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNumber
@@ -367,7 +390,6 @@ const VerAves: React.FC = () => {
                   )
                 })}
               </div>
-
               <button
                 onClick={goToNextPage}
                 disabled={currentPage === totalPages}

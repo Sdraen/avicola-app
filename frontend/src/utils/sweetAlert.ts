@@ -446,3 +446,128 @@ export const showEditClienteModal = async (cliente: any) => {
 
   return formValues
 }
+
+// Configuración base para alertas de sesión
+const sessionBaseConfig = {
+  customClass: {
+    popup: "rounded-xl shadow-2xl",
+    title: "text-xl font-bold",
+    content: "text-gray-600",
+    confirmButton: "bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg",
+    cancelButton: "bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-lg",
+  },
+  buttonsStyling: false,
+}
+
+// Alerta de sesión expirada por inactividad
+export const showSessionExpiredAlert = () => {
+  return Swal.fire({
+    ...sessionBaseConfig,
+    title: "⏰ Sesión Expirada",
+     text: "Tu sesión ha expirado por inactividad (5 minutos sin actividad)",
+    icon: "warning",
+    confirmButtonText: "Ir al Login",
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    customClass: {
+      ...sessionBaseConfig.customClass,
+      confirmButton: "bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg",
+    },
+  })
+}
+
+// Modal de advertencia de sesión con countdown
+export const showSessionWarningAlert = (countdown: number) => {
+  return Swal.fire({
+    ...sessionBaseConfig,
+    title: "⚠️ Sesión por Expirar",
+    html: `
+      <div class="text-center">
+        <p class="text-gray-600 mb-4">Tu sesión expirará por inactividad en:</p>
+        <div class="text-3xl font-bold text-red-600 mb-4" id="countdown-display">${countdown}</div>
+        <p class="text-sm text-gray-500">¿Deseas continuar con tu sesión?</p>
+      </div>
+    `,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "✅ Continuar Sesión",
+    cancelButtonText: "🚪 Cerrar Sesión",
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    reverseButtons: true,
+    customClass: {
+      ...sessionBaseConfig.customClass,
+      confirmButton: "bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg",
+      cancelButton: "bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg",
+    },
+    didOpen: () => {
+      const countdownElement = document.getElementById("countdown-display")
+      let timeLeft = countdown
+
+      const interval = setInterval(() => {
+        timeLeft -= 1
+        if (countdownElement) {
+          countdownElement.textContent = `${timeLeft}s`
+        }
+
+        if (timeLeft <= 0) {
+          clearInterval(interval)
+          Swal.close()
+        }
+      }, 1000)
+
+      // Limpiar interval si se cierra el modal
+      Swal.getPopup()?.addEventListener("DOMNodeRemoved", () => {
+        clearInterval(interval)
+      })
+    },
+  })
+}
+
+// Toast de advertencia de inactividad
+export const showInactivityToast = (minutesLeft: number) => {
+  return Swal.fire({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    icon: "warning",
+    title: `⚠️ ${minutesLeft} min${minutesLeft > 1 ? "utos" : "uto"} para cierre automático`,
+    customClass: {
+      popup: "rounded-lg shadow-lg",
+    },
+  })
+}
+
+// Alerta de sesión restaurada
+export const showSessionRestoredToast = () => {
+  return Swal.fire({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    icon: "success",
+    title: "✅ Sesión restaurada correctamente",
+    customClass: {
+      popup: "rounded-lg shadow-lg",
+    },
+  })
+}
+
+// Alerta de token verificado
+export const showTokenVerifiedToast = () => {
+  return Swal.fire({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 2000,
+    timerProgressBar: true,
+    icon: "info",
+    title: "🔄 Token verificado",
+    customClass: {
+      popup: "rounded-lg shadow-lg",
+    },
+  })
+}

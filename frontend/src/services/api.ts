@@ -103,14 +103,22 @@ export const huevosAPI = {
 export const bandejasAPI = {
   getAll: () => api.get("/bandeja"),
   getById: (id: number) => api.get(`/bandeja/${id}`),
-  create: (data: { tipo: string; tamaño: string; id_huevos: number[] }) => api.post("/bandeja", data),
-  update: (id: number, data: { tipo_huevo?: string; tamaño_huevo?: string; estado?: string }) =>
-    api.put(`/bandeja/${id}`, data),
+  create: (data: { tipo: "cafe" | "blanco"; tamaño: "chico" | "mediano" | "grande" | "jumbo"; id_huevos: number[] }) =>
+    api.post("/bandeja", data),
+  update: (
+    id: number,
+    data: { tipo_huevo?: "cafe" | "blanco"; tamaño_huevo?: "chico" | "mediano" | "grande" | "jumbo"; estado?: string },
+  ) => api.put(`/bandeja/${id}`, data),
   delete: (id: number) => api.delete(`/bandeja/${id}`),
-  asignarHuevos: (id: number, id_huevos: number[]) => api.post(`/bandeja/${id}/asignar`, { id_huevos }),
-  eliminarHuevos: (id: number, id_huevos: number[]) => api.post(`/bandeja/${id}/eliminar-huevos`, { id_huevos }),
-  getHuevosDisponibles: (tipo: string, tamaño: string) => api.get(`/bandeja/huevos-disponibles/${tipo}/${tamaño}`),
+  asignarHuevos: (id: number, id_huevos: number[]) =>
+    api.post(`/bandeja/${id}/asignar`, { id_huevos }),
+  eliminarHuevos: (id: number, id_huevos: number[]) =>
+    api.post(`/bandeja/${id}/eliminar-huevos`, { id_huevos }),
+  // GET /bandeja/huevos-disponibles/:tipo/:tamaño
+  getHuevosDisponibles: (tipo: "cafe" | "blanco", tamaño: "chico" | "mediano" | "grande" | "jumbo") =>
+    api.get(`/bandeja/huevos-disponibles/${tipo}/${encodeURIComponent(tamaño)}`),
 }
+
 
 // Servicios de jaulas
 export const jaulasAPI = {
@@ -206,26 +214,21 @@ export const aveClinicaAPI = {
 
 // Servicios de medicamentos
 export const medicamentosAPI = {
-  getAll: () => api.get("/medicamentos"),
+  getAll: (q?: string) => api.get("/medicamentos", { params: q ? { q } : undefined }),
   getById: (id: number) => api.get(`/medicamentos/${id}`),
-  create: (data: any) => api.post("/medicamentos", data),
-  update: (id: number, data: any) => api.put(`/medicamentos/${id}`, data),
+  create: (data: { nombre: string; dosis: string }) => api.post("/medicamentos", data),
+  update: (id: number, data: { nombre: string; dosis: string }) => api.put(`/medicamentos/${id}`, data),
   delete: (id: number) => api.delete(`/medicamentos/${id}`),
-  aplicar: (data: any) => api.post("/medicamentos/aplicar", data),
-  getAplicaciones: (id_medicamento: number) => api.get(`/medicamentos/aplicaciones/${id_medicamento}`),
-  search: (query: string) => api.get(`/medicamentos/search/${query}`),
 }
 
 // Servicios de vacunas
 export const vacunasAPI = {
-  getAll: () => api.get("/vacunas"),
+  getAll: (q?: string) => api.get("/vacunas", { params: q ? { q } : undefined }),
   getById: (id: number) => api.get(`/vacunas/${id}`),
-  create: (data: any) => api.post("/vacunas", data),
-  update: (id: number, data: any) => api.put(`/vacunas/${id}`, data),
+  create: (data: { nombre: string; dosis: string; fecha_administracion: string }) => api.post("/vacunas", data),
+  update: (id: number, data: { nombre: string; dosis: string; fecha_administracion: string }) =>
+    api.put(`/vacunas/${id}`, data),
   delete: (id: number) => api.delete(`/vacunas/${id}`),
-  aplicar: (data: any) => api.post("/vacunas/aplicar", data),
-  getAplicaciones: (id_vacuna: number) => api.get(`/vacunas/aplicaciones/${id_vacuna}`),
-  search: (query: string) => api.get(`/vacunas/search/${query}`),
 }
 
 // Servicios de incubación

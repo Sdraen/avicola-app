@@ -1,53 +1,60 @@
-import { Link } from "react-router-dom"
+"use client"
 
-export default function Vacunas() {
+import type React from "react"
+import { useNavigate } from "react-router-dom"
+
+const Vacunas: React.FC = () => {
+  const navigate = useNavigate()
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Vacunas</h1>
-        <p className="text-gray-600 mt-2">Gestión de vacunas y programas de vacunación</p>
+    <div className="flex flex-col items-center px-4 py-8">
+      {/* Encabezado */}
+      <div className="text-center mb-6">
+        <div className="text-5xl mb-2">💉</div>
+        <h1 className="text-2xl font-bold">Gestión de Vacunas</h1>
+        <p className="text-gray-600 mt-1">
+          Registra y administra las vacunas del sistema avícola. La fecha de administración es obligatoria.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Link
-          to="/ver-vacunas"
-          className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-purple-500"
+      {/* Botones */}
+      <div className="flex flex-wrap justify-center gap-4 mb-8">
+        <button
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg shadow flex items-center gap-2"
+          onClick={() => navigate("/ver-vacunas")}
         >
-          <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-full">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">Ver Vacunas</h3>
-              <p className="text-gray-600">Lista de todas las vacunas</p>
-            </div>
-          </div>
-        </Link>
+          📋 <span>Ver Vacunas</span>
+        </button>
+        <button
+          className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg shadow flex items-center gap-2"
+          onClick={() => navigate("/registrar-vacuna")}
+        >
+          ➕ <span>Registrar Vacuna</span>
+        </button>
+      </div>
 
-        <Link
-          to="/registrar-vacuna"
-          className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-green-500"
-        >
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-full">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-gray-900">Registrar Vacuna</h3>
-              <p className="text-gray-600">Agregar nueva vacuna</p>
-            </div>
-          </div>
-        </Link>
+      {/* Info del módulo */}
+      <div className="bg-white shadow rounded-lg p-6 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-800">
+        <div>
+          <h2 className="font-semibold text-base mb-2">Funcionalidades:</h2>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Registro de vacunas (nombre, dosis y fecha de administración)</li>
+            <li>Búsqueda por nombre</li>
+            <li>Edición y eliminación (solo si no han sido aplicadas)</li>
+          </ul>
+        </div>
+        <div>
+          <h2 className="font-semibold text-base mb-2">Reglas:</h2>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Nombres deben ser únicos</li>
+            <li>La fecha de administración es obligatoria y no puede ser futura</li>
+            <li>Solo Admin puede eliminar</li>
+            <li>Si la vacuna ya fue aplicada, no se puede eliminar</li>
+          </ul>
+        </div>
       </div>
     </div>
   )
 }
+
+export default Vacunas

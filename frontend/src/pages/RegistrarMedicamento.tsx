@@ -1,240 +1,153 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import  api  from "../services/api"
+import { medicamentosAPI } from "../services/api"
+import { useFormErrors, processApiError, ApiError } from "../utils/errorHandler"
 
-export default function RegistrarMedicamento() {
+const RegistrarMedicamento: React.FC = () => {
   const navigate = useNavigate()
+  const { fieldErrors, generalError, setApiError, clearErrors, clearFieldError } = useFormErrors()
+
+  const [form, setForm] = useState({
+    nombre: "",
+    dosis: "",
+  })
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
-  const [formData, setFormData] = useState({
-    nombre: "",
-    tipo: "",
-    descripcion: "",
-    dosis: "",
-    via_administracion: "",
-    tiempo_retiro: "",
-    stock: "",
-    fecha_vencimiento: "",
-    precio_unitario: "",
-    proveedor: "",
-  })
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setForm((prev) => ({ ...prev, [name]: value }))
+    if (fieldErrors[name]) clearFieldError(name)
+    if (success) setSuccess("")
+    if (generalError) clearErrors()
+  }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+  // Validación mínima en cliente (coincide con backend: nombre y dosis requeridos)
+  const validateClient = () => {
+    const errs: Array<{ field: string; message: string }> = []
+
+    const nombre = form.nombre.trim()
+    const dosis = form.dosis.trim()
+
+    if (!nombre) errs.push({ field: "nombre", message: "El nombre es obligatorio" })
+    else if (nombre.length > 100) errs.push({ field: "nombre", message: "Máximo 100 caracteres" })
+
+    if (!dosis) errs.push({ field: "dosis", message: "La dosis es obligatoria" })
+    else if (dosis.length > 100) errs.push({ field: "dosis", message: "Máximo 100 caracteres" })
+
+    if (errs.length) {
+      setApiError(new ApiError("Validation failed", 400, errs))
+      return false
+    }
+    return true
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError("")
+    clearErrors()
     setSuccess("")
+    if (!validateClient()) return
 
+    setLoading(true)
     try {
-      await api.post("/medicamentos", {
-        ...formData,
-        tiempo_retiro: Number.parseInt(formData.tiempo_retiro),
-        stock: Number.parseInt(formData.stock),
-        precio_unitario: Number.parseFloat(formData.precio_unitario),
-      })
+      const payload = {
+        nombre: form.nombre.trim(),
+        dosis: form.dosis.trim(),
+      }
 
-      setSuccess("Medicamento registrado exitosamente")
+      await medicamentosAPI.create(payload)
+      setSuccess("✅ Medicamento registrado exitosamente")
+      setForm({ nombre: "", dosis: "" })
+
+      // Redirigir tras un breve feedback
       setTimeout(() => {
-        navigate("/medicamentos")
-      }, 2000)
+        navigate("/ver-medicamentos")
+      }, 1400)
     } catch (err: any) {
-      setError(err.response?.data?.message || "Error al registrar el medicamento")
+      const apiError = err instanceof ApiError ? err : processApiError(err)
+      setApiError(apiError)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Registrar Medicamento</h1>
-        <p className="text-gray-600 mt-2">Agregar un nuevo medicamento al inventario</p>
+    <div className="registrar-ave-container">
+      <div className="form-header">
+        <div className="form-icon">💊</div>
+        <h2 className="form-title">Registrar Medicamento</h2>
+        <p className="form-subtitle">Ingrese los datos del medicamento para agregarlo al sistema</p>
       </div>
 
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
-        {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
-
-        {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{success}</div>
+      <form className="registrar-ave-form" onSubmit={handleSubmit}>
+        {generalError && (
+          <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{generalError}</div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Medicamento *</label>
-              <input
-                type="text"
-                name="nombre"
-                value={formData.nombre}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+        {success && (
+          <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">{success}</div>
+        )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
-              <select
-                name="tipo"
-                value={formData.tipo}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Seleccionar tipo</option>
-                <option value="Antibiótico">Antibiótico</option>
-                <option value="Vitamina">Vitamina</option>
-                <option value="Desparasitante">Desparasitante</option>
-                <option value="Antiinflamatorio">Antiinflamatorio</option>
-                <option value="Probiótico">Probiótico</option>
-                <option value="Otro">Otro</option>
-              </select>
+        {/* Nombre */}
+        <div className="form-group">
+          <label className="form-label">
+            <span className="label-icon">🏷️</span>Nombre:
+          </label>
+          <input
+            type="text"
+            name="nombre"
+            value={form.nombre}
+            onChange={handleChange}
+            className={`form-input ${fieldErrors.nombre ? "border-red-500 bg-red-50" : ""}`}
+            placeholder="Ej: Amoxicilina"
+            maxLength={100}
+            required
+            autoFocus
+          />
+          {fieldErrors.nombre && (
+            <div className="mt-1 text-sm text-red-600 flex items-center">
+              <span className="mr-1">⚠️</span>
+              {fieldErrors.nombre}
             </div>
+          )}
+        </div>
+
+        {/* Dosis */}
+        <div className="form-group">
+          <label className="form-label">
+            <span className="label-icon">📏</span>Dosis estándar:
+          </label>
+          <input
+            type="text"
+            name="dosis"
+            value={form.dosis}
+            onChange={handleChange}
+            className={`form-input ${fieldErrors.dosis ? "border-red-500 bg-red-50" : ""}`}
+            placeholder="Ej: 10 mg/kg cada 12h"
+            maxLength={100}
+            required
+          />
+          {fieldErrors.dosis && (
+            <div className="mt-1 text-sm text-red-600 flex items-center">
+              <span className="mr-1">⚠️</span>
+              {fieldErrors.dosis}
+            </div>
+          )}
+          <div className="mt-1 text-xs text-gray-500">
+            💡 Usa una descripción clara de dosis (por peso, frecuencia, vía de administración, etc.)
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-            <textarea
-              name="descripcion"
-              value={formData.descripcion}
-              onChange={handleChange}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Dosis *</label>
-              <input
-                type="text"
-                name="dosis"
-                value={formData.dosis}
-                onChange={handleChange}
-                required
-                placeholder="ej: 1ml por kg"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Vía de Administración *</label>
-              <select
-                name="via_administracion"
-                value={formData.via_administracion}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Seleccionar vía</option>
-                <option value="Oral">Oral</option>
-                <option value="Intramuscular">Intramuscular</option>
-                <option value="Subcutánea">Subcutánea</option>
-                <option value="Tópica">Tópica</option>
-                <option value="En agua">En agua</option>
-                <option value="En alimento">En alimento</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tiempo de Retiro (días) *</label>
-              <input
-                type="number"
-                name="tiempo_retiro"
-                value={formData.tiempo_retiro}
-                onChange={handleChange}
-                required
-                min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Stock Inicial *</label>
-              <input
-                type="number"
-                name="stock"
-                value={formData.stock}
-                onChange={handleChange}
-                required
-                min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Precio Unitario *</label>
-              <input
-                type="number"
-                name="precio_unitario"
-                value={formData.precio_unitario}
-                onChange={handleChange}
-                required
-                min="0"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Vencimiento *</label>
-              <input
-                type="date"
-                name="fecha_vencimiento"
-                value={formData.fecha_vencimiento}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
-              <input
-                type="text"
-                name="proveedor"
-                value={formData.proveedor}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-4 pt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {loading ? "Registrando..." : "Registrar Medicamento"}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/medicamentos")}
-              className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
+        <button type="submit" className="submit-button" disabled={loading}>
+          <span className="button-icon">💾</span>
+          <span className="button-text">{loading ? "Registrando..." : "Registrar Medicamento"}</span>
+        </button>
+      </form>
     </div>
   )
 }
+
+export default RegistrarMedicamento

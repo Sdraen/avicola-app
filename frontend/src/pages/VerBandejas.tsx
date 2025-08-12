@@ -18,7 +18,7 @@ const VerBandejas: React.FC = () => {
   const [error, setError] = useState("")
   const [userRole, setUserRole] = useState<string | null>(null)
 
-  // Estados para paginación
+  // Paginación
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
@@ -50,22 +50,10 @@ const VerBandejas: React.FC = () => {
   const endIndex = startIndex + itemsPerPage
   const currentBandejas = bandejas.slice(startIndex, endIndex)
 
-  // Funciones de navegación
-  const goToPage = (page: number) => {
-    setCurrentPage(page)
-  }
-
-  const goToPreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1)
-    }
-  }
-
-  const goToNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1)
-    }
-  }
+  // Navegación
+  const goToPage = (page: number) => setCurrentPage(page)
+  const goToPreviousPage = () => currentPage > 1 && setCurrentPage(currentPage - 1)
+  const goToNextPage = () => currentPage < totalPages && setCurrentPage(currentPage + 1)
 
   const handleDelete = async (id_bandeja: number) => {
     const isConfirmed = await showDeleteConfirmation(
@@ -73,36 +61,28 @@ const VerBandejas: React.FC = () => {
       `¿Estás seguro de que deseas eliminar la bandeja #${id_bandeja}? Esta acción no se puede deshacer.`,
       "Sí, eliminar",
     )
-    if (isConfirmed) {
-      try {
-        showLoadingAlert("Eliminando bandeja...", "Por favor espere")
-        await bandejasAPI.delete(id_bandeja)
-        setBandejas((prev) => prev.filter((b) => b.id_bandeja !== id_bandeja))
-        closeLoadingAlert()
-        await showSuccessAlert("¡Bandeja eliminada!", "La bandeja ha sido eliminada correctamente")
-      } catch (err: any) {
-        closeLoadingAlert()
-        const errorMessage = err.response?.data?.error
-        if (errorMessage?.includes("asociada a una venta")) {
-          await showErrorAlert("Error al eliminar", "No se puede eliminar la bandeja porque está asociada a una venta.")
-        } else {
-          await showErrorAlert(
-            "Error al eliminar",
-            errorMessage || "No se pudo eliminar la bandeja. Inténtalo de nuevo.",
-          )
-        }
-        console.error("Error eliminando bandeja:", err)
+    if (!isConfirmed) return
+
+    try {
+      showLoadingAlert("Eliminando bandeja...", "Por favor espere")
+      await bandejasAPI.delete(id_bandeja)
+      setBandejas((prev) => prev.filter((b) => b.id_bandeja !== id_bandeja))
+      closeLoadingAlert()
+      await showSuccessAlert("¡Bandeja eliminada!", "La bandeja ha sido eliminada correctamente")
+    } catch (err: any) {
+      closeLoadingAlert()
+      const errorMessage = err.response?.data?.error
+      if (errorMessage?.includes("asociada a una venta")) {
+        await showErrorAlert("Error al eliminar", "No se puede eliminar la bandeja porque está asociada a una venta.")
+      } else {
+        await showErrorAlert("Error al eliminar", errorMessage || "No se pudo eliminar la bandeja. Inténtalo de nuevo.")
       }
+      console.error("Error eliminando bandeja:", err)
     }
   }
 
-  if (loading) {
-    return <div className="ver-aves-container text-center">Cargando bandejas...</div>
-  }
-
-  if (error) {
-    return <div className="ver-aves-container text-center text-red-600">{error}</div>
-  }
+  if (loading) return <div className="ver-aves-container text-center">Cargando bandejas...</div>
+  if (error) return <div className="ver-aves-container text-center text-red-600">{error}</div>
 
   return (
     <div className="ver-aves-container flex flex-col min-h-screen">
@@ -119,7 +99,7 @@ const VerBandejas: React.FC = () => {
         </div>
       </div>
 
-      {/* Contenedor de tabla que crece para ocupar el espacio disponible */}
+      {/* Contenedor de tabla */}
       <div className="flex-1 flex flex-col">
         <div className="table-container flex-1">
           <table className="tabla-aves">
@@ -165,7 +145,9 @@ const VerBandejas: React.FC = () => {
                   <td className="table-cell">{b.tipo_huevo}</td>
                   <td className="table-cell">{b.tamaño_huevo}</td>
                   <td className="table-cell">{b.cantidad_huevos}</td>
-                  <td className="table-cell">{formatearFechaChilena(b.fecha_creacion)}</td>
+                  <td className="table-cell">
+                    {b.fecha_creacion ? formatearFechaChilena(String(b.fecha_creacion)) : ""}
+                  </td>
                   <td
                     className={`table-cell font-semibold ${
                       b.estado === "vendida" ? "text-red-600" : b.estado === "disponible" ? "text-green-600" : ""
@@ -186,7 +168,7 @@ const VerBandejas: React.FC = () => {
           </table>
         </div>
 
-        {/* Paginación fija en la parte inferior */}
+        {/* Paginación */}
         <div className="mt-auto border-t bg-white">
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 sm:px-6">
@@ -196,7 +178,6 @@ const VerBandejas: React.FC = () => {
               </div>
 
               <div className="flex items-center space-x-2">
-                {/* Botón Anterior */}
                 <button
                   onClick={goToPreviousPage}
                   disabled={currentPage === 1}
@@ -209,19 +190,13 @@ const VerBandejas: React.FC = () => {
                   ← Anterior
                 </button>
 
-                {/* Números de página */}
                 <div className="flex space-x-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNumber
-                    if (totalPages <= 5) {
-                      pageNumber = i + 1
-                    } else if (currentPage <= 3) {
-                      pageNumber = i + 1
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNumber = totalPages - 4 + i
-                    } else {
-                      pageNumber = currentPage - 2 + i
-                    }
+                    if (totalPages <= 5) pageNumber = i + 1
+                    else if (currentPage <= 3) pageNumber = i + 1
+                    else if (currentPage >= totalPages - 2) pageNumber = totalPages - 4 + i
+                    else pageNumber = currentPage - 2 + i
 
                     return (
                       <button
@@ -239,7 +214,6 @@ const VerBandejas: React.FC = () => {
                   })}
                 </div>
 
-                {/* Botón Siguiente */}
                 <button
                   onClick={goToNextPage}
                   disabled={currentPage === totalPages}

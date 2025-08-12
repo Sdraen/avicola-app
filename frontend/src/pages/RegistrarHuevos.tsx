@@ -7,11 +7,31 @@ import { huevosAPI, jaulasAPI } from "../services/api"
 import type { Jaula } from "../types"
 import { obtenerFechaLocalHoy } from "../utils/formatoFecha"
 
+/** Re-formatea 'YYYY-MM-DD' a 'DD-MM-YYYY' sin usar Date (evita TZ) */
+const fechaInputAChilena = (fechaInput: string): string => {
+  const m = fechaInput.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return fechaInput
+  const [, y, mth, d] = m
+  return `${d}-${mth}-${y}`
+}
+
+/** Etiqueta amigable: usa string-to-string si es YYYY-MM-DD; si no, cae a Intl en CL */
+const renderEtiquetaFecha = (value: string): string => {
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (m) return fechaInputAChilena(value)
+  try {
+    return new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago" }).format(new Date(value))
+  } catch {
+    return value
+  }
+}
+
 const RegistrarHuevos: React.FC = () => {
   const navigate = useNavigate()
   const [jaulas, setJaulas] = useState<Jaula[]>([])
   const [form, setForm] = useState({
     id_jaula: "",
+    // Siempre YYYY-MM-DD local (sin TZ)
     fecha_recoleccion: obtenerFechaLocalHoy(),
     cantidad_total: "",
     huevos_cafe_chico: "",
@@ -37,7 +57,6 @@ const RegistrarHuevos: React.FC = () => {
         console.error("Error fetching jaulas:", err)
       }
     }
-
     fetchJaulas()
   }, [])
 
@@ -56,7 +75,7 @@ const RegistrarHuevos: React.FC = () => {
       Number(form.huevos_blanco_grande || 0) +
       Number(form.huevos_blanco_jumbo || 0)
 
-    setForm({ ...form, cantidad_total: total.toString() })
+    setForm((prev) => ({ ...prev, cantidad_total: String(total) }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,10 +85,10 @@ const RegistrarHuevos: React.FC = () => {
     setLoading(true)
 
     try {
-      // Asegurar que la fecha se envíe en formato correcto (YYYY-MM-DD)
+      // Enviar SIEMPRE 'YYYY-MM-DD' como string plano (sin Date)
       const huevoData = {
         id_jaula: Number.parseInt(form.id_jaula),
-        fecha_recoleccion: form.fecha_recoleccion, // Ya está en formato YYYY-MM-DD
+        fecha_recoleccion: form.fecha_recoleccion.trim(), // <-- sin conversiones
         cantidad_total: Number.parseInt(form.cantidad_total),
         huevos_cafe_chico: Number.parseInt(form.huevos_cafe_chico || "0"),
         huevos_cafe_mediano: Number.parseInt(form.huevos_cafe_mediano || "0"),
@@ -82,15 +101,15 @@ const RegistrarHuevos: React.FC = () => {
         observaciones: form.observaciones,
       }
 
-      console.log("📅 Enviando fecha:", huevoData.fecha_recoleccion)
+      console.log("📅 Enviando fecha (YYYY-MM-DD):", huevoData.fecha_recoleccion)
 
       await huevosAPI.create(huevoData)
       setSuccess("Registro de huevos creado exitosamente")
 
-      // Limpiar formulario
+      // Limpiar formulario (manteniendo hoy local)
       setForm({
         id_jaula: "",
-        fecha_recoleccion: obtenerFechaLocalHoy(), // ✅ Usando función local
+        fecha_recoleccion: obtenerFechaLocalHoy(),
         cantidad_total: "",
         huevos_cafe_chico: "",
         huevos_cafe_mediano: "",
@@ -103,7 +122,6 @@ const RegistrarHuevos: React.FC = () => {
         observaciones: "",
       })
 
-      // Redirigir después de 2 segundos
       setTimeout(() => {
         navigate("/ver-huevos")
       }, 2000)
@@ -125,7 +143,6 @@ const RegistrarHuevos: React.FC = () => {
 
       <form className="registrar-ave-form" onSubmit={handleSubmit}>
         {error && <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
-
         {success && (
           <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">{success}</div>
         )}
@@ -158,10 +175,10 @@ const RegistrarHuevos: React.FC = () => {
               onChange={handleChange}
               className="form-input"
               required
-              max={obtenerFechaLocalHoy()} // ✅ No permitir fechas futuras usando función local
+              max={obtenerFechaLocalHoy()} // no permitir futuras
             />
             <small className="text-gray-500 text-xs mt-1 block">
-              📅 Fecha seleccionada: {new Date(form.fecha_recoleccion + "T00:00:00").toLocaleDateString("es-ES")}
+              📅 Fecha seleccionada: {renderEtiquetaFecha(form.fecha_recoleccion)}
             </small>
           </div>
         </div>

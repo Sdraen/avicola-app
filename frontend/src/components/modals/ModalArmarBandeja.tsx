@@ -47,10 +47,18 @@ const ModalArmarBandeja: React.FC<ModalArmarBandejaProps> = ({ isOpen, onClose, 
     }
   }
 
+  // Cargar al abrir y al cambiar filtros
   useEffect(() => {
-    if (isOpen) {
-      fetchHuevosDisponibles()
+    if (isOpen) fetchHuevosDisponibles()
+  }, [isOpen, form.tipo_huevo, form.tamaño_huevo])
+
+  // Escuchar cambios globales (crear/eliminar bandejas en otras vistas)
+  useEffect(() => {
+    const handler = () => {
+      if (isOpen) fetchHuevosDisponibles()
     }
+    window.addEventListener("bandejas:changed", handler)
+    return () => window.removeEventListener("bandejas:changed", handler)
   }, [isOpen, form.tipo_huevo, form.tamaño_huevo])
 
   const huevosFiltrados = huevosDisponibles
@@ -98,6 +106,8 @@ const ModalArmarBandeja: React.FC<ModalArmarBandejaProps> = ({ isOpen, onClose, 
       closeLoadingAlert()
       await showSuccessAlert("¡Bandeja creada!", "La bandeja ha sido armada correctamente")
 
+      // Notificar a otros componentes y actualizar el padre
+      window.dispatchEvent(new Event("bandejas:changed"))
       onUpdate()
       onClose()
     } catch (error: any) {
@@ -150,9 +160,7 @@ const ModalArmarBandeja: React.FC<ModalArmarBandejaProps> = ({ isOpen, onClose, 
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Huevo</label>
                   <select
                     value={form.tipo_huevo}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, tipo_huevo: e.target.value as "cafe" | "blanco" }))
-                    }
+                    onChange={(e) => setForm((prev) => ({ ...prev, tipo_huevo: e.target.value as "cafe" | "blanco" }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg"
                   >
                     <option value="cafe">🟤 Café</option>
@@ -164,9 +172,7 @@ const ModalArmarBandeja: React.FC<ModalArmarBandejaProps> = ({ isOpen, onClose, 
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tamaño</label>
                   <select
                     value={form.tamaño_huevo}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, tamaño_huevo: e.target.value as any }))
-                    }
+                    onChange={(e) => setForm((prev) => ({ ...prev, tamaño_huevo: e.target.value as any }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg"
                   >
                     <option value="chico">Chico</option>

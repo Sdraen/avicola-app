@@ -316,13 +316,6 @@ const Layout: React.FC = () => {
             ))}
           </ul>
         </div>
-
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-gray-50">
-          <div className="text-xs text-gray-500 text-center">
-            <p>Sistema Avícola</p>
-            <p>v1.0.0</p>
-          </div>
-        </div>
       </nav>
 
       <main className="w-full">

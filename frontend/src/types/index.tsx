@@ -82,6 +82,7 @@ export interface HuevoDisponible {
   tamaño: string
 }
 
+// Bandeja: id_venta puede venir null desde la BD
 export interface Bandeja {
   id_bandeja: number
   tipo_huevo: string
@@ -89,13 +90,15 @@ export interface Bandeja {
   cantidad_huevos: number
   fecha_creacion: string
   estado: "disponible" | "vendida" | "reservada"
-  id_venta?: number
+  id_venta?: number | null        // <- cambia a number | null
   huevo_bandeja?: HuevoBandeja[]
 }
 
+// HuevoBandeja: necesitamos saber cuántos se usaron
 export interface HuevoBandeja {
   id_bandeja: number
   id_huevo: number
+  cantidad_usada: number          // <- agrega este campo
 }
 
 export interface Cliente {
@@ -120,7 +123,7 @@ export interface Venta {
   bandeja?: Bandeja[]
 }
 
-// Compras - ACTUALIZADO para usar id_compra
+
 export interface Compra {
   id_compra: number
   fecha: string
@@ -129,7 +132,7 @@ export interface Compra {
   implementos?: Implemento[]
 }
 
-// Implementos - ACTUALIZADO para usar id_compra
+
 export interface Implemento {
   id_implemento: number
   id_compra?: number
@@ -144,7 +147,7 @@ export interface Implemento {
   compra?: Compra
 }
 
-// Interfaces para el sistema clínico
+
 export interface AveClinica {
   id_ave: number
   id_jaula: number
@@ -184,34 +187,14 @@ export interface HistorialClinico {
 export interface Medicamento {
   id_medicamento: number
   nombre: string
-  tipo_medicamento: "antibiotico" | "vitamina" | "vacuna" | "desparasitante" | "otros"
-  descripcion?: string
-  dosis_recomendada?: string
-  fecha_vencimiento?: string
-  stock_actual: number
-  precio_unitario?: number
-  proveedor?: string
-  observaciones?: string
-  activo: boolean
-  fecha_registro: string
-  dosis?: string
+  dosis: string
 }
 
 export interface Vacuna {
   id_vacuna: number
   nombre: string
-  tipo_vacuna: "viral" | "bacteriana" | "parasitaria" | "otros"
-  descripcion?: string
-  edad_aplicacion?: string
-  dosis?: string
-  fecha_vencimiento?: string
-  stock_actual: number
-  precio_unitario?: number
-  proveedor?: string
-  observaciones?: string
-  activa: boolean
-  fecha_registro: string
-  fecha_adminstracion?: string
+  dosis: string
+  fecha_administracion: string
 }
 
 export interface Incubacion {
