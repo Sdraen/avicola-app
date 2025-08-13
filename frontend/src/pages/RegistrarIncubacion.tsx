@@ -1,219 +1,171 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import  api  from "../services/api"
+import { incubacionesAPI, incubadorasAPI } from "../services/api"
+import { useFormErrors, ApiError, processApiError } from "../utils/errorHandler"
+import type { Incubadora } from "../types"
 
-export default function RegistrarIncubacion() {
+const RegistrarIncubacion: React.FC = () => {
   const navigate = useNavigate()
+  const { fieldErrors, generalError, setApiError, clearErrors, clearFieldError } = useFormErrors()
+  const [incubadoras, setIncubadoras] = useState<Incubadora[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [loadingIncubadoras, setLoadingIncubadoras] = useState(true)
   const [success, setSuccess] = useState("")
 
-  const [formData, setFormData] = useState({
-    lote: "",
-    cantidad_huevos: "",
+  const [form, setForm] = useState({
+    id_incubadora: "",
     fecha_inicio: "",
-    temperatura: "37.5",
-    humedad: "60",
-    volteos_dia: "4",
+    lote: "",
+    temperatura: "",
+    cantidad_huevos: "",
     observaciones: "",
   })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-  }
+  useEffect(() => {
+    const fetchIncubadoras = async () => {
+      try {
+        setLoadingIncubadoras(true)
+        const { data } = await incubadorasAPI.getAll()
+        setIncubadoras(data)
+      } catch (err) {
+        console.error(err)
+        setApiError(new ApiError("Error", 500, [{ field: "general", message: "No se pudieron cargar incubadoras" }]))
+      } finally {
+        setLoadingIncubadoras(false)
+      }
+    }
+    fetchIncubadoras()
+  }, [])
 
-  const calcularFechaEclosion = (fechaInicio: string) => {
-    const fecha = new Date(fechaInicio)
-    fecha.setDate(fecha.getDate() + 21) // 21 días para pollos
-    return fecha.toISOString().split("T")[0]
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setForm((f) => ({ ...f, [name]: value }))
+    if (fieldErrors[name]) clearFieldError(name)
+    if (success) setSuccess("")
+    if (generalError) clearErrors()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError("")
+    clearErrors()
     setSuccess("")
+    setLoading(true)
 
     try {
-      const fechaEclosion = calcularFechaEclosion(formData.fecha_inicio)
+      const payload = {
+        id_incubadora: Number.parseInt(form.id_incubadora),
+        fecha_inicio: form.fecha_inicio,
+        lote: form.lote || null,
+        temperatura: form.temperatura ? Number(form.temperatura) : null,
+        cantidad_huevos: form.cantidad_huevos ? Number.parseInt(form.cantidad_huevos) : null,
+        observaciones: form.observaciones || null,
+      }
+      if (!payload.id_incubadora || Number.isNaN(payload.id_incubadora)) {
+        setApiError(new ApiError("Validation failed", 400, [{ field: "id_incubadora", message: "Seleccione incubadora" }]))
+        return
+      }
 
-      await api.post("/incubacion", {
-        ...formData,
-        cantidad_huevos: Number.parseInt(formData.cantidad_huevos),
-        temperatura: Number.parseFloat(formData.temperatura),
-        humedad: Number.parseFloat(formData.humedad),
-        volteos_dia: Number.parseInt(formData.volteos_dia),
-        fecha_estimada_eclosion: fechaEclosion,
-        estado: "Activo",
-      })
-
-      setSuccess("Incubación registrada exitosamente")
-      setTimeout(() => {
-        navigate("/incubacion")
-      }, 2000)
+      await incubacionesAPI.create(payload)
+      setSuccess("Incubación iniciada correctamente")
+      setTimeout(() => navigate("/ver-incubaciones"), 1200)
     } catch (err: any) {
-      setError(err.response?.data?.message || "Error al registrar la incubación")
+      const apiError = err instanceof ApiError ? err : processApiError(err)
+      setApiError(apiError)
     } finally {
       setLoading(false)
     }
   }
 
+  // fechas
+  const today = new Date().toISOString().split("T")[0]
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Nueva Incubación</h1>
-        <p className="text-gray-600 mt-2">Iniciar un nuevo proceso de incubación</p>
+    <div className="registrar-ave-container">
+      <div className="form-header">
+        <div className="form-icon">🥚</div>
+        <h2 className="form-title">Iniciar Incubación</h2>
+        <p className="form-subtitle">Asigne una incubadora y defina la fecha de inicio. La fecha estimada se calcula (+21 días).</p>
       </div>
 
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
-        {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+      <form className="registrar-ave-form" onSubmit={handleSubmit}>
+        {generalError && <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{generalError}</div>}
+        {success && <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">{success}</div>}
 
-        {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{success}</div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Lote *</label>
-              <input
-                type="text"
-                name="lote"
-                value={formData.lote}
-                onChange={handleChange}
-                required
-                placeholder="ej: INC-2024-001"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
+        {/* Incubadora */}
+        <div className="form-group">
+          <label className="form-label"><span className="label-icon">🧰</span>Incubadora:</label>
+          {loadingIncubadoras ? (
+            <div className="form-input flex items-center justify-center py-3">
+              <div className="flex items-center space-x-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+                <span className="text-gray-600">Cargando incubadoras...</span>
+              </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad de Huevos *</label>
-              <input
-                type="number"
-                name="cantidad_huevos"
-                value={formData.cantidad_huevos}
-                onChange={handleChange}
-                required
-                min="1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio *</label>
-            <input
-              type="date"
-              name="fecha_inicio"
-              value={formData.fecha_inicio}
+          ) : (
+            <select
+              name="id_incubadora"
+              value={form.id_incubadora}
               onChange={handleChange}
+              className={`form-input ${fieldErrors.id_incubadora ? "border-red-500 bg-red-50" : ""}`}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-            {formData.fecha_inicio && (
-              <p className="text-sm text-gray-600 mt-1">
-                Fecha estimada de eclosión:{" "}
-                {new Date(calcularFechaEclosion(formData.fecha_inicio)).toLocaleDateString()}
-              </p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Temperatura (°C) *</label>
-              <input
-                type="number"
-                name="temperatura"
-                value={formData.temperatura}
-                onChange={handleChange}
-                required
-                min="35"
-                max="40"
-                step="0.1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">Recomendado: 37.5°C</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Humedad (%) *</label>
-              <input
-                type="number"
-                name="humedad"
-                value={formData.humedad}
-                onChange={handleChange}
-                required
-                min="40"
-                max="80"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">Recomendado: 60%</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Volteos por Día *</label>
-              <input
-                type="number"
-                name="volteos_dia"
-                value={formData.volteos_dia}
-                onChange={handleChange}
-                required
-                min="2"
-                max="8"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">Recomendado: 4 veces</p>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-            <textarea
-              name="observaciones"
-              value={formData.observaciones}
-              onChange={handleChange}
-              rows={3}
-              placeholder="Notas adicionales sobre la incubación..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-          </div>
-
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="font-medium text-blue-900 mb-2">Información del Proceso</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Duración total: 21 días para pollos</li>
-              <li>• Los primeros 18 días requieren volteo regular</li>
-              <li>• Los últimos 3 días se detiene el volteo para la eclosión</li>
-              <li>• Mantener temperatura y humedad constantes</li>
-            </ul>
-          </div>
-
-          <div className="flex gap-4 pt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-orange-600 text-white py-2 px-4 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50"
             >
-              {loading ? "Registrando..." : "Iniciar Incubación"}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/incubacion")}
-              className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
+              <option value="">Seleccionar incubadora</option>
+              {incubadoras.map((i) => (
+                <option key={i.id_incubadora} value={i.id_incubadora}>
+                  {i.nombre} (cap. {i.capacidad})
+                </option>
+              ))}
+            </select>
+          )}
+          {fieldErrors.id_incubadora && <div className="mt-1 text-sm text-red-600 flex items-center"><span className="mr-1">⚠️</span>{fieldErrors.id_incubadora}</div>}
+        </div>
+
+        {/* Fecha inicio */}
+        <div className="form-group">
+          <label className="form-label"><span className="label-icon">📅</span>Fecha de inicio:</label>
+          <input
+            type="date"
+            name="fecha_inicio"
+            value={form.fecha_inicio}
+            onChange={handleChange}
+            className={`form-input ${fieldErrors.fecha_inicio ? "border-red-500 bg-red-50" : ""}`}
+            max={today}
+            required
+          />
+          {fieldErrors.fecha_inicio && <div className="mt-1 text-sm text-red-600 flex items-center"><span className="mr-1">⚠️</span>{fieldErrors.fecha_inicio}</div>}
+        </div>
+
+        {/* Opcionales */}
+        <div className="form-group">
+          <label className="form-label"><span className="label-icon">🧪</span>Lote (opcional):</label>
+          <input type="text" name="lote" value={form.lote} onChange={handleChange} className="form-input" placeholder="Lote referencia" />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label"><span className="label-icon">🌡️</span>Temperatura (°C):</label>
+          <input type="number" step="0.1" name="temperatura" value={form.temperatura} onChange={handleChange} className="form-input" placeholder="Ej: 37.5" />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label"><span className="label-icon">🥚</span>Cantidad de huevos:</label>
+          <input type="number" name="cantidad_huevos" value={form.cantidad_huevos} onChange={handleChange} className="form-input" placeholder="Ej: 20" />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label"><span className="label-icon">📝</span>Observaciones:</label>
+          <textarea name="observaciones" value={form.observaciones} onChange={handleChange} className="form-input" rows={3} placeholder="Notas adicionales..." />
+        </div>
+
+        <button type="submit" className="submit-button" disabled={loading || loadingIncubadoras}>
+          <span className="button-icon">💾</span>
+          <span className="button-text">{loading ? "Guardando..." : "Iniciar Incubación"}</span>
+        </button>
+      </form>
     </div>
   )
 }
+
+export default RegistrarIncubacion

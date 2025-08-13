@@ -133,10 +133,12 @@ const Layout: React.FC = () => {
     {
       title: "Incubación",
       icon: "🐣",
-      path: "/incubacion",
+      path: "/incubaciones",
       submenu: [
-        { title: "Ver Incubación", path: "/ver-incubacion" },
+        { title: "Ver Incubaciones", path: "/ver-incubaciones" },
         { title: "Registrar Incubación", path: "/registrar-incubacion" },
+        { title: "Ver Incubadoras", path: "/ver-incubadoras" },
+        { title: "Registrar Incubadora", path: "/registrar-incubadora" },
       ],
     },
   ]

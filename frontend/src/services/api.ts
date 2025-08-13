@@ -231,16 +231,53 @@ export const vacunasAPI = {
   delete: (id: number) => api.delete(`/vacunas/${id}`),
 }
 
-// Servicios de incubación
-export const incubacionAPI = {
-  getAll: () => api.get("/incubacion"),
+// ===== Incubaciones (singular según backend)
+export const incubacionesAPI = {
+  getAll: (params?: { estado?: string; id_incubadora?: number; desde?: string; hasta?: string; q?: string }) =>
+    api.get("/incubacion", { params }),
   getById: (id: number) => api.get(`/incubacion/${id}`),
-  create: (data: any) => api.post("/incubacion", data),
-  update: (id: number, data: any) => api.put(`/incubacion/${id}`, data),
+  create: (data: {
+    id_incubadora: number
+    fecha_inicio: string
+    lote?: string | null
+    temperatura?: number | null
+    cantidad_huevos?: number | null
+    observaciones?: string | null
+  }) => api.post("/incubacion", data),
+  update: (
+    id: number,
+    data: {
+      id_incubadora?: number
+      fecha_inicio?: string
+      lote?: string | null
+      temperatura?: number | null
+      cantidad_huevos?: number | null
+      observaciones?: string | null
+    },
+  ) => api.put(`/incubacion/${id}`, data),
+  changeEstado: (id: number, estado: "activo" | "completado" | "cancelado") =>
+    api.patch(`/incubacion/${id}/estado`, { estado }),
   delete: (id: number) => api.delete(`/incubacion/${id}`),
-  getActive: () => api.get("/incubacion/estado/activo"),
-  getByIncubadora: (id_incubadora: number) => api.get(`/incubacion/incubadora/${id_incubadora}`),
-  getStats: () => api.get("/incubacion/stats/overview"),
+  getStats: () => api.get("/incubacion/stats"),
+}
+
+export const incubadorasAPI = {
+  getAll: () => api.get("/incubacion/incubadoras"),
+  create: (data: { nombre: string; capacidad: number; estado?: string }) =>
+    api.post("/incubacion/incubadoras", data),
+  update: (id: number, data: { nombre?: string; capacidad?: number; estado?: string }) =>
+    api.put(`/incubacion/incubadoras/${id}`, data),
+  delete: (id: number) => api.delete(`/incubacion/incubadoras/${id}`),
+}
+
+
+
+
+// ===== Nacimientos (nuevo)
+export const nacimientosAPI = {
+  create: (data: { id_incubacion: number; fecha_nacimiento: string; sexo?: string | null; observaciones?: string | null }) =>
+    api.post("/nacimientos", data),
+  getById: (id: number) => api.get(`/nacimientos/${id}`),
 }
 
 // Servicios de registro de huevos diario

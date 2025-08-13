@@ -2,7 +2,7 @@ export interface Usuario {
   id_usuario: number
   nombre: string
   email: string
-  rol: "admin" | "empleado"
+  rol: "admin" | "empleado" | "operador"
   activo: boolean
   fecha_creacion: string
 }
@@ -25,12 +25,11 @@ export interface Ave {
   id_jaula: number
   id_anillo: string
   color_anillo: string
-  fecha_nacimiento: string // Nuevo campo obligatorio
+  fecha_nacimiento: string
   estado_puesta: string
   fecha_registro: string
   raza: string
   jaula?: Jaula
-  // Campos calculados que vienen del backend
   edad_calculada_dias?: number
   edad_calculada_semanas?: number
   edad_calculada_meses?: number
@@ -75,14 +74,11 @@ export interface HuevoDisponible {
   id_jaula: number
   fecha_recoleccion: string
   cantidad_disponible: number
-  jaula?: {
-    descripcion: string
-  }
+  jaula?: { descripcion: string }
   tipo: string
   tamaño: string
 }
 
-// Bandeja: id_venta puede venir null desde la BD
 export interface Bandeja {
   id_bandeja: number
   tipo_huevo: string
@@ -90,15 +86,14 @@ export interface Bandeja {
   cantidad_huevos: number
   fecha_creacion: string
   estado: "disponible" | "vendida" | "reservada"
-  id_venta?: number | null        // <- cambia a number | null
+  id_venta?: number | null
   huevo_bandeja?: HuevoBandeja[]
 }
 
-// HuevoBandeja: necesitamos saber cuántos se usaron
 export interface HuevoBandeja {
   id_bandeja: number
   id_huevo: number
-  cantidad_usada: number          // <- agrega este campo
+  cantidad_usada: number
 }
 
 export interface Cliente {
@@ -123,7 +118,6 @@ export interface Venta {
   bandeja?: Bandeja[]
 }
 
-
 export interface Compra {
   id_compra: number
   fecha: string
@@ -131,7 +125,6 @@ export interface Compra {
   proveedor?: string
   implementos?: Implemento[]
 }
-
 
 export interface Implemento {
   id_implemento: number
@@ -147,35 +140,21 @@ export interface Implemento {
   compra?: Compra
 }
 
-
 export interface AveClinica {
   id_ave: number
   id_jaula: number
   fecha_inicio: string
   fecha_fin?: string
   descripcion: string
-  ave?: {
-    id_ave: number
-    id_anillo: string
-    raza: string
-  }
-  jaula?: {
-    id_jaula: number
-    descripcion: string
-    codigo_jaula: string
-  }
+  ave?: { id_ave: number; id_anillo: string; raza: string }
+  jaula?: { id_jaula: number; descripcion: string; codigo_jaula: string }
 }
 
 export interface AveFallecida {
   id_ave: number
   fecha: string
   motivo: string
-  ave?: {
-    id_ave: number
-    id_anillo: string
-    raza: string
-    color_anillo: string
-  }
+  ave?: { id_ave: number; id_anillo: string; raza: string; color_anillo: string }
 }
 
 export interface HistorialClinico {
@@ -197,15 +176,19 @@ export interface Vacuna {
   fecha_administracion: string
 }
 
+/** ==== Incubaciones & Nacimientos (ajustado a backend) ==== */
 export interface Incubacion {
   id_incubacion: number
   id_incubadora: number
-  id_huevo: number
+  lote?: string | null
+  temperatura?: number | null
+  cantidad_huevos?: number | null
   fecha_inicio: string
-  fecha_fin: string
-  estado: string
+  fecha_estimada_eclo: string
+  observaciones?: string | null
+  estado: "activo" | "completado" | "cancelado"
   incubadora?: Incubadora
-  huevo?: Huevo
+  nacimiento?: Nacimiento | null
 }
 
 export interface Incubadora {
@@ -213,6 +196,14 @@ export interface Incubadora {
   nombre: string
   capacidad: number
   estado: string
+}
+
+export interface Nacimiento {
+  id_nacimiento: number
+  id_incubacion: number
+  fecha_nacimiento: string
+  sexo?: string | null
+  observaciones?: string | null
 }
 
 export interface RegistroHuevosDiario {
@@ -241,7 +232,7 @@ export interface User {
 export interface AveFormData {
   id_jaula: number
   color_anillo: string
-  fecha_nacimiento: string // Cambiado de edad a fecha_nacimiento
+  fecha_nacimiento: string
   estado_puesta: string
   raza: string
 }
@@ -273,7 +264,6 @@ export interface VentaCreatePayload {
   bandeja_ids: number[]
 }
 
-// Tipos para formularios
 export interface LoginForm {
   email: string
   password: string
@@ -287,7 +277,6 @@ export interface RegisterForm {
   rol?: "admin" | "empleado"
 }
 
-// Tipos para respuestas de API
 export interface ApiResponse<T> {
   success: boolean
   data: T
@@ -298,16 +287,10 @@ export interface ApiResponse<T> {
 export interface PaginatedResponse<T> {
   success: boolean
   data: T[]
-  pagination: {
-    page: number
-    limit: number
-    total: number
-    totalPages: number
-  }
+  pagination: { page: number; limit: number; total: number; totalPages: number }
   message?: string
 }
 
-// Tipos para estadísticas
 export interface EstadisticasGenerales {
   totalAves: number
   totalHuevos: number

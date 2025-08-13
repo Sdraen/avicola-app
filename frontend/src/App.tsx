@@ -51,9 +51,11 @@ import VerVacunas from "./pages/VerVacunas"
 import RegistrarVacuna from "./pages/RegistrarVacuna"
 
 // Incubación
-import Incubacion from "./pages/Incubacion"
-import VerIncubacion from "./pages/VerIncubacion"
+import Incubaciones from "./pages/Incubaciones"
+import VerIncubaciones from "./pages/VerIncubaciones"
 import RegistrarIncubacion from "./pages/RegistrarIncubacion"
+import VerIncubadoras from "./pages/VerIncubadoras"
+import RegistrarIncubadora from "./pages/RegistrarIncubadora"
 
 // Implementos
 import Implementos from "./pages/Implementos"
@@ -134,9 +136,11 @@ function App() {
         <Route path="registrar-vacuna" element={<RegistrarVacuna />} />
 
         {/* Rutas de Incubación */}
-        <Route path="incubacion" element={<Incubacion />} />
-        <Route path="ver-incubacion" element={<VerIncubacion />} />
+        <Route path="incubaciones" element={<Incubaciones />} />
+        <Route path="ver-incubaciones" element={<VerIncubaciones />} />
         <Route path="registrar-incubacion" element={<RegistrarIncubacion />} />
+        <Route path="ver-incubadoras" element={<VerIncubadoras />} />
+        <Route path="registrar-incubadora" element={<RegistrarIncubadora />} />
 
         {/* Rutas de Implementos */}
         <Route path="implementos" element={<Implementos />} />
