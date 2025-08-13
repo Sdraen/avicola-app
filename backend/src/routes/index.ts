@@ -5,7 +5,8 @@ import clientesRoutes from "./clientes"
 import comprasRoutes from "./compras"
 import huevosRoutes from "./huevos"
 import implementosRoutes from "./implementos"
-import incubacionRoutes from "./incubacion"
+import incubacionRoutes from "./incubaciones"
+import nacimientosRoutes from "./nacimientos"
 import jaulasRoutes from "./jaulas"
 import medicamentosRoutes from "./medicamentos"
 import razasRoutes from "./razas"
@@ -28,6 +29,7 @@ router.use("/compras", comprasRoutes)
 router.use("/huevos", huevosRoutes)
 router.use("/implementos", implementosRoutes)
 router.use("/incubacion", incubacionRoutes)
+router.use("/nacimientos", nacimientosRoutes)
 router.use("/jaulas", jaulasRoutes)
 router.use("/medicamentos", medicamentosRoutes)
 router.use("/razas", razasRoutes)

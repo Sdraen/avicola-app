@@ -32,6 +32,7 @@ export const validateEntityData = (
     medicamento: wrapValidator(schemas.validateMedicamento),
     vacuna: wrapValidator(schemas.validateVacuna),
     incubacion: wrapValidator(schemas.validateIncubacion),
+    nacimiento: wrapValidator(schemas.validateNacimiento),
     raza: wrapValidator(schemas.validateRaza),
     registro_huevo: wrapValidator(schemas.validateRegistroHuevo),
     registro_huevos: wrapValidator(schemas.validateRegistroHuevo),
@@ -46,6 +47,7 @@ export const validateEntityData = (
     medicamento: wrapValidator(schemas.validateMedicamentoUpdate),
     vacuna: wrapValidator(schemas.validateVacunaUpdate),
     incubacion: wrapValidator(schemas.validateIncubacionUpdate),
+    nacimiento: wrapValidator(schemas.validateNacimientoUpdate),
     raza: wrapValidator(schemas.validateRazaUpdate),
     usuario: wrapValidator(schemas.validateUsuarioUpdate),
   }

@@ -9,9 +9,10 @@ export * from "./clienteSchema"
 export * from "./ventaSchema"
 export * from "./jaulaSchema"
 export * from "./compraSchema"
-export * from "./medicamentoSchema"   // ⬅️ asegurado
-export * from "./vacunaSchema"        // ⬅️ asegurado
+export * from "./medicamentoSchema"
+export * from "./vacunaSchema"
 export * from "./incubacionSchema"
+export * from "./nacimientoSchema"
 export * from "./razaSchema"
 export * from "./registroHuevoSchema"
 export * from "./authSchema"
@@ -27,9 +28,10 @@ export const getValidator = (entity: string) => {
     venta: require("./ventaSchema").validateVenta,
     jaula: require("./jaulaSchema").validateJaula,
     compra: require("./compraSchema").validateCompra,
-    medicamento: require("./medicamentoSchema").validateMedicamento, // ⬅️
-    vacuna: require("./vacunaSchema").validateVacuna,                 // ⬅️
+    medicamento: require("./medicamentoSchema").validateMedicamento,
+    vacuna: require("./vacunaSchema").validateVacuna,
     incubacion: require("./incubacionSchema").validateIncubacion,
+    nacimiento: require("./nacimientoSchema").validateNacimiento,
     raza: require("./razaSchema").validateRaza,
     registro_huevo: require("./registroHuevoSchema").validateRegistroHuevo,
     usuario: require("./authSchema").validateUsuario,
@@ -43,17 +45,18 @@ export const getValidator = (entity: string) => {
     venta_update: require("./ventaSchema").validateVentaUpdate,
     jaula_update: require("./jaulaSchema").validateJaulaUpdate,
     compra_update: require("./compraSchema").validateCompraUpdate,
-    medicamento_update: require("./medicamentoSchema").validateMedicamentoUpdate, // ⬅️
-    vacuna_update: require("./vacunaSchema").validateVacunaUpdate,                 // ⬅️
+    medicamento_update: require("./medicamentoSchema").validateMedicamentoUpdate,
+    vacuna_update: require("./vacunaSchema").validateVacunaUpdate,
     incubacion_update: require("./incubacionSchema").validateIncubacionUpdate,
+    nacimiento_update: require("./nacimientoSchema").validateNacimientoUpdate,
     raza_update: require("./razaSchema").validateRazaUpdate,
     usuario_update: require("./authSchema").validateUsuarioUpdate,
 
     // Special validators / acciones
     implemento: require("./compraSchema").validateImplemento,
     servicio_higiene: require("./jaulaSchema").validateServicioHigiene,
-    aplicacion_medicamento: require("./medicamentoSchema").validateAplicacionMedicamento, // ⬅️
-    aplicacion_vacuna: require("./vacunaSchema").validateAplicacionVacuna,                 // ⬅️
+    aplicacion_medicamento: require("./medicamentoSchema").validateAplicacionMedicamento,
+    aplicacion_vacuna: require("./vacunaSchema").validateAplicacionVacuna,
   }
 
   return validators[entity] || null

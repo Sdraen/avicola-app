@@ -18,7 +18,8 @@ console.log("SUPABASE_URL:", process.env.SUPABASE_URL ? "✅ Set" : "❌ Missing
 import authRoutes from "./routes/auth"
 import avesRoutes from "./routes/aves"
 import huevosRoutes from "./routes/huevos"
-import incubacionRoutes from "./routes/incubacion"
+import incubacionRoutes from "./routes/incubaciones"
+import nacimientosRoutes from "./routes/nacimientos"
 import ventasRoutes from "./routes/ventas"
 import jaulasRoutes from "./routes/jaulas"
 import clientesRoutes from "./routes/clientes"
@@ -95,6 +96,7 @@ app.use("/api/ventas", ventasRoutes)
 app.use("/api/jaulas", jaulasRoutes)
 app.use("/api/clientes", clientesRoutes)
 app.use("/api/implementos", implementosRoutes)
+app.use("/api/nacimientos", nacimientosRoutes)
 app.use("/api/medicamentos", medicamentosRoutes)
 app.use("/api/vacunas", vacunasRoutes)
 app.use("/api/compras", comprasRoutes)
@@ -118,6 +120,7 @@ app.get("/", (req, res) => {
       huevos: "/api/huevos",
       implementos: "/api/implementos",
       incubacion: "/api/incubacion",
+      nacimientos: "/api/nacimientos",
       jaulas: "/api/jaulas",
       medicamentos: "/api/medicamentos",
       razas: "/api/razas",
