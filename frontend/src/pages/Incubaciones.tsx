@@ -17,15 +17,42 @@ const Incubaciones: React.FC = () => {
         </p>
       </div>
 
-      <div className="button-group">
-        {/* Ir al listado */}
-        <button className="action-button primary" onClick={() => navigate("/ver-incubaciones")}>
+      {/* Accesos rápidos */}
+      <div className="button-group grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Ver Incubaciones */}
+        <button
+          className="action-button primary"
+          onClick={() => navigate("/ver-incubaciones")}
+          aria-label="Ver Incubaciones"
+        >
           📋 Ver Incubaciones
         </button>
 
-        {/* Ir al formulario de alta */}
-        <button className="action-button secondary" onClick={() => navigate("/registrar-incubacion")}>
+        {/* Registrar / Iniciar Incubación */}
+        <button
+          className="action-button secondary"
+          onClick={() => navigate("/registrar-incubacion")}
+          aria-label="Registrar Incubación"
+        >
           ➕ Iniciar Incubación
+        </button>
+
+        {/* Ver Incubadoras */}
+        <button
+          className="action-button secondary"
+          onClick={() => navigate("/ver-incubadoras")}
+          aria-label="Ver Incubadoras"
+        >
+          🧺 Ver Incubadoras
+        </button>
+
+        {/* Registrar Incubadora */}
+        <button
+          className="action-button secondary"
+          onClick={() => navigate("/registrar-incubadora")}
+          aria-label="Registrar Incubadora"
+        >
+          🛠️ Registrar Incubadora
         </button>
       </div>
     </div>

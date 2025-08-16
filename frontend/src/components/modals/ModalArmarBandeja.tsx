@@ -1,3 +1,4 @@
+// src/components/modals/ModalArmarBandeja.tsx
 "use client"
 
 import type React from "react"
@@ -19,7 +20,7 @@ interface BandejaForm {
   huevos_seleccionados: number[]
 }
 
-const getCantidadMinima = (tamaño: string) => (tamaño === "jumbo" ? 24 : 30)
+const getCantidadNecesaria = (t: BandejaForm["tamaño_huevo"]) => (t === "jumbo" ? 24 : 30)
 
 const ModalArmarBandeja: React.FC<ModalArmarBandejaProps> = ({ isOpen, onClose, onUpdate }) => {
   const [huevosDisponibles, setHuevosDisponibles] = useState<HuevoDisponible[]>([])
@@ -31,82 +32,80 @@ const ModalArmarBandeja: React.FC<ModalArmarBandejaProps> = ({ isOpen, onClose, 
     huevos_seleccionados: [],
   })
 
-  const cantidadMinima = getCantidadMinima(form.tamaño_huevo)
+  const cantidadNecesaria = getCantidadNecesaria(form.tamaño_huevo)
 
   const fetchHuevosDisponibles = async () => {
     try {
       setLoading(true)
-      const response = await bandejasAPI.getHuevosDisponibles(form.tipo_huevo, form.tamaño_huevo)
-      const huevosData = Array.isArray(response.data?.data) ? response.data.data : []
+      const resp = await bandejasAPI.getHuevosDisponibles(form.tipo_huevo, form.tamaño_huevo)
+      const huevosData = Array.isArray(resp.data?.data) ? resp.data.data : []
       setHuevosDisponibles(huevosData)
-    } catch (error) {
-      console.error("Error al cargar huevos disponibles:", error)
+    } catch (err) {
+      console.error("Error al cargar huevos disponibles:", err)
       await showErrorAlert("Error", "No se pudieron cargar los huevos disponibles")
     } finally {
       setLoading(false)
     }
   }
 
-  // Cargar al abrir y al cambiar filtros
+  // Cargar cuando abre y cuando cambian los filtros
   useEffect(() => {
     if (isOpen) fetchHuevosDisponibles()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, form.tipo_huevo, form.tamaño_huevo])
 
-  // Escuchar cambios globales (crear/eliminar bandejas en otras vistas)
+  // Mantener cantidad fija según tamaño
   useEffect(() => {
-    const handler = () => {
-      if (isOpen) fetchHuevosDisponibles()
-    }
-    window.addEventListener("bandejas:changed", handler)
-    return () => window.removeEventListener("bandejas:changed", handler)
-  }, [isOpen, form.tipo_huevo, form.tamaño_huevo])
+    setForm((prev) => ({ ...prev, cantidad_huevos: getCantidadNecesaria(prev.tamaño_huevo) }))
+  }, [form.tamaño_huevo])
 
   const huevosFiltrados = huevosDisponibles
-  const cantidadDisponible = huevosFiltrados.reduce((total, huevo) => total + huevo.cantidad_disponible, 0)
+  const cantidadDisponible = huevosFiltrados.reduce((acc, h) => acc + h.cantidad_disponible, 0)
 
+  // Selección automática (usa fuentes hasta completar la cantidad requerida)
   const seleccionarHuevosAutomaticamente = () => {
-    let cantidadRestante = form.cantidad_huevos
-    const huevosSeleccionados: number[] = []
+    let restante = cantidadNecesaria
+    const seleccionados: number[] = []
 
-    for (const huevo of huevosFiltrados) {
-      if (cantidadRestante <= 0) break
-      const cantidadAUsar = Math.min(cantidadRestante, huevo.cantidad_disponible)
-      if (cantidadAUsar > 0) {
-        huevosSeleccionados.push(huevo.id_huevo)
-        cantidadRestante -= cantidadAUsar
+    for (const h of huevosFiltrados) {
+      if (restante <= 0) break
+      const usar = Math.min(restante, h.cantidad_disponible)
+      if (usar > 0) {
+        // Se selecciona la fuente (id_huevo) y se descuenta lo usado
+        seleccionados.push(h.id_huevo)
+        restante -= usar
       }
     }
-
-    setForm((prev) => ({ ...prev, huevos_seleccionados: huevosSeleccionados }))
+    setForm((prev) => ({ ...prev, huevos_seleccionados: seleccionados }))
   }
 
   useEffect(() => {
     seleccionarHuevosAutomaticamente()
-  }, [form.cantidad_huevos, huevosDisponibles])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cantidadNecesaria, huevosDisponibles])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (cantidadDisponible < cantidadMinima) {
-      await showErrorAlert("No hay suficientes huevos", `Se requieren al menos ${cantidadMinima} huevos`)
+    if (cantidadDisponible < cantidadNecesaria) {
+      await showErrorAlert("No hay suficientes huevos", `Se requieren ${cantidadNecesaria} huevos`)
       return
     }
 
     try {
       showLoadingAlert("Armando bandeja...", "Por favor espere")
 
-      const bandejaData = {
+      const payload = {
         tipo: form.tipo_huevo,
         tamaño: form.tamaño_huevo,
         id_huevos: form.huevos_seleccionados,
       }
 
-      await bandejasAPI.create(bandejaData)
+      await bandejasAPI.create(payload)
 
       closeLoadingAlert()
       await showSuccessAlert("¡Bandeja creada!", "La bandeja ha sido armada correctamente")
 
-      // Notificar a otros componentes y actualizar el padre
       window.dispatchEvent(new Event("bandejas:changed"))
       onUpdate()
       onClose()
@@ -127,7 +126,7 @@ const ModalArmarBandeja: React.FC<ModalArmarBandejaProps> = ({ isOpen, onClose, 
           <div className="bg-gradient-to-r from-yellow-500 to-orange-500 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white bg-opacity-20">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
                   <span className="text-xl">🧺</span>
                 </div>
                 <div>
@@ -137,7 +136,7 @@ const ModalArmarBandeja: React.FC<ModalArmarBandejaProps> = ({ isOpen, onClose, 
               </div>
               <button
                 onClick={onClose}
-                className="rounded-full p-2 text-white hover:bg-white hover:bg-opacity-20 transition-colors"
+                className="rounded-full p-2 text-white hover:bg-white/20 transition-colors"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -172,7 +171,13 @@ const ModalArmarBandeja: React.FC<ModalArmarBandejaProps> = ({ isOpen, onClose, 
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tamaño</label>
                   <select
                     value={form.tamaño_huevo}
-                    onChange={(e) => setForm((prev) => ({ ...prev, tamaño_huevo: e.target.value as any }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        tamaño_huevo: e.target.value as BandejaForm["tamaño_huevo"],
+                        cantidad_huevos: getCantidadNecesaria(e.target.value as BandejaForm["tamaño_huevo"]),
+                      }))
+                    }
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg"
                   >
                     <option value="chico">Chico</option>
@@ -189,16 +194,13 @@ const ModalArmarBandeja: React.FC<ModalArmarBandejaProps> = ({ isOpen, onClose, 
                 </label>
                 <input
                   type="number"
-                  value={form.cantidad_huevos}
-                  onChange={(e) => setForm((prev) => ({ ...prev, cantidad_huevos: Number(e.target.value) }))}
-                  min={cantidadMinima}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                  required
+                  value={cantidadNecesaria}
+                  disabled
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
                 />
-                {cantidadDisponible < cantidadMinima && (
+                {cantidadDisponible < cantidadNecesaria && (
                   <p className="text-sm text-red-600 mt-1">
-                    ⚠️ No hay suficientes huevos para armar una bandeja de tamaño {form.tamaño_huevo}. Se requieren al
-                    menos {cantidadMinima}.
+                    ⚠️ No hay suficientes huevos disponibles. Se requieren {cantidadNecesaria}.
                   </p>
                 )}
               </div>
@@ -233,7 +235,7 @@ const ModalArmarBandeja: React.FC<ModalArmarBandejaProps> = ({ isOpen, onClose, 
                 </button>
                 <button
                   type="submit"
-                  disabled={cantidadDisponible < cantidadMinima}
+                  disabled={cantidadDisponible < cantidadNecesaria}
                   className="px-6 py-2 text-sm font-medium text-white bg-yellow-500 border border-transparent rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
                 >
                   <span>🧺</span>

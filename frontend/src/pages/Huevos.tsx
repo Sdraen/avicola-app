@@ -1,3 +1,4 @@
+// src/pages/Huevos.tsx
 "use client"
 
 import type React from "react"
@@ -12,22 +13,41 @@ const Huevos: React.FC = () => {
         <div className="modulo-icon">🥚</div>
         <h1 className="modulo-title">Gestión de Huevos</h1>
         <p className="modulo-description">
-          Administra el registro y seguimiento de la producción de huevos del sistema avícola.
+          Administra el registro, clasificación y seguimiento de la producción de huevos del sistema avícola.
         </p>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-center items-center gap-6 my-6">
-        <button className="action-button primary" onClick={() => navigate("/ver-huevos")}>
-          <span className="button-icon">📋</span>
-          <span className="button-text">Ver Registros de Huevos</span>
+      {/* Accesos rápidos */}
+      <div className="button-group grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 my-6">
+        {/* Ver Huevos */}
+        <button
+          className="action-button primary"
+          onClick={() => navigate("/ver-huevos")}
+          aria-label="Ver Registros de Huevos"
+        >
+          📋 Ver Registros de Huevos
         </button>
 
-        <button className="action-button primary" onClick={() => navigate("/registrar-huevos")}>
-          <span className="button-icon">➕</span>
-          <span className="button-text">Registrar Huevos por Jaula</span>
+        {/* Registrar Huevos */}
+        <button
+          className="action-button secondary"
+          onClick={() => navigate("/registrar-huevos")}
+          aria-label="Registrar Huevos"
+        >
+          ➕ Registrar Huevos por Jaula
+        </button>
+
+        {/* Ver Bandejas */}
+        <button
+          className="action-button secondary"
+          onClick={() => navigate("/ver-bandejas")}
+          aria-label="Ver Bandejas"
+        >
+          🧺 Bandejas
         </button>
       </div>
 
+      {/* Información del módulo */}
       <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Información del Módulo</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -38,6 +58,7 @@ const Huevos: React.FC = () => {
               <li>• Clasificación por tipo y tamaño</li>
               <li>• Estadísticas de producción</li>
               <li>• Reportes por fecha</li>
+              <li>• Gestión de bandejas y asignación de huevos</li>
             </ul>
           </div>
           <div>
