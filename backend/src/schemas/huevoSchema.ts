@@ -69,8 +69,7 @@ export const updateHuevoSchema = z
 
         const diffDays = Math.floor((todayOnly.getTime() - inputDateOnly.getTime()) / (1000 * 3600 * 24))
 
-        if (diffDays > 7) return false // No más de 7 días en el pasado
-        if (diffDays < 0) return false // No en el futuro
+        if (diffDays <= 0) return false // No en el futuro
         return true
       }, "Fecha de recolección debe ser hoy o hasta 7 días en el pasado")
       .optional(),
