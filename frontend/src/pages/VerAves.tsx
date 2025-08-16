@@ -238,10 +238,10 @@ const VerAves: React.FC = () => {
           className="px-3 py-2 border rounded-md text-sm"
         >
           <option value="">Todos los estados</option>
-          {uniqueEstados.map((e, i) => (
-            <option key={i} value={e}>
-              {e}
-            </option>
+          {uniqueEstados.map((estado, i) => (
+          <option key={i} value={estado}>
+            {estado.replace(/_/g, " ")}
+          </option>
           ))}
         </select>
 
@@ -292,7 +292,7 @@ const VerAves: React.FC = () => {
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium border ${getEstadoPuestaClass(ave.estado_puesta)}`}
                     >
-                      {ave.estado_puesta}
+                      {ave.estado_puesta.replace(/_/g, " ")}
                     </span>
                   </td>
                   <td className="p-2">{ave.jaula?.codigo_jaula || ave.jaula?.descripcion || ave.id_jaula}</td>
