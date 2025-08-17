@@ -2,6 +2,19 @@ import type { Request, Response } from "express"
 import { supabase } from "../config/supabase"
 
 /* =========================
+ * Helpers
+ * ========================= */
+const daysBetweenInclusive = (startISO?: string | string[], endISO?: string | string[]) => {
+  const s = typeof startISO === "string" ? startISO : Array.isArray(startISO) ? startISO[0] : undefined
+  const e = typeof endISO === "string" ? endISO : Array.isArray(endISO) ? endISO[0] : undefined
+  if (!s || !e) return 1
+  const start = new Date(`${s}T00:00:00`)
+  const end = new Date(`${e}T00:00:00`)
+  const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+  return Math.max(0, diff) + 1
+}
+
+/* =========================
  * VENTAS MENSUALES
  * ========================= */
 export const getVentasMensuales = async (req: Request, res: Response): Promise<Response> => {
@@ -208,42 +221,65 @@ export const getProduccionHuevos = async (req: Request, res: Response): Promise<
 }
 
 /* =========================
- * PRODUCCIÓN POR JAULA
+ * PRODUCCIÓN POR JAULA (EFICIENCIA REAL)
  * ========================= */
 export const getProduccionPorJaula = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { startDate, endDate, id_jaula } = req.query
 
-    let query = supabase.from("huevo").select(`
-      *,
-      jaula:id_jaula (
-        id_jaula,
-        codigo_jaula,
-        descripcion
-      )
-    `)
+    // Traer registros de huevos en el rango
+    let qHuevos = supabase.from("huevo").select("id_jaula, cantidad_total, fecha_recoleccion")
+    if (startDate) qHuevos = qHuevos.gte("fecha_recoleccion", startDate as string)
+    if (endDate) qHuevos = qHuevos.lte("fecha_recoleccion", endDate as string)
+    if (id_jaula) qHuevos = qHuevos.eq("id_jaula", id_jaula as string)
 
-    if (startDate) query = query.gte("fecha_recoleccion", startDate as string)
-    if (endDate) query = query.lte("fecha_recoleccion", endDate as string)
-    if (id_jaula) query = query.eq("id_jaula", id_jaula as string)
+    const { data: huevos, error: errHuevos } = await qHuevos
+    if (errHuevos) throw errHuevos
 
-    const { data: huevos, error } = await query
-    if (error) throw error
+    // Agrupar producción por jaula
+    const prodByJaula: Record<
+      string,
+      { jaulaId: number; huevos: number; registros: number }
+    > = {}
 
-    const produccionPorJaula = huevos?.reduce((acc: any, r: any) => {
-      const jaulaId = r.id_jaula
-      const jaulaNombre = r.jaula?.codigo_jaula || `Jaula ${jaulaId}`
-      if (!acc[jaulaId]) acc[jaulaId] = { jaula: jaulaNombre, produccion: 0, registros: 0 }
-      acc[jaulaId].produccion += r.cantidad_total || 0
-      acc[jaulaId].registros += 1
-      return acc
-    }, {})
+    for (const r of huevos || []) {
+      const jid = Number(r.id_jaula)
+      if (!prodByJaula[jid]) prodByJaula[jid] = { jaulaId: jid, huevos: 0, registros: 0 }
+      prodByJaula[jid].huevos += Number(r.cantidad_total || 0)
+      prodByJaula[jid].registros += 1
+    }
 
-    const resultado = Object.values(produccionPorJaula || {}).map((j: any) => ({
-      ...j,
-      // TODO: reemplazar por fórmula real cuando definas #aves por jaula
-      eficiencia: Math.round((j.produccion / Math.max(j.registros, 1)) * 10),
-    }))
+    const jaulasIds = Object.keys(prodByJaula).map((k) => Number(k))
+
+    // Contar aves por jaula
+    let avesPorJaula: Record<string, number> = {}
+    if (jaulasIds.length > 0) {
+      const { data: aves, error: errAves } = await supabase
+                .from("ave")
+                .select("id_jaula")
+                .in("id_jaula", jaulasIds)
+              if (errAves) throw errAves
+
+              const tmp: Record<string, number> = {}
+              for (const a of aves || []) {
+                const key = String(a.id_jaula)
+                tmp[key] = (tmp[key] || 0) + 1
+              }
+              avesPorJaula = tmp
+            }
+
+    const dias = daysBetweenInclusive(startDate as string | string[] | undefined, endDate as string | string[] | undefined)
+    const resultado = Object.values(prodByJaula).map((j) => {
+      const aves = Math.max(1, Number(avesPorJaula[String(j.jaulaId)] || 0))
+      const eficiencia = Math.min(120, Math.max(0, Math.round((j.huevos / (aves * dias)) * 100)))
+      return {
+        jaula: `Jaula ${j.jaulaId}`,
+        produccion: j.huevos,
+        registros: j.registros,
+        aves,
+        eficiencia,
+      }
+    })
 
     return res.status(200).json({ success: true, data: resultado })
   } catch (error) {
@@ -346,12 +382,12 @@ export const getEstadisticasAves = async (req: Request, res: Response): Promise<
     }
 
     const resultado = [
-      { categoria: "Aves Activas",     cantidad: enPostura || 0,  color: "#10B981" },
+      { categoria: "Aves Activas", cantidad: enPostura || 0, color: "#10B981" },
       { categoria: "Aves en Desarrollo", cantidad: enDesarrollo || 0, color: "#3B82F6" },
-      { categoria: "Aves Inactivas",   cantidad: sinPostura || 0, color: "#ebe84bff" },
-      { categoria: "Nacimientos",      cantidad: nacimientos || 0, color: "#2c3abdff" },
-      { categoria: "Muertes",          cantidad: muertes || 0,    color: "#EF4444" },
-      { categoria: "En Tratamiento",   cantidad: enTratamiento?.length || 0, color: "#F59E0B" },
+      { categoria: "Aves Inactivas", cantidad: sinPostura || 0, color: "#ebe84bff" },
+      { categoria: "Nacimientos", cantidad: nacimientos || 0, color: "#2c3abdff" },
+      { categoria: "Muertes", cantidad: muertes || 0, color: "#EF4444" },
+      { categoria: "En Tratamiento", cantidad: enTratamiento?.length || 0, color: "#F59E0B" },
     ]
 
     return res.status(200).json({ success: true, data: resultado })
@@ -361,47 +397,88 @@ export const getEstadisticasAves = async (req: Request, res: Response): Promise<
   }
 }
 
-
 /* =========================
- * USO DE INSUMOS
+ * USO DE INSUMOS (CATEGORÍAS + DETALLE)
  * ========================= */
 export const getUsoInsumos = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { startDate, endDate } = req.query
 
-    let query = supabase.from("implementos").select(`
-      *,
-      compras:id_compra (
-        fecha,
-        proveedor
-      )
-    `)
+    // 1) Traer implementos del rango (usa tu campo fecha_registro)
+    let qImpl = supabase
+      .from("implementos")
+      .select(`
+        id_implemento,
+        nombre,
+        categoria,
+        descripcion,
+        cantidad,
+        precio_unitario,
+        estado,
+        ubicacion,
+        id_compra,
+        fecha_registro
+      `)
 
-    if (startDate || endDate) {
-      const { data: comprasEnRango } = await supabase
+    if (startDate) qImpl = qImpl.gte("fecha_registro", startDate as string)
+    if (endDate) qImpl = qImpl.lte("fecha_registro", endDate as string)
+
+    const { data: implementos, error: errImpl } = await qImpl
+    if (errImpl) throw errImpl
+
+    // 2) Traer compras para obtener proveedor y fecha de compra
+    const compraIds = Array.from(new Set((implementos || []).map((r: any) => r.id_compra).filter(Boolean)))
+    let comprasById: Record<string, { proveedor?: string; fecha?: string }> = {}
+    if (compraIds.length > 0) {
+      const { data: compras, error: errCompras } = await supabase
         .from("compras")
-        .select("id_compra")
-        .gte("fecha", startDate as string)
-        .lte("fecha", endDate as string)
-
-      const compraIds = comprasEnRango?.map((c) => c.id_compra) || []
-      if (compraIds.length > 0) query = query.in("id_compra", compraIds)
-      else return res.status(200).json({ success: true, data: [] })
+        .select("id_compra, proveedor, fecha")
+        .in("id_compra", compraIds)
+      if (errCompras) throw errCompras
+      comprasById = Object.fromEntries(
+        (compras || []).map((c: any) => [String(c.id_compra), { proveedor: c.proveedor, fecha: c.fecha }]),
+      )
     }
 
-    const { data: implementos, error } = await query
-    if (error) throw error
+    // 3) Armar detalle y resumen por categoría
+    const detalle = (implementos || []).map((r: any) => {
+      const comp = r.id_compra ? comprasById[String(r.id_compra)] || {} : {}
+      const cantidad = Number(r.cantidad || 0)
+      const precioUnit = Number(r.precio_unitario || 0)
+      const costo_total = cantidad * precioUnit
 
-    const usoInsumos = implementos?.reduce((acc: any, i: any) => {
-      const categoria = i.categoria || "Sin categoría"
-      if (!acc[categoria]) acc[categoria] = { insumo: categoria, consumo: 0, costo: 0, items: 0 }
-      acc[categoria].consumo += i.cantidad || 0
-      acc[categoria].costo += (i.cantidad || 0) * (i.precio_unitario || 0)
-      acc[categoria].items += 1
-      return acc
-    }, {})
+      return {
+        id_implemento: r.id_implemento,
+        nombre: r.nombre,
+        categoria: r.categoria || "Sin categoría",
+        cantidad: isNaN(cantidad) ? 0 : cantidad,
+        costo_total: isNaN(costo_total) ? 0 : costo_total,
+        caracteristicas: r.descripcion || "",
+        ubicacion: r.ubicacion || "",
+        proveedor: comp.proveedor || "",
+        compra: r.id_compra ? `#${r.id_compra}` : null,
+        fecha: comp.fecha || r.fecha_registro || null,
+        estado: r.estado || "",
+      }
+    })
 
-    return res.status(200).json({ success: true, data: Object.values(usoInsumos || {}) })
+    const consumoPorCategoria: { [cat: string]: { insumo: string; consumo: number; costo: number; items: number } } =
+      {}
+    for (const d of detalle) {
+      const cat = d.categoria || "Sin categoría"
+      if (!consumoPorCategoria[cat]) consumoPorCategoria[cat] = { insumo: cat, consumo: 0, costo: 0, items: 0 }
+      consumoPorCategoria[cat].consumo += Number(d.cantidad || 0)
+      consumoPorCategoria[cat].costo += Number(d.costo_total || 0)
+      consumoPorCategoria[cat].items += 1
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        consumoPorCategoria: Object.values(consumoPorCategoria),
+        detalle,
+      },
+    })
   } catch (error) {
     console.error("Error en getUsoInsumos:", error)
     return res.status(500).json({ success: false, message: "Error interno del servidor" })
