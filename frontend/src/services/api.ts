@@ -75,7 +75,7 @@ export const avesAPI = {
     id_jaula: number
     id_anillo: string
     color_anillo: string
-    fecha_nacimiento: string // Cambiado de edad a fecha_nacimiento
+    fecha_nacimiento: string
     estado_puesta: string
     raza: string
   }) => api.post("/aves", data),
@@ -91,7 +91,7 @@ export const huevosAPI = {
   getAll: () => api.get("/huevos"),
   getById: (id: number) => api.get(`/huevos/${id}`),
   create: (data: any) => api.post("/huevos", data),
-  createBulk: (records: any[]) => api.post("/huevos/bulk", { records }),
+  createBulk: (records: any[]) => api.post("/huevos/bulk", { records } ),
   update: (id: number, data: any) => api.put(`/huevos/${id}`, data),
   delete: (id: number) => api.delete(`/huevos/${id}`),
   getByDateRange: (start: string, end: string) => api.get(`/huevos/fecha/${start}/${end}`),
@@ -114,11 +114,9 @@ export const bandejasAPI = {
     api.post(`/bandeja/${id}/asignar`, { id_huevos }),
   eliminarHuevos: (id: number, id_huevos: number[]) =>
     api.post(`/bandeja/${id}/eliminar-huevos`, { id_huevos }),
-  // GET /bandeja/huevos-disponibles/:tipo/:tamaño
   getHuevosDisponibles: (tipo: "cafe" | "blanco", tamaño: "chico" | "mediano" | "grande" | "jumbo") =>
     api.get(`/bandeja/huevos-disponibles/${tipo}/${encodeURIComponent(tamaño)}`),
 }
-
 
 // Servicios de jaulas
 export const jaulasAPI = {
@@ -161,7 +159,7 @@ export const ventasAPI = {
   getStats: () => api.get("/ventas/stats/overview"),
 }
 
-// Servicios de compras - CORREGIDO para usar id_compra
+// Servicios de compras
 export const comprasAPI = {
   getAll: () => api.get("/compras"),
   getById: (id: number) => api.get(`/compras/${id}`),
@@ -172,7 +170,7 @@ export const comprasAPI = {
   getStats: () => api.get("/compras/stats/overview"),
 }
 
-// Servicios de implementos - CORREGIDO para usar id_compra
+// Servicios de implementos
 export const implementosAPI = {
   getAll: () => api.get("/implementos"),
   getById: (id: number) => api.get(`/implementos/${id}`),
@@ -231,7 +229,7 @@ export const vacunasAPI = {
   delete: (id: number) => api.delete(`/vacunas/${id}`),
 }
 
-// ===== Incubaciones (singular según backend)
+// ===== Incubaciones
 export const incubacionesAPI = {
   getAll: (params?: { estado?: string; id_incubadora?: number; desde?: string; hasta?: string; q?: string }) =>
     api.get("/incubacion", { params }),
@@ -270,17 +268,14 @@ export const incubadorasAPI = {
   delete: (id: number) => api.delete(`/incubacion/incubadoras/${id}`),
 }
 
-
-
-
-// ===== Nacimientos (nuevo)
+// ===== Nacimientos
 export const nacimientosAPI = {
   create: (data: { id_incubacion: number; fecha_nacimiento: string; sexo?: string | null; observaciones?: string | null }) =>
     api.post("/nacimientos", data),
   getById: (id: number) => api.get(`/nacimientos/${id}`),
 }
 
-// Servicios de registro de huevos diario
+// Registro de huevos diario
 export const registroHuevosAPI = {
   getAll: () => api.get("/registro-huevos"),
   create: (data: any) => api.post("/registro-huevos", data),
@@ -288,7 +283,7 @@ export const registroHuevosAPI = {
   getStats: () => api.get("/registro-huevos/stats"),
 }
 
-// Nueva API para reportes
+// Reportes
 export const reportesAPI = {
   getVentasMensuales: (params?: any) => api.get("/reportes/ventas-mensuales", { params }),
   getProduccionHuevos: (params?: any) => api.get("/reportes/produccion-huevos", { params }),

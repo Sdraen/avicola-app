@@ -1,3 +1,4 @@
+// src/pages/RegistrarAve.tsx
 "use client"
 import type React from "react"
 import { useState, useEffect } from "react"
@@ -6,18 +7,30 @@ import { avesAPI, jaulasAPI } from "../services/api"
 import { useFormErrors, processApiError, ApiError } from "../utils/errorHandler"
 import type { Jaula } from "../types"
 
+type JaulaConAves = Jaula & {
+  aves?: Array<any>
+  aves_count?: number
+  total_aves?: number
+  totalAves?: number
+  cantidad_aves?: number
+  num_aves?: number
+  count_aves?: number
+}
+
 const RegistrarAve: React.FC = () => {
   const navigate = useNavigate()
   const { fieldErrors, generalError, setApiError, clearErrors, clearFieldError } = useFormErrors()
+
   const [form, setForm] = useState({
     id_jaula: "",
     id_anillo: "",
     color_anillo: "",
-    fecha_nacimiento: "", // Cambiado de edad a fecha_nacimiento
+    fecha_nacimiento: "",
     estado_puesta: "",
     raza: "",
   })
-  const [jaulas, setJaulas] = useState<Jaula[]>([])
+
+  const [jaulas, setJaulas] = useState<JaulaConAves[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingJaulas, setLoadingJaulas] = useState(true)
   const [success, setSuccess] = useState("")
@@ -29,11 +42,36 @@ const RegistrarAve: React.FC = () => {
     fetchJaulas()
   }, [])
 
+  // Obtiene el número de aves de una jaula
+  const getAvesCount = (j: Partial<JaulaConAves>): number => {
+    const direct =
+      j.total_aves ??
+      j.aves_count ??
+      j.totalAves ??
+      j.cantidad_aves ??
+      j.num_aves ??
+      j.count_aves
+    if (typeof direct === "number") return direct
+    return Array.isArray(j.aves) ? j.aves.length : 0
+  }
+
   const fetchJaulas = async () => {
     try {
       setLoadingJaulas(true)
       const response = await jaulasAPI.getAll()
-      setJaulas(response.data)
+      const raw = Array.isArray(response.data) ? (response.data as JaulaConAves[]) : (response.data?.data || [])
+
+      // 👇 Ordenar de menor a mayor cantidad de aves
+      const sorted = [...raw].sort((a, b) => {
+        const ca = getAvesCount(a)
+        const cb = getAvesCount(b)
+        if (ca !== cb) return ca - cb
+        const codeA = (a as any)?.codigo_jaula?.toString?.() ?? ""
+        const codeB = (b as any)?.codigo_jaula?.toString?.() ?? ""
+        return codeA.localeCompare(codeB)
+      })
+
+      setJaulas(sorted)
     } catch (error) {
       console.error("Error cargando jaulas:", error)
       setApiError(
@@ -63,7 +101,7 @@ const RegistrarAve: React.FC = () => {
         id_jaula: Number.parseInt(form.id_jaula),
         id_anillo: form.id_anillo.trim(),
         color_anillo: form.color_anillo.trim(),
-        fecha_nacimiento: form.fecha_nacimiento, // Cambiado de edad a fecha_nacimiento
+        fecha_nacimiento: form.fecha_nacimiento,
         estado_puesta: form.estado_puesta,
         raza: form.raza.trim(),
       }
@@ -89,18 +127,17 @@ const RegistrarAve: React.FC = () => {
     }
   }
 
-  const formatJaulaOption = (jaula: Jaula) => {
-    let label = `🏠 Jaula ${jaula.codigo_jaula}`
-    if (jaula.descripcion) label += ` - ${jaula.descripcion}`
+  const formatJaulaOption = (jaula: JaulaConAves) => {
+    let label = `🏠 Jaula ${jaula.codigo_jaula ?? jaula.id_jaula}`
+    if ((jaula as any).descripcion) label += ` - ${(jaula as any).descripcion}`
+    const n = getAvesCount(jaula)
+    const cap = Number((jaula as any)?.capacidad ?? 0)
+    if (cap > 0) label += ` (${n}/${cap} aves)`
+    else label += ` (${n} aves)`
     return label
   }
 
-  // Función para obtener la fecha máxima (hoy)
-  const getMaxDate = () => {
-    return new Date().toISOString().split("T")[0]
-  }
-
-  // Función para obtener la fecha mínima (hace 10 años)
+  const getMaxDate = () => new Date().toISOString().split("T")[0]
   const getMinDate = () => {
     const hace10Anos = new Date()
     hace10Anos.setFullYear(hace10Anos.getFullYear() - 10)
@@ -116,15 +153,15 @@ const RegistrarAve: React.FC = () => {
       </div>
 
       <form className="registrar-ave-form" onSubmit={handleSubmit}>
+        {/* mensajes de error y éxito */}
         {generalError && (
           <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{generalError}</div>
         )}
-
         {success && (
           <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">{success}</div>
         )}
 
-        {/* Jaula */}
+        {/* Select de jaulas */}
         <div className="form-group">
           <label className="form-label">
             <span className="label-icon">🏠</span>Jaula:
@@ -146,7 +183,7 @@ const RegistrarAve: React.FC = () => {
             >
               <option value="">Seleccionar jaula</option>
               {jaulas.map((jaula) => (
-                <option key={jaula.id_jaula} value={jaula.id_jaula}>
+                <option key={(jaula as any).id_jaula} value={(jaula as any).id_jaula}>
                   {formatJaulaOption(jaula)}
                 </option>
               ))}
@@ -159,7 +196,6 @@ const RegistrarAve: React.FC = () => {
             </div>
           )}
         </div>
-
         {/* ID Anillo */}
         <div className="form-group">
           <label className="form-label">

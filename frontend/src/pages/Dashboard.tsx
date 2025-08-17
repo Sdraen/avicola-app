@@ -37,7 +37,10 @@ interface ReportData {
   ventasMensuales: any[]
   produccionHuevos: any[]
   estadisticasAves: any[]
+  /** Resumen por categoría (insumo, consumo, costo, items) */
   usoInsumos: any[]
+  /** Nuevo: detalle por implemento (nombre, categoria, caracteristicas, ubicacion, proveedor, compra, fecha, estado, cantidad, costo_total) */
+  usoInsumosDetalle: any[]
   produccionPorJaula: any[]
   ventasPorCliente: any[]
   evolucionAves: any[]
@@ -59,18 +62,18 @@ const Dashboard: React.FC = () => {
   const [jaulas, setJaulas] = useState<any[]>([])
   const [ventasMetadata, setVentasMetadata] = useState<any>(null)
 
-  // Solo cargar datos iniciales y jaulas al montar el componente, y cuando cambie el tab activo
+  // Solo cargar datos iniciales y jaulas al montar el componente
   useEffect(() => {
     fetchDashboardData()
     fetchJaulas()
-  }, []) // Solo carga inicial
+  }, [])
 
-  // Agregar este nuevo useEffect para recargas automáticas selectivas
+  // Recargas selectivas
   useEffect(() => {
     if (stats) {
       fetchDashboardData()
     }
-  }, [activeTab, selectedJaula]) // Agregar selectedJaula aquí
+  }, [activeTab, selectedJaula])
 
   const fetchJaulas = async () => {
     try {
@@ -110,7 +113,7 @@ const Dashboard: React.FC = () => {
         emptyCages: jaulasData?.emptyCages || 0,
       })
 
-      // Datos para reportes (ahora usando datos reales)
+      // Datos para reportes
       await fetchReportData()
 
       console.log("✅ Dashboard cargada con éxito")
@@ -153,11 +156,21 @@ const Dashboard: React.FC = () => {
       // Guardar metadata de ventas para mostrar información adicional
       setVentasMetadata(ventasMensualesRes.data?.meta || {})
 
+      // Normalización de usoInsumos (soporta formato nuevo {consumoPorCategoria, detalle} y antiguo [ ... ])
+      const ui = usoInsumosRes?.data?.data
+      const usoResumen = Array.isArray(ui)
+        ? ui
+        : Array.isArray(ui?.consumoPorCategoria)
+        ? ui.consumoPorCategoria
+        : []
+      const usoDetalle = Array.isArray(ui?.detalle) ? ui.detalle : []
+
       setReportData({
         ventasMensuales: ventasMensualesRes.data?.data || [],
         produccionHuevos: produccionHuevosRes.data?.data || [],
         estadisticasAves: estadisticasAvesRes.data?.data || [],
-        usoInsumos: usoInsumosRes.data?.data || [],
+        usoInsumos: usoResumen,
+        usoInsumosDetalle: usoDetalle,
         produccionPorJaula: produccionPorJaulaRes.data?.data || [],
         ventasPorCliente: ventasPorClienteRes.data?.data || [],
         evolucionAves: evolucionAvesRes.data?.data || [],
@@ -555,7 +568,7 @@ const Dashboard: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cliente.pedidos}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          ${Math.round(cliente.ventas / cliente.pedidos).toLocaleString()}
+                          ${Math.round(cliente.ventas / Math.max(cliente.pedidos || 1, 1)).toLocaleString()}
                         </td>
                       </tr>
                     ))}
@@ -626,7 +639,7 @@ const Dashboard: React.FC = () => {
                           {jaula.eficiencia}%
                           <span className="ml-1 cursor-help text-gray-400 group relative">ⓘ
                             <span className="absolute z-10 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 bottom-full left-1/2 transform -translate-x-1/2 mb-1 whitespace-pre">
-                              {`🥚 ¿Qué significa la eficiencia? La eficiencia muestra la relación entre la producción registrada y la cantidad esperada según las aves activas.`}
+                              {`🥚 ¿Qué significa la eficiencia? La eficiencia muestra la relación entre la producción por jaula y lo esperado por aves y días del rango.`}
                             </span>
                           </span>
                         </td>
@@ -732,9 +745,9 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Tabla de insumos */}
+            {/* Tabla de resumen por categoría */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalle de Consumo de Insumos</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen de Consumo por Categoría</h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -761,11 +774,83 @@ const Dashboard: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{insumo.consumo}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          ${insumo.costo.toLocaleString()}
+                          ${Number(insumo.costo || 0).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{insumo.items}</td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Nueva tabla de detalle de insumos */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalle de Consumo de Insumos</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Insumo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Categoría
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Características
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ubicación
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Proveedor
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Compra
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Fecha
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Cantidad
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Costo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Estado
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {reportData?.usoInsumosDetalle?.map((d, idx) => (
+                      <tr key={idx}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{d.nombre}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.categoria || "Sin categoría"}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.caracteristicas || "—"}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.ubicacion || "—"}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.proveedor || "—"}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.compra || "—"}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {d.fecha ? formatearFechaTabla(d.fecha) : "—"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                          {Number(d.cantidad || 0).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                          ${Number(d.costo_total || 0).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.estado || "—"}</td>
+                      </tr>
+                    ))}
+                    {(!reportData?.usoInsumosDetalle || reportData?.usoInsumosDetalle.length === 0) && (
+                      <tr>
+                        <td className="px-6 py-4 text-sm text-gray-500" colSpan={10}>
+                          No hay detalle disponible para el rango seleccionado.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
