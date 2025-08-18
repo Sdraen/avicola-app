@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { medicamentosAPI } from "../services/api"
 import {
   showDeleteConfirmation,
@@ -19,9 +19,8 @@ const VerMedicamentos: React.FC = () => {
   const [error, setError] = useState("")
   const [userRole, setUserRole] = useState<string | null>(null)
 
-  // Búsqueda
+  // Búsqueda (local)
   const [query, setQuery] = useState("")
-  const [typing, setTyping] = useState(false)
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1)
@@ -30,6 +29,9 @@ const VerMedicamentos: React.FC = () => {
   // Modal edición
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+
+  // Evitar doble fetch en StrictMode (desarrollo)
+  const didInit = useRef(false)
 
   useEffect(() => {
     const user = localStorage.getItem("user")
@@ -41,10 +43,10 @@ const VerMedicamentos: React.FC = () => {
     }
   }, [])
 
-  const fetchMedicamentos = async (q?: string) => {
+  const fetchMedicamentos = async () => {
     try {
       setLoading(true)
-      const resp = await medicamentosAPI.getAll(q)
+      const resp = await medicamentosAPI.getAll()
       const data = Array.isArray(resp.data) ? resp.data : Array.isArray(resp.data?.data) ? resp.data.data : []
       setItems(data)
     } catch (err) {
@@ -55,26 +57,37 @@ const VerMedicamentos: React.FC = () => {
     }
   }
 
+  // Carga inicial UNA sola vez
   useEffect(() => {
+    if (didInit.current) return
+    didInit.current = true
     fetchMedicamentos()
   }, [])
 
-  // Debounce búsqueda
+  // Filtrado local (como VerAves)
+  const filteredItems = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return items
+    return items.filter(
+      (m) =>
+        m.nombre.toLowerCase().includes(q) ||
+        (m.dosis ? String(m.dosis).toLowerCase().includes(q) : false),
+    )
+  }, [items, query])
+
+  // Resetear a pág. 1 cuando cambia el filtro
   useEffect(() => {
-    setTyping(true)
-    const t = setTimeout(() => {
-      setTyping(false)
-      setCurrentPage(1)
-      fetchMedicamentos(query.trim() || undefined)
-    }, 350)
-    return () => clearTimeout(t)
+    setCurrentPage(1)
   }, [query])
 
-  // Paginación
-  const totalPages = Math.ceil(items.length / itemsPerPage) || 1
+  // Paginación basada en filtrados
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage) || 1
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentItems = useMemo(() => items.slice(startIndex, endIndex), [items, startIndex, endIndex])
+  const currentItems = useMemo(
+    () => filteredItems.slice(startIndex, endIndex),
+    [filteredItems, startIndex, endIndex],
+  )
 
   const goToPage = (page: number) => setCurrentPage(page)
   const goToPreviousPage = () => currentPage > 1 && setCurrentPage(currentPage - 1)
@@ -115,7 +128,8 @@ const VerMedicamentos: React.FC = () => {
   }
 
   const handleUpdated = () => {
-    fetchMedicamentos(query.trim() || undefined)
+    // Vuelve a traer la lista completa y se mantiene el filtro local
+    fetchMedicamentos()
   }
 
   if (loading) {
@@ -130,30 +144,30 @@ const VerMedicamentos: React.FC = () => {
 
   return (
     <div className="ver-aves-container flex flex-col min-h-screen">
+      {/* Header */}
       <div className="table-header">
-        <div className="header-content justify-between w-full">
-          <div className="flex items-center gap-4">
-            <div className="header-icon">💊</div>
-            <div className="header-text">
-              <h1 className="table-title">Listado de Medicamentos</h1>
-              <p className="table-subtitle">
-                Total: {items.length} | Mostrando {items.length === 0 ? 0 : startIndex + 1}-
-                {Math.min(endIndex, items.length)} de {items.length}
-              </p>
-            </div>
-          </div>
-          {/* Buscador */}
-          <div className="w-full max-w-xs">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por nombre..."
-              className="form-input"
-            />
-            {typing && <p className="text-xs text-gray-500 mt-1">Buscando…</p>}
+        <div className="header-content">
+          <div className="header-icon">💊</div>
+          <div className="header-text">
+            <h1 className="table-title">Listado de Medicamentos</h1>
+            <p className="table-subtitle">
+              Total: {filteredItems.length} | Mostrando {filteredItems.length === 0 ? 0 : startIndex + 1}-
+              {Math.min(endIndex, filteredItems.length)} de {filteredItems.length}
+            </p>
           </div>
         </div>
+      </div>
+
+      {/* Buscador (mismo estilo que VerAves) */}
+      <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
+        <input
+          type="text"
+          placeholder="🔍 Buscar por nombre o dosis..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-full md:w-1/3 px-3 py-2 border rounded-md text-sm"
+        />
+        {/* Aquí puedes agregar selects de filtros si los necesitas más adelante */}
       </div>
 
       <div className="flex-1 flex flex-col">
@@ -184,7 +198,6 @@ const VerMedicamentos: React.FC = () => {
               {currentItems.map((m) => (
                 <tr key={m.id_medicamento} className="table-row">
                   <td className="table-cell especie-cell">{m.nombre}</td>
-                  {/* Centramos también el TD de Dosis */}
                   <td className="table-cell text-center">{m.dosis}</td>
                   {muestraAcciones && (
                     <td className="table-cell text-right">

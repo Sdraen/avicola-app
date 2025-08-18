@@ -1,6 +1,6 @@
 "use client"
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { ventasAPI } from "../services/api"
 import type { Venta } from "../types"
 import ModalEditarVenta from "../components/modals/ModalEditarVenta"
@@ -19,9 +19,18 @@ const VerVentas: React.FC = () => {
   const [error, setError] = useState("")
   const [ventaEdit, setVentaEdit] = useState<Venta | null>(null)
 
-  // Estados para paginación
+  // --- Filtros solicitados ---
+  const [query, setQuery] = useState("")     // búsqueda libre
+  const [fCliente, setFCliente] = useState("") // select cliente
+  const [fDesde, setFDesde] = useState("")     // YYYY-MM-DD
+  const [fHasta, setFHasta] = useState("")     // YYYY-MM-DD
+
+  // Paginación
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
+
+  // Evitar doble fetch con StrictMode (desarrollo)
+  const didInit = useRef(false)
 
   const isAdmin =
     typeof window !== "undefined" &&
@@ -45,31 +54,89 @@ const VerVentas: React.FC = () => {
   }
 
   useEffect(() => {
+    if (didInit.current) return
+    didInit.current = true
     fetchVentas()
   }, [])
 
-  // Cálculos para paginación
-  const totalPages = Math.ceil(ventas.length / itemsPerPage)
+  // Clientes únicos para el select
+  const clientesUnicos = useMemo(() => {
+    const set = new Set<string>()
+    ventas.forEach((v) => {
+      if (v.cliente?.nombre) set.add(v.cliente.nombre)
+    })
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [ventas])
+
+  // Helpers
+  const parseFecha = (val: string | Date) => {
+    try {
+      return new Date(val)
+    } catch {
+      return new Date(NaN)
+    }
+  }
+  const normalizarNumero = (val: any): number => {
+    const n = Number(val)
+    return Number.isFinite(n) ? n : 0
+  }
+
+  // Filtrado local SOLO con los filtros solicitados
+  const filteredVentas = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const desdeDate = fDesde ? new Date(fDesde + "T00:00:00") : null
+    const hastaDate = fHasta ? new Date(fHasta + "T23:59:59") : null
+
+    return ventas.filter((v) => {
+      const cliente = v.cliente?.nombre || ""
+      const fecha = parseFecha(v.fecha_venta)
+      const total = normalizarNumero(v.costo_total)
+      const bandejas = normalizarNumero(v.cantidad_total)
+
+      // Búsqueda libre
+      const coincideLibre =
+        !q ||
+        cliente.toLowerCase().includes(q) ||
+        String(v.fecha_venta || "").toLowerCase().includes(q) ||
+        formatearFechaChilena(v.fecha_venta).toLowerCase().includes(q) ||
+        String(total).toLowerCase().includes(q) ||
+        String(bandejas).toLowerCase().includes(q)
+
+      if (!coincideLibre) return false
+
+      // Cliente
+      if (fCliente && cliente !== fCliente) return false
+
+      // Rango de fechas
+      if (desdeDate && !(fecha >= desdeDate)) return false
+      if (hastaDate && !(fecha <= hastaDate)) return false
+
+      return true
+    })
+  }, [ventas, query, fCliente, fDesde, fHasta])
+
+  // Totales sobre el resultado filtrado
+  const totalVentasFiltradas = filteredVentas.reduce((sum, v) => sum + (v.costo_total || 0), 0)
+  const totalBandejasFiltradas = filteredVentas.reduce((sum, v) => sum + (v.cantidad_total || 0), 0)
+
+  // Reset a página 1 cuando cambia cualquier filtro
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [query, fCliente, fDesde, fHasta])
+
+  // Paginación basada en filtrados
+  const totalPages = Math.ceil(filteredVentas.length / itemsPerPage) || 1
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentVentas = ventas.slice(startIndex, endIndex)
+  const currentVentas = useMemo(
+    () => filteredVentas.slice(startIndex, endIndex),
+    [filteredVentas, startIndex, endIndex],
+  )
 
-  // Funciones de navegación
-  const goToPage = (page: number) => {
-    setCurrentPage(page)
-  }
-
-  const goToPreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1)
-    }
-  }
-
-  const goToNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1)
-    }
-  }
+  // Navegación
+  const goToPage = (page: number) => setCurrentPage(page)
+  const goToPreviousPage = () => currentPage > 1 && setCurrentPage(currentPage - 1)
+  const goToNextPage = () => currentPage < totalPages && setCurrentPage(currentPage + 1)
 
   const handleDelete = async (id: number) => {
     const result = await showDeleteConfirmation(
@@ -77,26 +144,22 @@ const VerVentas: React.FC = () => {
       "Esta acción devolverá las bandejas a estado disponible. ¿Está seguro?",
       "Sí, eliminar",
     )
-    if (result) {
-      try {
-        showLoadingAlert("Eliminando venta...", "Por favor espere")
-        await ventasAPI.delete(id)
-        await fetchVentas()
-        closeLoadingAlert()
-        await showSuccessAlert(
-          "¡Venta eliminada!",
-          "La venta ha sido eliminada y las bandejas están disponibles nuevamente",
-        )
-      } catch (err) {
-        closeLoadingAlert()
-        await showErrorAlert("Error al eliminar", "No se pudo eliminar la venta. Inténtalo de nuevo.")
-      }
+    if (!result) return
+
+    try {
+      showLoadingAlert("Eliminando venta...", "Por favor espere")
+      await ventasAPI.delete(id)
+      await fetchVentas()
+      closeLoadingAlert()
+      await showSuccessAlert(
+        "¡Venta eliminada!",
+        "La venta ha sido eliminada y las bandejas están disponibles nuevamente",
+      )
+    } catch (err) {
+      closeLoadingAlert()
+      await showErrorAlert("Error al eliminar", "No se pudo eliminar la venta. Inténtalo de nuevo.")
     }
   }
-
-  // Cálculos de totales (sobre todas las ventas, no solo las de la página actual)
-  const totalVentas = ventas.reduce((sum, venta) => sum + venta.costo_total, 0)
-  const totalBandejas = ventas.reduce((sum, venta) => sum + venta.cantidad_total, 0)
 
   if (loading) {
     return (
@@ -128,20 +191,67 @@ const VerVentas: React.FC = () => {
 
   return (
     <div className="ver-aves-container flex flex-col min-h-screen">
+      {/* Header */}
       <div className="table-header">
         <div className="header-content">
           <div className="header-icon">💰</div>
           <div className="header-text">
             <h1 className="table-title">Listado de Ventas</h1>
             <p className="table-subtitle">
-              Total: {ventas.length} ventas | {totalBandejas} bandejas | ${totalVentas.toLocaleString("es-CL")} |
-              Mostrando {startIndex + 1}-{Math.min(endIndex, ventas.length)} de {ventas.length}
+              Total: {filteredVentas.length} ventas | {totalBandejasFiltradas} bandejas | $
+              {totalVentasFiltradas.toLocaleString("es-CL")} | Mostrando {filteredVentas.length === 0 ? 0 : startIndex + 1}
+              -{Math.min(endIndex, filteredVentas.length)} de {filteredVentas.length}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Contenedor de tabla que crece para ocupar el espacio disponible */}
+      {/* --- SOLO estos filtros --- */}
+      <div className="mb-4 flex flex-wrap gap-3 items-end justify-between">
+        <input
+          type="text"
+          placeholder="🔍 Buscar por cliente, fecha, total o bandejas..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-full md:w-1/3 px-3 py-2 border rounded-md text-sm"
+        />
+
+        <select
+          value={fCliente}
+          onChange={(e) => setFCliente(e.target.value)}
+          className="px-3 py-2 border rounded-md text-sm"
+        >
+          <option value="">Todos los clientes</option>
+          {clientesUnicos.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+
+        <div className="flex items-end gap-2">
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-600">Desde</label>
+            <input
+              type="date"
+              value={fDesde}
+              onChange={(e) => setFDesde(e.target.value)}
+              className="px-3 py-2 border rounded-md text-sm"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-600">Hasta</label>
+            <input
+              type="date"
+              value={fHasta}
+              onChange={(e) => setFHasta(e.target.value)}
+              className="px-3 py-2 border rounded-md text-sm"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Tabla */}
       <div className="flex-1 flex flex-col">
         <div className="table-container flex-1">
           <table className="tabla-aves">
@@ -167,7 +277,7 @@ const VerVentas: React.FC = () => {
                     <span className="th-icon">💰</span>Total
                   </span>
                 </th>
-                {(isAdmin || ventas.some((v) => v.id_venta)) && (
+                {(isAdmin || filteredVentas.some((v) => v.id_venta)) && (
                   <th>
                     <span className="th-content">
                       <span className="th-icon">⚙️</span>Acciones
@@ -177,7 +287,7 @@ const VerVentas: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {ventas.length === 0 ? (
+              {filteredVentas.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center py-8 text-gray-500">
                     <div className="flex flex-col items-center space-y-2">
@@ -224,7 +334,7 @@ const VerVentas: React.FC = () => {
           </table>
         </div>
 
-        {/* Paginación fija en la parte inferior */}
+        {/* Paginación */}
         <div className="mt-auto border-t bg-white">
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 sm:px-6">
@@ -234,7 +344,6 @@ const VerVentas: React.FC = () => {
               </div>
 
               <div className="flex items-center space-x-2">
-                {/* Botón Anterior */}
                 <button
                   onClick={goToPreviousPage}
                   disabled={currentPage === 1}
@@ -247,19 +356,13 @@ const VerVentas: React.FC = () => {
                   ← Anterior
                 </button>
 
-                {/* Números de página */}
                 <div className="flex space-x-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNumber
-                    if (totalPages <= 5) {
-                      pageNumber = i + 1
-                    } else if (currentPage <= 3) {
-                      pageNumber = i + 1
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNumber = totalPages - 4 + i
-                    } else {
-                      pageNumber = currentPage - 2 + i
-                    }
+                    if (totalPages <= 5) pageNumber = i + 1
+                    else if (currentPage <= 3) pageNumber = i + 1
+                    else if (currentPage >= totalPages - 2) pageNumber = totalPages - 4 + i
+                    else pageNumber = currentPage - 2 + i
 
                     return (
                       <button
@@ -277,7 +380,6 @@ const VerVentas: React.FC = () => {
                   })}
                 </div>
 
-                {/* Botón Siguiente */}
                 <button
                   onClick={goToNextPage}
                   disabled={currentPage === totalPages}

@@ -17,7 +17,11 @@ import {
   ArcElement,
 } from "chart.js"
 import Swal from "sweetalert2"
-import { formatearFechaChilena, formatearFechaLarga } from "../utils/formatoFecha"
+import {
+  formatearFechaChilena,
+  formatearFechaLarga,
+  obtenerFechaLocalHoy,
+} from "../utils/formatoFecha"
 
 // Registrar componentes de Chart.js
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, ArcElement)
@@ -46,33 +50,53 @@ interface ReportData {
   evolucionAves: any[]
 }
 
+// util local: formatea Date -> "YYYY-MM-DD" *en horario local*
+const toInputDateLocal = (d: Date) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+// util: un mes antes de una fecha de input "YYYY-MM-DD"
+const getOneMonthBefore = (dateString: string): string => {
+  // construir fecha en local evitando UTC
+  const [y, m, d] = dateString.split("-").map(Number)
+  const date = new Date(y, (m ?? 1) - 1, d ?? 1)
+  const oneMonthBefore = new Date(date.getFullYear(), date.getMonth() - 1, date.getDate())
+  return toInputDateLocal(oneMonthBefore)
+}
+
 const Dashboard: React.FC = () => {
+  const hoy = new Date()
+
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
   const [dateFilter, setDateFilter] = useState({
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth() - 1, new Date().getDate())
-      .toISOString()
-      .split("T")[0], // 1 mes antes de hoy
-    endDate: new Date().toISOString().split("T")[0], // Hoy
+    // 1 mes antes de HOY en horario local (sin UTC)
+    startDate: toInputDateLocal(new Date(hoy.getFullYear(), hoy.getMonth() - 1, hoy.getDate())),
+    endDate: obtenerFechaLocalHoy(), // HOY local
   })
   const [selectedJaula, setSelectedJaula] = useState<number | null>(null)
   const [jaulas, setJaulas] = useState<any[]>([])
   const [ventasMetadata, setVentasMetadata] = useState<any>(null)
 
-  // Solo cargar datos iniciales y jaulas al montar el componente
+  // cargar datos iniciales y jaulas al montar
   useEffect(() => {
     fetchDashboardData()
     fetchJaulas()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Recargas selectivas
+  // recargas selectivas
   useEffect(() => {
     if (stats) {
       fetchDashboardData()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, selectedJaula])
 
   const fetchJaulas = async () => {
@@ -153,16 +177,12 @@ const Dashboard: React.FC = () => {
         reportesAPI.getEvolucionAves(params).catch(() => ({ data: { data: [] } })),
       ])
 
-      // Guardar metadata de ventas para mostrar información adicional
+      // Guardar metadata de ventas
       setVentasMetadata(ventasMensualesRes.data?.meta || {})
 
-      // Normalización de usoInsumos (soporta formato nuevo {consumoPorCategoria, detalle} y antiguo [ ... ])
+      // Normalización de usoInsumos
       const ui = usoInsumosRes?.data?.data
-      const usoResumen = Array.isArray(ui)
-        ? ui
-        : Array.isArray(ui?.consumoPorCategoria)
-        ? ui.consumoPorCategoria
-        : []
+      const usoResumen = Array.isArray(ui) ? ui : Array.isArray(ui?.consumoPorCategoria) ? ui.consumoPorCategoria : []
       const usoDetalle = Array.isArray(ui?.detalle) ? ui.detalle : []
 
       setReportData({
@@ -182,7 +202,7 @@ const Dashboard: React.FC = () => {
     }
   }
 
-  // Función para manejar la actualización manual
+  // Actualizar con filtros
   const handleUpdateData = () => {
     console.log("🔄 Actualizando datos con filtros:", {
       startDate: dateFilter.startDate,
@@ -192,14 +212,7 @@ const Dashboard: React.FC = () => {
     fetchDashboardData()
   }
 
-  // Función para calcular 1 mes antes de una fecha
-  const getOneMonthBefore = (dateString: string): string => {
-    const date = new Date(dateString)
-    const oneMonthBefore = new Date(date.getFullYear(), date.getMonth() - 1, date.getDate())
-    return oneMonthBefore.toISOString().split("T")[0]
-  }
-
-  // Configuraciones de gráficos actualizadas
+  // Configs de gráficos
   const ventasChartData = {
     labels: reportData?.ventasMensuales.map((item) => item.periodo) || [],
     datasets: [
@@ -237,9 +250,8 @@ const Dashboard: React.FC = () => {
   const evolucionAvesChartData = {
     labels:
       reportData?.evolucionAves.map((item) => {
-        // Si item.mes es una fecha ISO, formatearla
-        if (item.mes && item.mes.includes("-")) {
-          return formatearFechaChilena(item.mes)
+        if (item.mes && typeof item.mes === "string" && item.mes.includes("-")) {
+          return formatearFechaChilena(item.mes) // ahora usa zona America/Santiago desde utils
         }
         return item.mes
       }) || [],
@@ -265,19 +277,15 @@ const Dashboard: React.FC = () => {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: "top" as const,
-      },
-      title: {
-        display: false,
-      },
+      legend: { position: "top" as const },
+      title: { display: false },
     },
   }
 
-  // Función helper para formatear fechas en tablas
+  // Helper de tablas
   const formatearFechaTabla = (fecha: string | Date) => {
     if (!fecha) return "-"
-    const fechaStr = typeof fecha === "string" ? fecha : fecha.toISOString()
+    const fechaStr = typeof fecha === "string" ? fecha : toInputDateLocal(fecha)
     return formatearFechaChilena(fechaStr)
   }
 
@@ -315,7 +323,7 @@ const Dashboard: React.FC = () => {
         <div className="px-6 py-4">
           <h1 className="text-3xl font-bold text-gray-900">Dashboard Avícola 📊</h1>
           <p className="text-gray-600 mt-1">
-            Reportes gráficos y estadísticas operativas - {formatearFechaLarga(new Date().toISOString())}
+            Reportes gráficos y estadísticas operativas - {formatearFechaLarga(obtenerFechaLocalHoy())}
           </p>
         </div>
       </div>
@@ -344,10 +352,10 @@ const Dashboard: React.FC = () => {
                 value={dateFilter.endDate}
                 onChange={(e) => {
                   const newEndDate = e.target.value
-                  setDateFilter((prev) => ({
+                  setDateFilter({
                     startDate: getOneMonthBefore(newEndDate),
                     endDate: newEndDate,
-                  }))
+                  })
                 }}
                 className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -726,19 +734,8 @@ const Dashboard: React.FC = () => {
                   options={{
                     ...chartOptions,
                     scales: {
-                      y: {
-                        type: "linear",
-                        display: true,
-                        position: "left",
-                      },
-                      y1: {
-                        type: "linear",
-                        display: true,
-                        position: "right",
-                        grid: {
-                          drawOnChartArea: false,
-                        },
-                      },
+                      y: { type: "linear", display: true, position: "left" },
+                      y1: { type: "linear", display: true, position: "right", grid: { drawOnChartArea: false } },
                     },
                   }}
                 />
@@ -869,12 +866,8 @@ const Dashboard: React.FC = () => {
               icon: "info",
               confirmButtonText: "Entendido",
               confirmButtonColor: "#3B82F6",
-              showClass: {
-                popup: "animate__animated animate__fadeInDown",
-              },
-              hideClass: {
-                popup: "animate__animated animate__fadeOutUp",
-              },
+              showClass: { popup: "animate__animated animate__fadeInDown" },
+              hideClass: { popup: "animate__animated animate__fadeOutUp" },
             })
           }}
           className="bg-green-600 hover:bg-green-700 text-white p-3 rounded-full shadow-lg transition-colors"
