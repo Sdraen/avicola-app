@@ -81,18 +81,23 @@ export const createVenta = async (req: Request, res: Response): Promise<void> =>
     }
 
     // Crear la venta
+    const fechaStr = String(req.body?.fecha_venta || req.body?.fecha || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) {
+      res.status(400).json({ error: "Fecha inválida" });
+      return;
+    }
+
     const { data: venta, error: ventaError } = await supabase
       .from("venta")
-      .insert([
-        {
-          id_cliente,
-          costo_total,
-          cantidad_total,
-          fecha_venta: new Date().toISOString().split("T")[0],
-        },
-      ])
+      .insert([{
+        id_cliente,
+        costo_total,
+        cantidad_total,
+        fecha_venta: fechaStr,
+      }])
       .select()
-      .single()
+      .single();
+
 
     if (ventaError) {
       res.status(400).json({ error: ventaError.message })
