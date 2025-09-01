@@ -6,13 +6,18 @@ import { useNavigate } from "react-router-dom"
 import Select from "react-select"
 import { ventasAPI, bandejasAPI, clientesAPI } from "../services/api"
 import type { Bandeja, Cliente } from "../types"
-import { showSuccessAlert, showErrorAlert, showLoadingAlert, closeLoadingAlert } from "../utils/sweetAlert"
+import {
+  showSuccessAlert,
+  showErrorAlert,
+  showLoadingAlert,
+  closeLoadingAlert,
+} from "../utils/sweetAlert"
 import { obtenerFechaLocalHoy } from "../utils/formatoFecha"
 
 const RegistrarVenta: React.FC = () => {
   const navigate = useNavigate()
 
-  // ✅ Eliminado el ajuste manual de zona horaria
+  // Fecha por defecto: hoy (YYYY-MM-DD)
   const fechaLocal = obtenerFechaLocalHoy()
 
   const [form, setForm] = useState({
@@ -30,7 +35,10 @@ const RegistrarVenta: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clientesRes, bandejasRes] = await Promise.all([clientesAPI.getAll(), bandejasAPI.getAll()])
+        const [clientesRes, bandejasRes] = await Promise.all([
+          clientesAPI.getAll(),
+          bandejasAPI.getAll(),
+        ])
 
         const clientesList = clientesRes.data?.data || clientesRes.data || []
         const bandejasList = bandejasRes.data?.data || bandejasRes.data || []
@@ -49,7 +57,7 @@ const RegistrarVenta: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     const raw = name === "costo_total" ? value.replace(/\D/g, "") : value
-    setForm({ ...form, [name]: raw })
+    setForm((prev) => ({ ...prev, [name]: raw }))
   }
 
   const handleSelectBandejas = (selected: any) => {
@@ -67,6 +75,7 @@ const RegistrarVenta: React.FC = () => {
 
       const payload = {
         id_cliente: Number.parseInt(form.id_cliente),
+        fecha: form.fecha,
         fecha_venta: form.fecha,
         costo_total: Number.parseInt(form.costo_total),
         cantidad_total: form.bandejasSeleccionadas.length,
@@ -101,23 +110,14 @@ const RegistrarVenta: React.FC = () => {
 
   const formatDate = (dateString: string): string => {
     if (!dateString) return "-"
-    if (dateString.includes("T")) {
-      return dateString.split("T")[0]
-    }
-    const date = new Date(dateString + "T00:00:00")
-    return date.toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
+    if (dateString.includes("T")) return dateString.split("T")[0]
+    return dateString
   }
 
-  const getTipoHuevoLabel = (tipo: string) => {
-    return tipo === "cafe" ? "🟤 Café" : "⚪ Blanco"
-  }
+  const getTipoHuevoLabel = (tipo: string) => (tipo === "cafe" ? "🟤 Café" : "⚪ Blanco")
 
   const getTamañoLabel = (tamaño: string) => {
-    const tamaños: { [key: string]: string } = {
+    const tamaños: Record<string, string> = {
       chico: "Chico",
       mediano: "Mediano",
       grande: "Grande",
@@ -130,7 +130,9 @@ const RegistrarVenta: React.FC = () => {
     .filter((b) => b.estado === "disponible")
     .map((b) => ({
       value: b.id_bandeja,
-      label: `🧺 Bandeja #${b.id_bandeja} - ${getTipoHuevoLabel(b.tipo_huevo)} ${getTamañoLabel(b.tamaño_huevo)} - ${b.cantidad_huevos} huevos - ${formatDate(b.fecha_creacion)}`,
+      label: `🧺 Bandeja #${b.id_bandeja} - ${getTipoHuevoLabel(b.tipo_huevo)} ${getTamañoLabel(
+        b.tamaño_huevo
+      )} - ${b.cantidad_huevos} huevos - ${formatDate(b.fecha_creacion)}`,
     }))
 
   const totalBandejas = form.bandejasSeleccionadas.length
@@ -151,12 +153,25 @@ const RegistrarVenta: React.FC = () => {
 
         <div className="form-group">
           <label className="form-label">📅 Fecha:</label>
-          <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className="form-input" required />
+          <input
+            type="date"
+            name="fecha"
+            value={form.fecha}
+            onChange={handleChange}
+            className="form-input"
+            required
+          />
         </div>
 
         <div className="form-group">
           <label className="form-label">👤 Cliente:</label>
-          <select name="id_cliente" value={form.id_cliente} onChange={handleChange} className="form-input" required>
+          <select
+            name="id_cliente"
+            value={form.id_cliente}
+            onChange={handleChange}
+            className="form-input"
+            required
+          >
             <option value="">Seleccione un cliente</option>
             {clientes.map((cliente) => (
               <option key={cliente.id_cliente} value={cliente.id_cliente}>
@@ -220,7 +235,11 @@ const RegistrarVenta: React.FC = () => {
           )}
         </div>
 
-        <button type="submit" className="submit-button" disabled={loading || form.bandejasSeleccionadas.length === 0}>
+        <button
+          type="submit"
+          className="submit-button"
+          disabled={loading || form.bandejasSeleccionadas.length === 0}
+        >
           <span className="button-icon">💾</span>
           <span className="button-text">{loading ? "Registrando..." : "Registrar Venta"}</span>
         </button>
