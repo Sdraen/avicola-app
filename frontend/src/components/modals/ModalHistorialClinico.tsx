@@ -17,6 +17,44 @@ interface ModalHistorialClinicoProps {
   onClose: () => void
 }
 
+const startOfLocalDay = (d?: Date | null) => {
+  const x = d ? new Date(d) : new Date()
+  x.setHours(0, 0, 0, 0)
+  return x
+}
+
+const parseLocalDate = (iso?: string | null) => {
+  if (!iso) return null
+  // soporta "YYYY-MM-DD"
+  const [y, m, d] = iso.split("-").map(Number)
+  if (!y || !m || !d) return null
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0)
+}
+
+type EstadoTratamiento = "programado" | "en_curso" | "completado"
+
+const computeEstado = (fechaInicio?: string | null, fechaFin?: string | null): EstadoTratamiento => {
+  const hoy = startOfLocalDay(null)
+  const ini = parseLocalDate(fechaInicio)
+  const fin = parseLocalDate(fechaFin)
+
+  if (ini && ini > hoy) return "programado"
+  if (fin && fin < hoy) return "completado"
+  return "en_curso"
+}
+
+const estadoToBadge = (estado: EstadoTratamiento) => {
+  switch (estado) {
+    case "completado":
+      return { text: "Completado", cls: "bg-green-100 text-green-800" }
+    case "en_curso":
+      return { text: "En tratamiento", cls: "bg-yellow-100 text-yellow-800" }
+    case "programado":
+    default:
+      return { text: "Programado", cls: "bg-blue-100 text-blue-800" }
+  }
+}
+
 const ModalHistorialClinico: React.FC<ModalHistorialClinicoProps> = ({ isOpen, aveId, aveInfo, onClose }) => {
   const [historial, setHistorial] = useState<HistorialClinico | null>(null)
   const [loading, setLoading] = useState(false)
@@ -26,6 +64,7 @@ const ModalHistorialClinico: React.FC<ModalHistorialClinicoProps> = ({ isOpen, a
     if (isOpen && aveId) {
       fetchHistorial()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, aveId])
 
   const fetchHistorial = async () => {
@@ -43,20 +82,15 @@ const ModalHistorialClinico: React.FC<ModalHistorialClinicoProps> = ({ isOpen, a
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("es-ES", {
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return "—"
+    const [y, m, d] = dateString.split("-").map(Number)
+    const dt = new Date(y!, (m ?? 1) - 1, d ?? 1)
+    return dt.toLocaleDateString("es-ES", {
       year: "numeric",
       month: "long",
       day: "numeric",
     })
-  }
-
-  const getEstadoColor = (fechaFin?: string) => {
-    return fechaFin ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-  }
-
-  const getEstadoTexto = (fechaFin?: string) => {
-    return fechaFin ? "Completado" : "En tratamiento"
   }
 
   const handleEliminarRegistro = async () => {
@@ -88,9 +122,9 @@ const ModalHistorialClinico: React.FC<ModalHistorialClinicoProps> = ({ isOpen, a
     const { value: formValues } = await Swal.fire({
       title: "Editar tratamiento clínico",
       html: `
-        <label>Fecha inicio</label><input id="fecha_inicio" type="date" class="swal2-input" value="${tratamiento.fecha_inicio.slice(0, 10)}">
-        <label>Fecha fin</label><input id="fecha_fin" type="date" class="swal2-input" value="${tratamiento.fecha_fin?.slice(0, 10) || ""}">
-        <label>Descripción</label><textarea id="descripcion" class="swal2-textarea">${tratamiento.descripcion}</textarea>
+        <label>Fecha inicio</label><input id="fecha_inicio" type="date" class="swal2-input" value="${(tratamiento.fecha_inicio || "").toString().slice(0, 10)}">
+        <label>Fecha fin</label><input id="fecha_fin" type="date" class="swal2-input" value="${(tratamiento.fecha_fin || "").toString().slice(0, 10)}">
+        <label>Descripción</label><textarea id="descripcion" class="swal2-textarea">${tratamiento.descripcion || ""}</textarea>
       `,
       focusConfirm: false,
       preConfirm: () => {
@@ -193,62 +227,62 @@ const ModalHistorialClinico: React.FC<ModalHistorialClinicoProps> = ({ isOpen, a
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {historial.historial_clinico.map((registro, index) => (
-                        <div
-                          key={index}
-                          className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg">🩺</span>
-                              <span className="font-medium text-gray-800">Tratamiento #{index + 1}</span>
+                      {historial.historial_clinico.map((registro, index) => {
+                        const estado = computeEstado(registro.fecha_inicio as any, registro.fecha_fin as any)
+                        const badge = estadoToBadge(estado)
+                        return (
+                          <div
+                            key={index}
+                            className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">🩺</span>
+                                <span className="font-medium text-gray-800">Tratamiento #{index + 1}</span>
+                              </div>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.cls}`}>
+                                {badge.text}
+                              </span>
                             </div>
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(
-                                registro.fecha_fin
-                              )}`}
-                            >
-                              {getEstadoTexto(registro.fecha_fin)}
-                            </span>
-                          </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                            <div>
-                              <p className="text-sm text-gray-600">Fecha de inicio:</p>
-                              <p className="font-medium">{formatDate(registro.fecha_inicio)}</p>
-                            </div>
-                            {registro.fecha_fin && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                               <div>
-                                <p className="text-sm text-gray-600">Fecha de fin:</p>
-                                <p className="font-medium">{formatDate(registro.fecha_fin)}</p>
+                                <p className="text-sm text-gray-600">Fecha de inicio:</p>
+                                <p className="font-medium">{formatDate(registro.fecha_inicio as any)}</p>
+                              </div>
+                              {registro.fecha_fin && (
+                                <div>
+                                  <p className="text-sm text-gray-600">Fecha de fin:</p>
+                                  <p className="font-medium">{formatDate(registro.fecha_fin as any)}</p>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-sm text-gray-600">Jaula:</p>
+                                <p className="font-medium">
+                                  {registro.jaula?.descripcion || `Jaula #${registro.id_jaula}`}
+                                </p>
+                              </div>
+                            </div>
+
+                            {index === 0 && (
+                              <div className="flex justify-end gap-2 mt-3">
+                                <button
+                                  onClick={handleEditarRegistro}
+                                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                >
+                                  ✏️ Editar
+                                </button>
+                                <button
+                                  onClick={handleEliminarRegistro}
+                                  className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                >
+                                  🗑 Eliminar
+                                </button>
                               </div>
                             )}
-                            <div>
-                              <p className="text-sm text-gray-600">Jaula:</p>
-                              <p className="font-medium">
-                                {registro.jaula?.descripcion || `Jaula #${registro.id_jaula}`}
-                              </p>
-                            </div>
                           </div>
-
-                          {index === 0 && (
-                            <div className="flex justify-end gap-2 mt-3">
-                              <button
-                                onClick={handleEditarRegistro}
-                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                              >
-                                ✏️ Editar
-                              </button>
-                              <button
-                                onClick={handleEliminarRegistro}
-                                className="text-red-600 hover:text-red-800 text-sm font-medium"
-                              >
-                                🗑 Eliminar
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
