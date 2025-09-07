@@ -301,7 +301,7 @@ export const getEstadisticasAves = async (req: Request, res: Response): Promise<
     if (id_jaula) qActivas = qActivas.eq("id_jaula", id_jaula as string)
     const { count: enPostura } = await qActivas
 
-    // 2) EN DESARROLLO (nueva categoría)
+    // 2) EN DESARROLLO
     let qEnDesarrollo = supabase
       .from("ave")
       .select("*", { count: "exact", head: true })
@@ -346,21 +346,32 @@ export const getEstadisticasAves = async (req: Request, res: Response): Promise<
     if (id_jaula) qMuertes = qMuertes.eq("ave.id_jaula", id_jaula as string)
     const { count: muertes } = await qMuertes
 
-    // 5) En tratamiento (activos: fecha_fin IS NULL)
+    // 5) EN TRATAMIENTO **VIGENTES EN EL RANGO**:
+    // Solapamiento entre [fecha_inicio, COALESCE(fecha_fin, +∞)] y [startDate, endDate].
+    // Condición: fecha_inicio <= endDate AND (fecha_fin IS NULL OR fecha_fin >= startDate)
+    // Si no se entrega start/end desde el front, usamos límites amplios por defecto.
+    const fi = (typeof startDate === "string" && startDate) ? startDate : "0001-01-01"
+    const ff = (typeof endDate === "string" && endDate) ? endDate : "9999-12-31"
+
     let qTrat = supabase
       .from("ave_clinica")
-      .select(
-        `
-      id_ave,
-      fecha_inicio,
-      fecha_fin,
-      descripcion,
-      ave:ave!inner(id_ave, id_jaula)
-    `,
-      )
-      .is("fecha_fin", null)
-    if (id_jaula) qTrat = qTrat.eq("ave.id_jaula", id_jaula as string)
-    const { data: enTratamiento } = await qTrat
+      .select("id_ave, id_jaula, fecha_inicio, fecha_fin, descripcion", { count: "exact" })
+      .lte("fecha_inicio", ff) // comenzó antes o durante el fin del rango
+      .or(`fecha_fin.is.null,fecha_fin.gte.${fi}`) // no ha terminado o terminó después/igual al inicio del rango
+
+    if (id_jaula) qTrat = qTrat.eq("id_jaula", id_jaula as string)
+
+    const { data: tratRows, count: tratamientosVigentes, error: tratErr } = await qTrat
+    if (tratErr) throw tratErr
+
+    // (Opcional) lista para el front si quieres mostrar el detalle:
+    const avesEnTratamiento = (tratRows || []).map((r: any) => ({
+      id_ave: r.id_ave,
+      id_jaula: r.id_jaula,
+      fecha_inicio: r.fecha_inicio,
+      fecha_fin: r.fecha_fin,
+      descripcion: r.descripcion,
+    }))
 
     // 6) Nacimientos por fecha_nacimiento (fallback a fecha_registro)
     let qNac = supabase.from("ave").select("fecha_nacimiento, fecha_registro, id_jaula")
@@ -382,15 +393,17 @@ export const getEstadisticasAves = async (req: Request, res: Response): Promise<
     }
 
     const resultado = [
-      { categoria: "Aves Activas", cantidad: enPostura || 0, color: "#10B981" },
-      { categoria: "Aves en Desarrollo", cantidad: enDesarrollo || 0, color: "#3B82F6" },
-      { categoria: "Aves Inactivas", cantidad: sinPostura || 0, color: "#ebe84bff" },
-      { categoria: "Nacimientos", cantidad: nacimientos || 0, color: "#2c3abdff" },
-      { categoria: "Muertes", cantidad: muertes || 0, color: "#EF4444" },
-      { categoria: "En Tratamiento", cantidad: enTratamiento?.length || 0, color: "#F59E0B" },
+      { categoria: "Aves Activas",        cantidad: enPostura || 0,            color: "#10B981" },
+      { categoria: "Aves en Desarrollo",  cantidad: enDesarrollo || 0,         color: "#3B82F6" },
+      { categoria: "Aves Inactivas",      cantidad: sinPostura || 0,           color: "#ebe84bff" },
+      { categoria: "Nacimientos",         cantidad: nacimientos || 0,          color: "#2c3abdff" },
+      { categoria: "Muertes",             cantidad: muertes || 0,              color: "#EF4444" },
+      { categoria: "En Tratamiento",      cantidad: tratamientosVigentes || 0, color: "#F59E0B" },
     ]
 
-    return res.status(200).json({ success: true, data: resultado })
+    return res
+      .status(200)
+      .json({ success: true, data: resultado, extras: { avesEnTratamiento } })
   } catch (error) {
     console.error("❌ Error en getEstadisticasAves:", error)
     return res.status(500).json({ success: false, message: "Error interno del servidor" })
