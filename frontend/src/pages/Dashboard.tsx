@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { avesAPI, huevosAPI, ventasAPI, jaulasAPI, reportesAPI } from "../services/api"
 import { Line, Bar, Doughnut } from "react-chartjs-2"
 import {
@@ -67,6 +67,28 @@ const getOneMonthBefore = (dateString: string): string => {
   return toInputDateLocal(oneMonthBefore)
 }
 
+// helpers UI
+const SortIcon: React.FC<{ dir?: "asc" | "desc" | null }> = ({ dir }) => {
+  return (
+    <span className="inline-block ml-1 text-gray-400">
+      {dir === "asc" ? "▲" : dir === "desc" ? "▼" : "↕"}
+    </span>
+  )
+}
+
+type Dir = "asc" | "desc"
+type SummaryKey = "insumo" | "consumo" | "costo" | "items"
+type DetailKey =
+  | "nombre"
+  | "categoria"
+  | "proveedor"
+  | "compra"
+  | "fecha"
+  | "cantidad"
+  | "costo_total"
+  | "estado"
+  | "ubicacion"
+
 const Dashboard: React.FC = () => {
   const hoy = new Date()
 
@@ -83,6 +105,23 @@ const Dashboard: React.FC = () => {
   const [selectedJaula, setSelectedJaula] = useState<number | null>(null)
   const [jaulas, setJaulas] = useState<any[]>([])
   const [ventasMetadata, setVentasMetadata] = useState<any>(null)
+
+  // ====== Estados nuevos para Insumos ======
+  // Controles superiores
+  const [suppliesSearch, setSuppliesSearch] = useState("")
+  const [filterCategoria, setFilterCategoria] = useState<string>("")
+  const [filterProveedor, setFilterProveedor] = useState<string>("")
+  const [chartSortBy, setChartSortBy] = useState<"consumo" | "costo" | "insumo">("costo")
+  const [chartTopN, setChartTopN] = useState<number>(10)
+
+  // Ordenamiento resumen
+  const [summarySort, setSummarySort] = useState<{ key: SummaryKey; dir: Dir }>({ key: "costo", dir: "desc" })
+  // Ordenamiento detalle
+  const [detailSort, setDetailSort] = useState<{ key: DetailKey; dir: Dir }>({ key: "fecha", dir: "desc" })
+
+  // Paginación detalle
+  const [detailPage, setDetailPage] = useState(1)
+  const [detailPageSize, setDetailPageSize] = useState<10 | 25 | 50>(10)
 
   // cargar datos iniciales y jaulas al montar
   useEffect(() => {
@@ -196,6 +235,9 @@ const Dashboard: React.FC = () => {
         evolucionAves: evolucionAvesRes.data?.data || [],
       })
 
+      // cada vez que cambia el dataset, reseteamos paginación para no quedar en una página fuera de rango
+      setDetailPage(1)
+
       console.log("✅ Report data loaded successfully")
     } catch (error) {
       console.error("❌ Error fetching report data:", error)
@@ -212,7 +254,136 @@ const Dashboard: React.FC = () => {
     fetchDashboardData()
   }
 
-  // Configs de gráficos
+  // =======================
+  // Derivados para Insumos
+  // =======================
+  const categorias = useMemo(() => {
+    const set = new Set<string>()
+    reportData?.usoInsumosDetalle?.forEach((d) => d?.categoria && set.add(String(d.categoria)))
+    return Array.from(set).sort()
+  }, [reportData?.usoInsumosDetalle])
+
+  const proveedores = useMemo(() => {
+    const set = new Set<string>()
+    reportData?.usoInsumosDetalle?.forEach((d) => d?.proveedor && set.add(String(d.proveedor)))
+    return Array.from(set).sort()
+  }, [reportData?.usoInsumosDetalle])
+
+  // Función de orden genérica
+  function cmp(a: any, b: any, key: string, dir: Dir) {
+    const va = a?.[key]
+    const vb = b?.[key]
+    const na = typeof va === "number" ? va : key === "fecha" ? new Date(va || 0).getTime() : String(va ?? "").toLowerCase()
+    const nb = typeof vb === "number" ? vb : key === "fecha" ? new Date(vb || 0).getTime() : String(vb ?? "").toLowerCase()
+    if (na < nb) return dir === "asc" ? -1 : 1
+    if (na > nb) return dir === "asc" ? 1 : -1
+    return 0
+  }
+
+  // Resumen (arriba de la sección) con orden + búsqueda
+  const resumenFiltradoYOrdenado = useMemo(() => {
+    let rows = (reportData?.usoInsumos || []).slice()
+
+    const term = suppliesSearch.trim().toLowerCase()
+    if (term) {
+      rows = rows.filter(
+        (r) =>
+          String(r.insumo ?? "").toLowerCase().includes(term) ||
+          String(r.categoria ?? "").toLowerCase().includes(term)
+      )
+    }
+
+    if (filterCategoria) {
+      rows = rows.filter((r) => String(r.categoria ?? "") === filterCategoria)
+    }
+
+    if (filterProveedor) {
+      // Para el resumen, intentamos filtrar por proveedor si existe ese campo en r,
+      // si no existe, intentamos una intersección con el detalle por nombre de insumo
+      const prov = filterProveedor
+      const nombresQueTienenProveedor = new Set(
+        (reportData?.usoInsumosDetalle || [])
+          .filter((d) => String(d.proveedor ?? "") === prov)
+          .map((d) => String(d.nombre ?? ""))
+      )
+      rows = rows.filter((r) => {
+        if (r.proveedor) return String(r.proveedor) === prov
+        return nombresQueTienenProveedor.has(String(r.insumo ?? ""))
+      })
+    }
+
+    rows.sort((a, b) => {
+      if (summarySort.key === "insumo") {
+        return cmp(a, b, "insumo", summarySort.dir)
+      }
+      if (summarySort.key === "consumo") {
+        return cmp(a, b, "consumo", summarySort.dir)
+      }
+      if (summarySort.key === "costo") {
+        return cmp(a, b, "costo", summarySort.dir)
+      }
+      return cmp(a, b, "items", summarySort.dir)
+    })
+    return rows
+  }, [reportData?.usoInsumos, summarySort, suppliesSearch, filterCategoria, filterProveedor, reportData?.usoInsumosDetalle])
+
+  // Datos del gráfico con Top N y orden elegible
+  const chartSupplies = useMemo(() => {
+    const rows = resumenFiltradoYOrdenado.slice()
+    rows.sort((a, b) => cmp(a, b, chartSortBy, "desc"))
+    const top = rows.slice(0, chartTopN)
+    return {
+      labels: top.map((r) => r.insumo),
+      datasets: [
+        {
+          label: "Consumo (unidades)",
+          data: top.map((r) => Number(r.consumo || 0)),
+          backgroundColor: "rgba(59, 130, 246, 0.8)",
+          yAxisID: "y",
+        },
+        {
+          label: "Costo ($)",
+          data: top.map((r) => Number(r.costo || 0)),
+          backgroundColor: "rgba(239, 68, 68, 0.8)",
+          yAxisID: "y1",
+        },
+      ],
+    }
+  }, [resumenFiltradoYOrdenado, chartSortBy, chartTopN])
+
+  // Detalle filtrado + ordenado + paginado
+  const detalleFiltradoOrdenado = useMemo(() => {
+    let rows = (reportData?.usoInsumosDetalle || []).slice()
+
+    const term = suppliesSearch.trim().toLowerCase()
+    if (term) {
+      rows = rows.filter((d) => {
+        return (
+          String(d.nombre ?? "").toLowerCase().includes(term) ||
+          String(d.categoria ?? "").toLowerCase().includes(term) ||
+          String(d.proveedor ?? "").toLowerCase().includes(term) ||
+          String(d.estado ?? "").toLowerCase().includes(term) ||
+          String(d.ubicacion ?? "").toLowerCase().includes(term)
+        )
+      })
+    }
+    if (filterCategoria) rows = rows.filter((d) => String(d.categoria ?? "") === filterCategoria)
+    if (filterProveedor) rows = rows.filter((d) => String(d.proveedor ?? "") === filterProveedor)
+
+    rows.sort((a, b) => cmp(a, b, detailSort.key, detailSort.dir))
+
+    return rows
+  }, [reportData?.usoInsumosDetalle, suppliesSearch, filterCategoria, filterProveedor, detailSort])
+
+  const detallePaginado = useMemo(() => {
+    const start = (detailPage - 1) * detailPageSize
+    const end = start + detailPageSize
+    return detalleFiltradoOrdenado.slice(start, end)
+  }, [detalleFiltradoOrdenado, detailPage, detailPageSize])
+
+  const detalleTotalPages = Math.max(1, Math.ceil((detalleFiltradoOrdenado.length || 0) / detailPageSize))
+
+  // Configs de gráficos generales
   const ventasChartData = {
     labels: reportData?.ventasMensuales.map((item) => item.periodo) || [],
     datasets: [
@@ -287,6 +458,22 @@ const Dashboard: React.FC = () => {
     if (!fecha) return "-"
     const fechaStr = typeof fecha === "string" ? fecha : toInputDateLocal(fecha)
     return formatearFechaChilena(fechaStr)
+  }
+
+  // Para cambiar orden al hacer click en cabecera
+  function toggleSummarySort(key: SummaryKey) {
+    setSummarySort((prev) => {
+      if (prev.key === key) return { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+      return { key, dir: key === "insumo" ? "asc" : "desc" }
+    })
+  }
+  function toggleDetailSort(key: DetailKey) {
+    setDetailSort((prev) => {
+      if (prev.key === key) return { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+      // heurística: nombre asc; números/fecha desc por defecto
+      const defaultDir: Dir = ["nombre", "categoria", "proveedor", "compra", "estado", "ubicacion"].includes(key) ? "asc" : "desc"
+      return { key, dir: defaultDir }
+    })
   }
 
   if (loading) {
@@ -396,7 +583,7 @@ const Dashboard: React.FC = () => {
       {/* Tabs */}
       <div className="px-6 mb-6">
         <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-8 overflow-x-auto">
             {[
               { id: "overview", name: "Resumen General", icon: "📈" },
               { id: "sales", name: "Ventas", icon: "💰" },
@@ -567,15 +754,15 @@ const Dashboard: React.FC = () => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {reportData?.ventasPorCliente.map((cliente, index) => (
-                      <tr key={index}>
+                      <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {cliente.cliente}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           ${cliente.ventas.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cliente.pedidos}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{cliente.pedidos}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           ${Math.round(cliente.ventas / Math.max(cliente.pedidos || 1, 1)).toLocaleString()}
                         </td>
                       </tr>
@@ -640,10 +827,10 @@ const Dashboard: React.FC = () => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {reportData?.produccionPorJaula.map((jaula, index) => (
-                      <tr key={index}>
+                      <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{jaula.jaula}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{jaula.produccion} huevos</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 relative">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{jaula.produccion} huevos</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 relative">
                           {jaula.eficiencia}%
                           <span className="ml-1 cursor-help text-gray-400 group relative">ⓘ
                             <span className="absolute z-10 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 bottom-full left-1/2 transform -translate-x-1/2 mb-1 whitespace-pre">
@@ -710,27 +897,81 @@ const Dashboard: React.FC = () => {
 
         {activeTab === "supplies" && (
           <div className="space-y-6">
+            {/* Controles de Insumos */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="flex-1 min-w-[220px]">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Buscar</label>
+                  <input
+                    placeholder="Nombre, categoría, proveedor, estado, ubicación…"
+                    value={suppliesSearch}
+                    onChange={(e) => { setSuppliesSearch(e.target.value); setDetailPage(1) }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Categoría</label>
+                  <select
+                    value={filterCategoria}
+                    onChange={(e) => { setFilterCategoria(e.target.value); setDetailPage(1) }}
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Todas</option>
+                    {categorias.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Proveedor</label>
+                  <select
+                    value={filterProveedor}
+                    onChange={(e) => { setFilterProveedor(e.target.value); setDetailPage(1) }}
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Todos</option>
+                    {proveedores.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Orden gráfico</label>
+                  <select
+                    value={chartSortBy}
+                    onChange={(e) => setChartSortBy(e.target.value as any)}
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="costo">Mayor costo</option>
+                    <option value="consumo">Mayor consumo</option>
+                    <option value="insumo">A–Z</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Top N</label>
+                  <select
+                    value={chartTopN}
+                    onChange={(e) => setChartTopN(Number(e.target.value))}
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {[5, 10, 15, 20, 30].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Gráfico */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Uso de Insumos</h3>
               <div className="h-80">
                 <Bar
-                  data={{
-                    labels: reportData?.usoInsumos.map((item) => item.insumo) || [],
-                    datasets: [
-                      {
-                        label: "Consumo (unidades)",
-                        data: reportData?.usoInsumos.map((item) => item.consumo) || [],
-                        backgroundColor: "rgba(59, 130, 246, 0.8)",
-                        yAxisID: "y",
-                      },
-                      {
-                        label: "Costo ($)",
-                        data: reportData?.usoInsumos.map((item) => item.costo) || [],
-                        backgroundColor: "rgba(239, 68, 68, 0.8)",
-                        yAxisID: "y1",
-                      },
-                    ],
-                  }}
+                  data={chartSupplies}
                   options={{
                     ...chartOptions,
                     scales: {
@@ -744,107 +985,178 @@ const Dashboard: React.FC = () => {
 
             {/* Tabla de resumen por categoría */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen de Consumo por Categoría</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Resumen de Consumo por Insumo</h3>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500">Orden:</span>
+                  <button
+                    className={`px-2 py-1 rounded border ${summarySort.key === "costo" ? "border-blue-500 text-blue-600" : "border-gray-300 text-gray-700"}`}
+                    onClick={() => toggleSummarySort("costo")}
+                  >
+                    Costo <SortIcon dir={summarySort.key === "costo" ? summarySort.dir : null} />
+                  </button>
+                  <button
+                    className={`px-2 py-1 rounded border ${summarySort.key === "consumo" ? "border-blue-500 text-blue-600" : "border-gray-300 text-gray-700"}`}
+                    onClick={() => toggleSummarySort("consumo")}
+                  >
+                    Consumo <SortIcon dir={summarySort.key === "consumo" ? summarySort.dir : null} />
+                  </button>
+                  <button
+                    className={`px-2 py-1 rounded border ${summarySort.key === "insumo" ? "border-blue-500 text-blue-600" : "border-gray-300 text-gray-700"}`}
+                    onClick={() => toggleSummarySort("insumo")}
+                  >
+                    Insumo <SortIcon dir={summarySort.key === "insumo" ? summarySort.dir : null} />
+                  </button>
+                  <button
+                    className={`px-2 py-1 rounded border ${summarySort.key === "items" ? "border-blue-500 text-blue-600" : "border-gray-300 text-gray-700"}`}
+                    onClick={() => toggleSummarySort("items")}
+                  >
+                    Ítems <SortIcon dir={summarySort.key === "items" ? summarySort.dir : null} />
+                  </button>
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Insumo
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => toggleSummarySort("insumo")}>
+                        Insumo <SortIcon dir={summarySort.key === "insumo" ? summarySort.dir : null} />
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Consumo (unidades)
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => toggleSummarySort("consumo")}>
+                        Consumo (unidades) <SortIcon dir={summarySort.key === "consumo" ? summarySort.dir : null} />
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Costo ($)
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => toggleSummarySort("costo")}>
+                        Costo ($) <SortIcon dir={summarySort.key === "costo" ? summarySort.dir : null} />
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Items
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer" onClick={() => toggleSummarySort("items")}>
+                        Ítems <SortIcon dir={summarySort.key === "items" ? summarySort.dir : null} />
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {reportData?.usoInsumos.map((insumo, index) => (
-                      <tr key={index}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {resumenFiltradoYOrdenado.map((insumo, index) => (
+                      <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                           {insumo.insumo}
+                          {insumo.categoria && (
+                            <span className="ml-2 text-xs text-gray-500">({insumo.categoria})</span>
+                          )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{insumo.consumo}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{Number(insumo.consumo || 0).toLocaleString()}</td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
                           ${Number(insumo.costo || 0).toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{insumo.items}</td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{Number(insumo.items || 0).toLocaleString()}</td>
                       </tr>
                     ))}
+                    {resumenFiltradoYOrdenado.length === 0 && (
+                      <tr>
+                        <td className="px-6 py-4 text-sm text-gray-500" colSpan={4}>
+                          No hay datos para los filtros aplicados.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Nueva tabla de detalle de insumos */}
+            {/* Tabla de detalle de insumos */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalle de Consumo de Insumos</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Detalle de Consumo de Insumos</h3>
+                {/* Paginación controles */}
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-gray-600">
+                    Filas:
+                    <select
+                      className="ml-2 border border-gray-300 rounded px-2 py-1 text-sm"
+                      value={detailPageSize}
+                      onChange={(e) => { setDetailPageSize(Number(e.target.value) as any); setDetailPage(1) }}
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </label>
+                  <div className="text-sm text-gray-600">{detalleFiltradoOrdenado.length} registros</div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      className="px-2 py-1 border rounded disabled:opacity-50"
+                      onClick={() => setDetailPage((p) => Math.max(1, p - 1))}
+                      disabled={detailPage === 1}
+                    >
+                      ←
+                    </button>
+                    <span className="text-sm text-gray-700 px-1">
+                      {detailPage} / {detalleTotalPages}
+                    </span>
+                    <button
+                      className="px-2 py-1 border rounded disabled:opacity-50"
+                      onClick={() => setDetailPage((p) => Math.min(detalleTotalPages, p + 1))}
+                      disabled={detailPage === detalleTotalPages}
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Insumo
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Categoría
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Características
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Ubicación
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Proveedor
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Compra
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Fecha
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Cantidad
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Costo
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Estado
-                      </th>
+                      {[
+                        { k: "nombre", label: "Insumo" },
+                        { k: "categoria", label: "Categoría" },
+                        { k: "caracteristicas", label: "Características", noSort: true },
+                        { k: "ubicacion", label: "Ubicación", noSort: false },
+                        { k: "proveedor", label: "Proveedor" },
+                        { k: "compra", label: "Compra" },
+                        { k: "fecha", label: "Fecha" },
+                        { k: "cantidad", label: "Cantidad" },
+                        { k: "costo_total", label: "Costo" },
+                        { k: "estado", label: "Estado" },
+                      ].map((col) => (
+                        <th
+                          key={col.k}
+                          className={`px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider ${col.noSort ? "" : "cursor-pointer"}`}
+                          onClick={() => { if (!col.noSort) toggleDetailSort(col.k as DetailKey) }}
+                          title={col.noSort ? undefined : "Ordenar"}
+                        >
+                          <span className="inline-flex items-center">
+                            {col.label} {!col.noSort && <SortIcon dir={detailSort.key === col.k ? detailSort.dir : null} />}
+                          </span>
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {reportData?.usoInsumosDetalle?.map((d, idx) => (
-                      <tr key={idx}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{d.nombre}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.categoria || "Sin categoría"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.caracteristicas || "—"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.ubicacion || "—"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.proveedor || "—"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.compra || "—"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {detallePaginado.map((d, idx) => (
+                      <tr key={`${d.nombre}-${idx}`} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{d.nombre}</td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{d.categoria || "Sin categoría"}</td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{d.caracteristicas || "—"}</td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{d.ubicacion || "—"}</td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{d.proveedor || "—"}</td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{d.compra || "—"}</td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
                           {d.fecha ? formatearFechaTabla(d.fecha) : "—"}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-right text-gray-700">
                           {Number(d.cantidad || 0).toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-right text-gray-700">
                           ${Number(d.costo_total || 0).toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.estado || "—"}</td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{d.estado || "—"}</td>
                       </tr>
                     ))}
-                    {(!reportData?.usoInsumosDetalle || reportData?.usoInsumosDetalle.length === 0) && (
+                    {detallePaginado.length === 0 && (
                       <tr>
                         <td className="px-6 py-4 text-sm text-gray-500" colSpan={10}>
-                          No hay detalle disponible para el rango seleccionado.
+                          No hay detalle disponible para los filtros aplicados.
                         </td>
                       </tr>
                     )}
